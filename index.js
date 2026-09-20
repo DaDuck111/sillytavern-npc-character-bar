@@ -2,11 +2,22 @@ import { addCharacter, getState, mutateState, updateCharacter } from './src/stor
 import { pushLore, pullLore } from './src/lore.js';
 import { applyTrackerPayload, installTrackerBridge } from './src/tracker.js';
 import { mountUI, openArchive, openWorkshop, renderBar } from './src/ui.js';
+import { mountDashboard, renderDashboard } from './src/dashboard.js';
+import { resetAutoTrackerSession, scanLatestRoleplay, scheduleAutoTrack } from './src/autoTracker.js';
 import { getContext } from './src/utils.js';
 
 const TAG = '[NPC Character Bar]';
 let initialized = false;
 let listenersInstalled = false;
+
+function refreshAll() {
+    setTimeout(() => {
+        mountUI();
+        mountDashboard();
+        renderBar();
+        renderDashboard();
+    }, 50);
+}
 
 function installEvents() {
     if (listenersInstalled) return;
@@ -14,34 +25,59 @@ function installEvents() {
 
     const ctx = getContext();
     const events = ctx.eventTypes || ctx.event_types || {};
-    const refresh = () => {
-        setTimeout(() => {
-            mountUI();
-            renderBar();
-        }, 50);
-    };
 
-    if (events.CHAT_CHANGED) ctx.eventSource.on(events.CHAT_CHANGED, refresh);
-    if (events.APP_READY) ctx.eventSource.on(events.APP_READY, refresh);
-    if (events.MESSAGE_RECEIVED) ctx.eventSource.on(events.MESSAGE_RECEIVED, () => renderBar());
-    window.addEventListener('npcb:state-changed', () => renderBar());
+    if (events.CHAT_CHANGED) {
+        ctx.eventSource.on(events.CHAT_CHANGED, () => {
+            resetAutoTrackerSession();
+            refreshAll();
+        });
+    }
+    if (events.APP_READY) ctx.eventSource.on(events.APP_READY, refreshAll);
+
+    if (events.MESSAGE_RECEIVED) {
+        ctx.eventSource.on(events.MESSAGE_RECEIVED, () => {
+            renderBar();
+            renderDashboard();
+            scheduleAutoTrack(500);
+        });
+    }
+
+    if (events.MESSAGE_SWIPED) {
+        ctx.eventSource.on(events.MESSAGE_SWIPED, () => {
+            scheduleAutoTrack(550);
+        });
+    }
+
+    if (events.MESSAGE_UPDATED) {
+        ctx.eventSource.on(events.MESSAGE_UPDATED, () => {
+            scheduleAutoTrack(650);
+        });
+    }
+
+    window.addEventListener('npcb:state-changed', () => {
+        renderBar();
+        renderDashboard();
+    });
 }
 
 async function boot() {
     if (initialized) return;
     if (!window.SillyTavern?.getContext) return;
     initialized = true;
+
     installTrackerBridge();
     installEvents();
     mountUI();
+    mountDashboard();
 
     window.NPCCharacterBar = {
-        version: '0.1.1',
+        version: '0.2.0',
         getState,
-        addCharacter: async seed => { const c = await addCharacter(seed); renderBar(); return c; },
-        updateCharacter: async (id, patch) => { const c = await updateCharacter(id, patch); renderBar(); return c; },
-        setOptions: async patch => { const s = await mutateState(state => Object.assign(state.ui, patch)); renderBar(); return s.ui; },
+        addCharacter: async seed => { const c = await addCharacter(seed); renderBar(); renderDashboard(); return c; },
+        updateCharacter: async (id, patch) => { const c = await updateCharacter(id, patch); renderBar(); renderDashboard(); return c; },
+        setOptions: async patch => { const s = await mutateState(state => Object.assign(state.ui, patch)); renderBar(); renderDashboard(); return s.ui; },
         applyTrackerPayload,
+        scanLatestRoleplay: options => scanLatestRoleplay({ force: true, manual: true, ...(options || {}) }),
         openCharacter: openWorkshop,
         openArchive,
         pushLore: async id => {
@@ -54,10 +90,12 @@ async function boot() {
             if (!character) throw new Error('Character not found.');
             return pullLore(character);
         },
-        render: renderBar,
+        render: () => { renderBar(); renderDashboard(); },
     };
 
-    console.info(`${TAG} v0.1.1 ready`);
+    renderBar();
+    renderDashboard();
+    console.info(`${TAG} v0.2.0 ready — right dashboard + automatic RP tracker enabled.`);
 }
 
 const timer = setInterval(() => {
