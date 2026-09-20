@@ -95,6 +95,7 @@ async function boot() {
 
     renderBar();
     renderDashboard();
+    scheduleAutoTrack(1200);
     console.info(`${TAG} v0.2.0 ready — right dashboard + automatic RP tracker enabled.`);
 }
 
