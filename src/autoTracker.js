@@ -565,6 +565,10 @@ INVENTORY LOCATION RULES:
 - Do not silently teleport items between storage categories.
 - Capacity is a tracking limitation, not permission to invent extra storage.
 
+SCENE SUMMARY RULE:
+- scene.summary should be refreshed after every assistant RP reply with ONE compact continuity sentence, ideally under 18 words.
+- Summarize the current situation, not prose style or dialogue.
+
 WORLD TIME / WEATHER RULES:
 - Track in-world time only from story evidence. Do not use the real user's current date/time.
 - Keep the last known RP time/date/weather when the newest reply does not change it.
