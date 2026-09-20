@@ -896,6 +896,8 @@ export function openArchive() {
         });
 
         root.querySelectorAll('.npcb-folder-drop').forEach(folder => {
+            if (folder.dataset.dropBound === '1') return;
+            folder.dataset.dropBound = '1';
             folder.addEventListener('dragover', event => {
                 event.preventDefault();
                 folder.classList.add('drag-over');
