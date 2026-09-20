@@ -9,7 +9,15 @@ import {
     saveState,
     updateCharacter,
 } from './store.js';
-import { applyLoreContentToCharacter, buildLoreContent, getLorebookNames, syncLore } from './lore.js';
+import {
+    applyLoreContentToCharacter,
+    getLorebookCatalog,
+    getLorebookGroups,
+    getLorebookTags,
+    setLorebookActive,
+    syncLore,
+    updateLorebookMeta,
+} from './lore.js';
 import {
     addNpcToGroup,
     createArchiveGroup,
@@ -40,6 +48,10 @@ let archiveGroupFilter = 'all';
 let archiveChatFilter = 'all';
 let archiveSort = 'name';
 let archiveTagFilter = 'all';
+let loreSearch = '';
+let loreGroupFilter = 'all';
+let loreTagFilter = 'all';
+let loreActiveFilter = 'all';
 const loreAutoSynced = new Set();
 
 function statusIcon(status) {
@@ -263,6 +275,84 @@ const persistWorkshop = debounce(async () => {
     renderBar();
 }, 350);
 
+function renderLoreLibrary(character) {
+    const books = getLorebookCatalog();
+    const groups = getLorebookGroups();
+    const tags = getLorebookTags();
+    const needle = loreSearch.trim().toLowerCase();
+
+    const filtered = books.filter(book => {
+        if (loreGroupFilter !== 'all' && (book.group || '') !== loreGroupFilter) return false;
+        if (loreTagFilter !== 'all' && !(book.tags || []).includes(loreTagFilter)) return false;
+        if (loreActiveFilter === 'active' && !book.active) return false;
+        if (loreActiveFilter === 'inactive' && book.active) return false;
+        if (needle) {
+            const hay = [book.name, book.group, ...(book.tags || [])].join(' ').toLowerCase();
+            if (!hay.includes(needle)) return false;
+        }
+        return true;
+    });
+
+    return `
+        <div class="npcb-lore-link-card">
+            <div>
+                <small>NPC LOREBOOK</small>
+                <strong>${escapeHtml(character.lore?.book || 'Current chat Lorebook')}</strong>
+                <span>${character.lore?.uid ? `Entry #${escapeHtml(character.lore.uid)}` : 'No NPC entry linked yet'}</span>
+            </div>
+            <button class="npcb-primary-btn npcb-lore-sync" type="button">SYNC NPC</button>
+        </div>
+
+        <div class="npcb-lore-help">
+            <strong>How this works</strong>
+            <span>Select a Lorebook below, then Sync NPC. Existing entry → profile refresh. No matching entry → create one from this NPC profile.</span>
+        </div>
+
+        <div class="npcb-lore-library-tools">
+            <input class="npcb-lore-search" placeholder="Search Lorebooks…" value="${escapeHtml(loreSearch)}">
+            <select class="npcb-lore-active-filter">
+                <option value="all" ${loreActiveFilter === 'all' ? 'selected' : ''}>All</option>
+                <option value="active" ${loreActiveFilter === 'active' ? 'selected' : ''}>Active only</option>
+                <option value="inactive" ${loreActiveFilter === 'inactive' ? 'selected' : ''}>Inactive only</option>
+            </select>
+            <select class="npcb-lore-group-filter">
+                <option value="all">All groups</option>
+                ${groups.map(group => `<option value="${escapeHtml(group)}" ${loreGroupFilter === group ? 'selected' : ''}>${escapeHtml(group)}</option>`).join('')}
+            </select>
+            <select class="npcb-lore-tag-filter">
+                <option value="all">All tags</option>
+                ${tags.map(tag => `<option value="${escapeHtml(tag)}" ${loreTagFilter === tag ? 'selected' : ''}>#${escapeHtml(tag)}</option>`).join('')}
+            </select>
+        </div>
+
+        <div class="npcb-lore-library">
+            ${filtered.length ? filtered.map(book => `
+                <article class="npcb-lore-book-card ${book.name === character.lore?.book ? 'selected' : ''}" data-book-name="${escapeHtml(book.name)}">
+                    <button class="npcb-lore-use" type="button" title="Use this Lorebook for this NPC">
+                        <span class="npcb-lore-radio">${book.name === character.lore?.book ? '●' : '○'}</span>
+                        <div>
+                            <strong>${escapeHtml(book.name)}</strong>
+                            <small>${book.group ? escapeHtml(book.group) : 'Ungrouped'}</small>
+                        </div>
+                    </button>
+                    <div class="npcb-lore-tags">
+                        ${(book.tags || []).length ? book.tags.map(tag => `<i>#${escapeHtml(tag)}</i>`).join('') : '<em>No tags</em>'}
+                    </div>
+                    <label class="npcb-lore-active-switch">
+                        <input type="checkbox" ${book.active ? 'checked' : ''}>
+                        <span>${book.active ? 'ACTIVE' : 'INACTIVE'}</span>
+                    </label>
+                    <button class="npcb-lore-organize" type="button">ORGANIZE</button>
+                </article>
+            `).join('') : '<div class="npcb-muted-box">No Lorebooks match these filters.</div>'}
+        </div>
+
+        <div class="npcb-info-strip">
+            Raw Lorebook text is intentionally hidden here. SillyTavern still stores it normally; this extension manages that internal text for you.
+        </div>
+    `;
+}
+
 async function autoHydrateProfileFromLore(id, tab) {
     if (loreAutoSynced.has(id)) return;
     const character = getState().characters[id];
@@ -393,45 +483,10 @@ export function openWorkshop(id, tab = 'overview') {
 
             <section data-pane="lore" class="${tab === 'lore' ? 'active' : ''}">
                 <div class="npcb-section-heading">
-                    <div><small>LOREBOOK</small><strong>NPC Lore Source</strong></div>
-                    <span>Choose a Lorebook. Sync reads an existing NPC entry into this profile, or creates one if none exists.</span>
+                    <div><small>LOREBOOK LIBRARY</small><strong>NPC Lore & Active Books</strong></div>
+                    <span>Choose which Lorebook owns this NPC, organize books with groups/tags, and toggle which global Lorebooks are active in SillyTavern.</span>
                 </div>
-
-                <div class="npcb-lore-picker">
-                    <label>
-                        <span>Lorebook</span>
-                        <select class="npcb-lorebook-select" data-field="lore.book">
-                            ${[
-                                { value: '', label: 'Current chat Lorebook' },
-                                ...getLorebookNames().map(name => ({ value: name, label: name })),
-                                ...(character.lore.book && !getLorebookNames().includes(character.lore.book)
-                                    ? [{ value: character.lore.book, label: character.lore.book }]
-                                    : []),
-                            ].map(option => `<option value="${escapeHtml(option.value)}" ${String(character.lore.book || '') === option.value ? 'selected' : ''}>${escapeHtml(option.label)}</option>`).join('')}
-                        </select>
-                    </label>
-                    <button class="npcb-primary-btn npcb-lore-sync" type="button">SYNC NPC</button>
-                </div>
-
-                <div class="npcb-lore-status">
-                    <div><small>ENTRY UID</small><strong>${escapeHtml(character.lore.uid || 'Not linked yet')}</strong></div>
-                    <div><small>LAST SYNC</small><strong>${character.lore.lastSync ? escapeHtml(new Date(character.lore.lastSync).toLocaleString()) : 'Never'}</strong></div>
-                </div>
-
-                <div class="npcb-info-strip">
-                    <strong>SYNC NPC</strong> is the only button you normally need. If the entry already exists, Lorebook data refreshes the profile. If it does not exist, the extension creates the NPC entry from the current profile.
-                </div>
-
-                <details class="npcb-lore-details">
-                    <summary>Advanced: raw Lorebook content</summary>
-                    <div class="npcb-form-grid">
-                        <label class="npcb-check wide"><input data-field="lore.includeScene" type="checkbox" ${character.lore.includeScene ? 'checked' : ''}> Include current scene state when rebuilding raw lore</label>
-                        ${field('Lore content', 'lore.content', character.lore.content || buildLoreContent(character), { type: 'textarea', rows: 12, wide: true })}
-                    </div>
-                    <div class="npcb-lore-actions">
-                        <button class="npcb-soft-btn npcb-lore-rebuild" type="button">Rebuild raw content from profile</button>
-                    </div>
-                </details>
+                ${renderLoreLibrary(character)}
             </section>
 
             <section data-pane="system" class="${tab === 'system' ? 'active' : ''}">
@@ -571,59 +626,97 @@ function bindWorkshopEvents(character, activeTab = 'overview') {
         });
     });
 
-    root.querySelector('.npcb-lorebook-select')?.addEventListener('change', async event => {
-        const selectedBook = event.target.value;
-        loreAutoSynced.delete(character.id);
-        await updateCharacter(character.id, c => {
-            c.lore.book = selectedBook;
-            c.lore.uid = '';
-            c.lore.lastSync = '';
+    const rerenderLore = () => openWorkshop(character.id, 'lore');
+
+    root.querySelector('.npcb-lore-search')?.addEventListener('input', event => {
+        loreSearch = event.target.value;
+        const caret = event.target.selectionStart;
+        rerenderLore();
+        requestAnimationFrame(() => {
+            const input = ensureModalRoot().querySelector('.npcb-lore-search');
+            input?.focus();
+            input?.setSelectionRange?.(caret, caret);
+        });
+    });
+    root.querySelector('.npcb-lore-active-filter')?.addEventListener('change', event => {
+        loreActiveFilter = event.target.value;
+        rerenderLore();
+    });
+    root.querySelector('.npcb-lore-group-filter')?.addEventListener('change', event => {
+        loreGroupFilter = event.target.value;
+        rerenderLore();
+    });
+    root.querySelector('.npcb-lore-tag-filter')?.addEventListener('change', event => {
+        loreTagFilter = event.target.value;
+        rerenderLore();
+    });
+
+    root.querySelectorAll('.npcb-lore-book-card').forEach(card => {
+        const name = card.dataset.bookName;
+        card.querySelector('.npcb-lore-use')?.addEventListener('click', async () => {
+            loreAutoSynced.delete(character.id);
+            await updateCharacter(character.id, c => {
+                c.lore.book = name;
+                c.lore.uid = '';
+                c.lore.lastSync = '';
+            });
+
+            try {
+                const fresh = getState().characters[character.id];
+                const result = await syncLore(fresh, { book: name, createIfMissing: false });
+                if (result.uid && result.content) {
+                    await updateCharacter(character.id, c => {
+                        Object.assign(c.lore, result);
+                        applyLoreContentToCharacter(c, result.content, { overwrite: true });
+                    });
+                    loreAutoSynced.add(character.id);
+                    toast('success', 'NPC linked and refreshed from Lorebook.');
+                }
+            } catch (error) {
+                console.warn('[NPC Character Bar] Lorebook lookup skipped:', error);
+            }
+            rerenderLore();
         });
 
-        try {
-            const fresh = getState().characters[character.id];
-            const result = await syncLore(fresh, { book: selectedBook, createIfMissing: false });
-            if (result.uid && result.content) {
-                await updateCharacter(character.id, c => {
-                    Object.assign(c.lore, result);
-                    applyLoreContentToCharacter(c, result.content, { overwrite: true });
-                });
-                loreAutoSynced.add(character.id);
-                toast('success', 'Found NPC in Lorebook and refreshed the profile.');
-                openWorkshop(character.id, 'lore');
-            }
-        } catch (error) {
-            console.warn('[NPC Character Bar] Lorebook auto-link skipped:', error);
-        }
+        card.querySelector('.npcb-lore-active-switch input')?.addEventListener('change', async event => {
+            await setLorebookActive(name, event.target.checked);
+            rerenderLore();
+        });
+
+        card.querySelector('.npcb-lore-organize')?.addEventListener('click', () => {
+            const catalog = getLorebookCatalog();
+            const book = catalog.find(x => x.name === name);
+            if (!book) return;
+            const group = prompt('Lorebook group / folder (blank = ungrouped)', book.group || '');
+            if (group === null) return;
+            const tags = prompt('Tags, comma-separated', (book.tags || []).join(', '));
+            if (tags === null) return;
+            updateLorebookMeta(name, {
+                group: group.trim(),
+                tags: tags.split(',').map(x => x.trim().replace(/^#/, '')).filter(Boolean),
+            });
+            rerenderLore();
+        });
     });
 
     root.querySelector('.npcb-lore-sync')?.addEventListener('click', async () => {
         try {
             await persistWorkshopNow(character.id);
             const fresh = getState().characters[character.id];
-            const selectedBook = root.querySelector('.npcb-lorebook-select')?.value ?? fresh.lore.book ?? '';
-            const result = await syncLore(fresh, { book: selectedBook, createIfMissing: true });
+            const result = await syncLore(fresh, { book: fresh.lore?.book || '', createIfMissing: true });
             await updateCharacter(character.id, c => {
                 Object.assign(c.lore, result);
-                if (!result.created && result.content) {
-                    applyLoreContentToCharacter(c, result.content, { overwrite: true });
-                }
+                if (!result.created && result.content) applyLoreContentToCharacter(c, result.content, { overwrite: true });
             });
             loreAutoSynced.add(character.id);
-            toast('success', result.created ? 'Created and linked NPC Lorebook entry.' : 'Synced NPC from Lorebook.');
-            openWorkshop(character.id, 'lore');
+            toast('success', result.created ? 'Created NPC Lorebook entry.' : 'NPC profile refreshed from Lorebook.');
+            rerenderLore();
         } catch (error) {
             console.error(error);
             toast('error', error.message || 'Lorebook sync failed.');
         }
     });
 
-    root.querySelector('.npcb-lore-rebuild')?.addEventListener('click', async () => {
-        await persistWorkshopNow(character.id);
-        const fresh = getState().characters[character.id];
-        await updateCharacter(character.id, c => { c.lore.content = buildLoreContent(fresh); });
-        openWorkshop(character.id, 'lore');
-    });
 }
 
 async function persistWorkshopNow(id) {
