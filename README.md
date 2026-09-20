@@ -1,5 +1,27 @@
 # NPC Character Bar for SillyTavern
 
+## v0.11.4 — Responsive Character Grid, Favorite Hotbar & Daily Streaks
+
+- **Responsive character grid**
+  - Characters now flow left → right and automatically wrap to a new row.
+  - Column count adapts to the drawer/browser width.
+  - The extension overrides SillyTavern's native fixed 30% / 100px grid sizing so cards no longer collapse into avatar-only boxes.
+  - Character names, descriptions, versions, tags and **VIEW CHATS ›** remain visible in grid mode.
+
+- **Favorite / hotswap hotbar**
+  - Favorite character shortcuts at the top are styled as a compact themed hotbar.
+  - The currently active favorite gets an accent ring/glow.
+  - Favorite avatars get clearer hover feedback and better spacing.
+  - Active streaks appear directly on favorite avatars as a small fire badge.
+
+- **Daily chat streaks**
+  - Sending a message records activity for that exact character + chat.
+  - Streaks are per chat, so separate RP timelines can keep separate fires.
+  - Character cards show the strongest currently active streak across that character's chats.
+  - Individual chat rows show their own **🔥 N DAYS** badge.
+  - When a chat is opened, existing user-message timestamps are scanned to reconstruct historical daily activity where possible.
+  - A streak remains alive through today or yesterday; missing a full day beyond that resets the current streak.
+
 ## v0.11.3 — Cleaner Character Selector & Native Editor Theme
 
 - Removed the STEP 1 / STEP 2 instruction banner entirely.
