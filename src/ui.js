@@ -16,7 +16,6 @@ import {
     getLorebookTags,
     setLorebookActive,
     syncLore,
-    updateLorebookMeta,
 } from './lore.js';
 import {
     addNpcToGroup,
