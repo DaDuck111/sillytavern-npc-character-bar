@@ -356,6 +356,27 @@ Schema:
     }
   ],
 
+  "eventsUpdate": [
+    {
+      "title": "",
+      "status": "pending | occurred | cancelled",
+      "description": "",
+      "location": "",
+      "participants": [],
+      "importance": "",
+      "trigger": {
+        "time": "",
+        "date": "",
+        "day": "",
+        "dayPart": "",
+        "weather": "",
+        "season": "",
+        "year": "",
+        "holiday": ""
+      }
+    }
+  ],
+
   "presentCharacters": [],
 
   "newCharacters": [
@@ -480,6 +501,7 @@ EVENT RULES:
 - Record meaningful developments useful for continuity: combat outcome, discovery, arrival/departure, major social development, acquisition, System event, quest turning point.
 - Skip trivial conversational beats.
 - Avoid duplicating an event already present in recent events.
+- If a pending event already exists and the newest story makes it occur or cancel, use eventsUpdate instead of adding a duplicate.
 
 NPC RULES:
 - All recurring/distinct NPCs may track HP, fatigue, relationship, condition, location, mood, and action.
@@ -555,6 +577,7 @@ export async function scanLatestRoleplay({ force = false, manual = false } = {})
             questsAdd: Array.isArray(parsed.questsAdd) ? parsed.questsAdd : [],
             questsUpdate: Array.isArray(parsed.questsUpdate) ? parsed.questsUpdate : [],
             eventsAdd: Array.isArray(parsed.eventsAdd) ? parsed.eventsAdd : [],
+            eventsUpdate: Array.isArray(parsed.eventsUpdate) ? parsed.eventsUpdate : [],
             presentCharacters: Array.isArray(parsed.presentCharacters) ? parsed.presentCharacters : [],
             replacePresent: true,
             newCharacters: Array.isArray(parsed.newCharacters) ? parsed.newCharacters : [],
