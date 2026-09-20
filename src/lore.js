@@ -190,6 +190,7 @@ export function updateLorebookMeta(name, patch = {}) {
             .filter(Boolean))];
     }
     saveLoreMeta();
+    window.dispatchEvent(new CustomEvent('npcb:lore-meta-changed'));
     return true;
 }
 
@@ -214,6 +215,7 @@ export async function setLorebookActive(name, active) {
     if (typeof window.$ === 'function') window.$('#world_info').trigger('change');
     else getContext().saveSettingsDebounced?.();
 
+    window.dispatchEvent(new CustomEvent('npcb:lore-meta-changed'));
     return true;
 }
 
