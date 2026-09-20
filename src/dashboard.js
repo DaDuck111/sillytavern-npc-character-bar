@@ -1093,14 +1093,25 @@ function bindEvents(root) {
             if (action === 'quest-add') return addQuest();
             if (action === 'event-add') return addEvent();
 
-            if (action === 'money-edit') {
+            if (action === 'fund-edit') {
+                const kind = button.dataset.fundKind === 'real' ? 'real' : 'system';
                 const p = getState().player;
-                const money = prompt('Money / funds', String(p.money));
-                if (money === null) return;
-                const currency = prompt('Currency name', p.currency) ?? p.currency;
+                const fund = p.funds?.[kind] || { amount: 0, currency: kind === 'system' ? 'Gold' : '' };
+                const amount = prompt(kind === 'system' ? 'System fund amount' : 'Real-world fund amount', String(fund.amount || 0));
+                if (amount === null) return;
+                const currency = prompt(
+                    kind === 'system' ? 'System currency' : 'Real-world currency used in this story/setting',
+                    fund.currency || (kind === 'system' ? 'Gold' : ''),
+                );
+                if (currency === null) return;
                 await mutateState(s => {
-                    s.player.money = Number(money) || 0;
-                    s.player.currency = currency.trim() || s.player.currency;
+                    s.player.funds ||= {
+                        system: { amount: 0, currency: 'Gold' },
+                        real: { amount: 0, currency: '' },
+                    };
+                    s.player.funds[kind].amount = Number(amount) || 0;
+                    s.player.funds[kind].currency = currency.trim();
+                    if (kind === 'system' && !s.player.hasSystem) s.player.funds.system.amount = 0;
                 });
                 return renderDashboard();
             }
