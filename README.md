@@ -1,5 +1,47 @@
 # NPC Character Bar for SillyTavern
 
+## v0.6.0 — NPC UX, Thoughts, Archive Scopes & RP World State
+
+- **NPC profile layout**
+  - Profile modal is now constrained to the current viewport and switches to a compact responsive layout on half-width/smaller browser windows.
+  - Four simple tabs remain: **Overview / Current / Lorebook / System**.
+  - NPC Memory UI was removed; the extension no longer creates NPC memories in its tracker or Lorebook output.
+  - The System checkbox remains manually editable, but AI may also enable/disable NPC System status when the roleplay clearly establishes it.
+
+- **NPC thoughts**
+  - NPC covers show a 💭 marker when explicit internal thoughts are available.
+  - A 💭 button on the character bar opens a floating thoughts window.
+  - The thoughts window is draggable, remembers its position, and can be hidden/shown.
+  - Thoughts remain conservative: only narration that explicitly reveals an NPC's thoughts is tracked.
+
+- **NPC HP**
+  - Portrait covers above the input now show HP bars.
+  - Archive cards also show HP.
+  - Existing right-side NPC vital bars remain.
+
+- **Lorebook workflow**
+  - Lorebook is now selected from a dropdown populated from SillyTavern Lorebooks.
+  - Selecting a book automatically searches for a matching NPC entry and hydrates the profile when found.
+  - Replaced confusing Pull/Push buttons with one **SYNC NPC** action:
+    - existing entry → refresh profile from Lorebook;
+    - no matching entry → create the NPC entry from the current profile.
+  - Lorebook profile hydration is local/token-free.
+
+- **Archive organizer**
+  - Folder sidebar with drag-and-drop NPC assignment.
+  - Drop onto **Ungrouped** to remove folder memberships, or click a folder chip × to remove a single membership.
+  - Tags, tag filtering, search, and sorting by name / recently updated / relationship / scope.
+  - NPC scope can be **Global / This Chat / This Group Chat**.
+  - **AUTO-LINK** decides whether a matching archived NPC may be reused automatically when detected in another scope-allowed chat.
+  - Folder rename/delete controls included.
+
+- **RP world state**
+  - Tracks story-only time, date/day, day/night period, weather, season, year and holiday/festival.
+  - The Status tab shows the current RP world state and allows manual correction.
+  - Quests may carry time/date/weather/season/holiday conditions.
+  - Events may be pending on trigger conditions and later updated to occurred/cancelled.
+  - Trigger matching is shown in the HUD; the extension does not invent an event merely because a trigger condition is met.
+
 ## v0.5.0 — Profile UX & movable System HUD
 
 - **NPC profile redesign**
