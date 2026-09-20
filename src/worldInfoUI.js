@@ -157,7 +157,6 @@ function bind(root) {
                 group: group.trim(),
                 tags: tags.split(',').map(x => x.trim().replace(/^#/, '')).filter(Boolean),
             });
-            window.dispatchEvent(new CustomEvent('npcb:lore-meta-changed'));
             render();
         });
     });
