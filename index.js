@@ -73,7 +73,7 @@ async function boot() {
     mountDashboard();
 
     window.NPCCharacterBar = {
-        version: '0.3.0',
+        version: '0.4.0',
         getState,
         addCharacter: async seed => { const c = await addCharacter(seed); renderBar(); renderDashboard(); return c; },
         updateCharacter: async (id, patch) => { const c = await updateCharacter(id, patch); renderBar(); renderDashboard(); return c; },
@@ -98,7 +98,7 @@ async function boot() {
     renderBar();
     renderDashboard();
     scheduleAutoTrack(1200);
-    console.info(`${TAG} v0.3.0 ready — System HUD, player tracker, global NPC archive enabled.`);
+    console.info(`${TAG} v0.4.0 ready — quests, events, inventory compartments, System gating, NPC vitals enabled.`);
 }
 
 const timer = setInterval(() => {
