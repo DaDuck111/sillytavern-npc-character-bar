@@ -53,6 +53,7 @@ let loreGroupFilter = 'all';
 let loreTagFilter = 'all';
 let loreActiveFilter = 'all';
 const loreAutoSynced = new Set();
+let loreMetaListenerInstalled = false;
 
 function statusIcon(status) {
     return {
@@ -1136,5 +1137,14 @@ function openContextMenu(id, x, y) {
 export function mountUI() {
     ensureRoot();
     mountThoughts();
+    if (!loreMetaListenerInstalled) {
+        loreMetaListenerInstalled = true;
+        window.addEventListener('npcb:lore-meta-changed', () => {
+            const root = document.getElementById(MODAL_ID);
+            if (currentCharacterId && root?.classList.contains('open') && root.querySelector('[data-pane="lore"].active')) {
+                openWorkshop(currentCharacterId, 'lore');
+            }
+        });
+    }
     renderBar();
 }
