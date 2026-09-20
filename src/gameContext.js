@@ -58,6 +58,12 @@ function buildPrompt(state) {
         playerBits.push('No System; Lv0/XP locked');
     }
     if (p.condition) playerBits.push(`Condition=${p.condition}`);
+    if (p.hasSystem && p.funds?.system) {
+        playerBits.push(`SystemFund=${p.funds.system.amount || 0} ${p.funds.system.currency || 'Gold'}`);
+    }
+    if (p.funds?.real && (Number(p.funds.real.amount) !== 0 || p.funds.real.currency)) {
+        playerBits.push(`RealFund=${p.funds.real.amount || 0} ${p.funds.real.currency || 'currency'}`);
+    }
     const stats = (p.stats || []).map(compactStat).filter(Boolean);
     if (stats.length) playerBits.push(stats.join(', '));
     lines.push(`Player: ${playerBits.join(' | ')}`);
@@ -76,6 +82,12 @@ function buildPrompt(state) {
 
     const skills = (p.skills || []).slice(0, 12).map(compactSkill).filter(Boolean);
     if (skills.length) lines.push(`Relevant skills: ${skills.join(' || ')}`);
+
+    const equipped = (p.inventory || []).filter(item => item.equipped).slice(0, 8).map(item => item.name);
+    if (equipped.length) lines.push(`Equipped: ${equipped.join(', ')}`);
+    const carried = (p.inventory || []).filter(item => item.locationType === 'person' && !item.equipped).slice(0, 10)
+        .map(item => `${item.name}${Number(item.quantity) > 1 ? `×${item.quantity}` : ''}`);
+    if (carried.length) lines.push(`Carried: ${carried.join(', ')}`);
 
     const present = state.order
         .map(id => state.characters[id])
