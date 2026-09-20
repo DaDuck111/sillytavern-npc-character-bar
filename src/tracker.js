@@ -36,17 +36,18 @@ function mergeNpcVitals(character, update, trackVitals = true) {
     }
 
     if (update.maxMana !== undefined && update.maxMana !== null && update.maxMana !== '') {
-        character.vitals.maxMana = Math.max(0, Number(update.maxMana) || 0);
+        character.vitals.maxMana = Math.max(0, numeric(update.maxMana, 0));
     }
     if (update.mana !== undefined && update.mana !== null && update.mana !== '') {
         character.vitals.mana = Math.max(0, character.vitals.maxMana > 0
-            ? Math.min(Number(update.mana) || 0, character.vitals.maxMana)
-            : Number(update.mana) || 0);
+            ? Math.min(numeric(update.mana, 0), character.vitals.maxMana)
+            : numeric(update.mana, 0));
     } else if (update.manaDelta !== undefined && update.manaDelta !== null && update.manaDelta !== '') {
         character.vitals.mana = Math.max(0, character.vitals.maxMana > 0
-            ? Math.min((Number(character.vitals.mana) || 0) + (Number(update.manaDelta) || 0), character.vitals.maxMana)
-            : (Number(character.vitals.mana) || 0) + (Number(update.manaDelta) || 0));
+            ? Math.min(numeric(character.vitals.mana, 0) + numeric(update.manaDelta, 0), character.vitals.maxMana)
+            : numeric(character.vitals.mana, 0) + numeric(update.manaDelta, 0));
     }
+    if (update.manaRelative !== undefined) character.vitals.manaRelative = Boolean(update.manaRelative);
 
     if (update.maxFatigue !== undefined && update.maxFatigue !== null && update.maxFatigue !== '') {
         character.vitals.maxFatigue = Math.max(1, Number(update.maxFatigue) || character.vitals.maxFatigue || 100);
@@ -365,21 +366,44 @@ function applyPlayerUpdate(state, update = {}) {
                 stat = {
                     id: uid('stat'),
                     name: String(raw.name),
-                    value: Number(raw.value ?? 0) || 0,
-                    max: Number(raw.max ?? 100) || 100,
+                    value: numeric(raw.value, 0),
+                    max: Math.max(0, numeric(raw.max, 100)),
                     unit: String(raw.unit ?? ''),
                     aiTrack: true,
                 };
                 player.stats.push(stat);
             }
             if (stat.aiTrack === false) continue;
-            if (raw.max !== undefined && raw.max !== null && raw.max !== '') stat.max = Math.max(1, Number(raw.max) || stat.max || 100);
+            if (raw.max !== undefined && raw.max !== null && raw.max !== '') stat.max = Math.max(0, numeric(raw.max, stat.max || 100));
             if (raw.unit !== undefined && raw.unit !== null) stat.unit = String(raw.unit);
-            if (raw.value !== undefined && raw.value !== null && raw.value !== '') stat.value = Number(raw.value) || 0;
-            else if (raw.delta !== undefined && raw.delta !== null && raw.delta !== '') stat.value = (Number(stat.value) || 0) + (Number(raw.delta) || 0);
+            if (raw.value !== undefined && raw.value !== null && raw.value !== '') stat.value = numeric(raw.value, 0);
+            else if (raw.delta !== undefined && raw.delta !== null && raw.delta !== '') stat.value = numeric(stat.value, 0) + numeric(raw.delta, 0);
             if (Number.isFinite(Number(stat.max)) && Number(stat.max) > 0) {
                 stat.value = Math.max(0, Math.min(Number(stat.value) || 0, Number(stat.max)));
             }
+        }
+    }
+
+    if (tracker.trackStats !== false && Array.isArray(update.resistanceUpdates)) {
+        player.resistances ||= [];
+        for (const raw of update.resistanceUpdates) {
+            if (!raw?.name) continue;
+            const needle = normalizeName(raw.name);
+            let resistance = player.resistances.find(x => normalizeName(x.name) === needle);
+            if (!resistance) {
+                resistance = {
+                    id: uid('resist'),
+                    name: String(raw.name),
+                    value: 0,
+                    aiTrack: true,
+                    description: String(raw.description || ''),
+                };
+                player.resistances.push(resistance);
+            }
+            if (resistance.aiTrack === false) continue;
+            if (raw.value !== undefined && raw.value !== '') resistance.value = Math.max(-100, Math.min(100, numeric(raw.value, resistance.value)));
+            else if (raw.delta !== undefined && raw.delta !== '') resistance.value = Math.max(-100, Math.min(100, numeric(resistance.value, 0) + numeric(raw.delta, 0)));
+            if (raw.description !== undefined) resistance.description = String(raw.description || '');
         }
     }
 
@@ -538,9 +562,53 @@ function applyPlayerUpdate(state, update = {}) {
             player.effects = player.effects.filter(effect => normalizeName(effect.name) !== needle);
         }
 
-        for (const title of update.titlesAdd || []) {
-            const clean = String(title || '').trim();
-            if (clean && !player.titles.some(x => normalizeName(x) === normalizeName(clean))) player.titles.push(clean);
+        for (const raw of update.titlesAdd || []) {
+            const payload = typeof raw === 'string' ? { name: raw } : raw;
+            const clean = String(payload?.name || '').trim();
+            if (!clean) continue;
+            let title = player.titles.find(x => normalizeName(x.name) === normalizeName(clean));
+            if (!title) {
+                title = {
+                    id: uid('title'),
+                    name: clean,
+                    equipped: false,
+                    description: String(payload.description || ''),
+                    effects: Array.isArray(payload.effects) ? payload.effects.filter(Boolean).map(String) : [],
+                    modifiers: {},
+                };
+                player.titles.push(title);
+            }
+            if (payload.description !== undefined) title.description = String(payload.description || '');
+            if (Array.isArray(payload.effects)) title.effects = payload.effects.filter(Boolean).map(String);
+            if (payload.modifiers && typeof payload.modifiers === 'object') {
+                title.modifiers ||= {};
+                for (const key of CORE_ATTRIBUTES) {
+                    if (payload.modifiers[key] !== undefined && payload.modifiers[key] !== '') title.modifiers[key] = numeric(payload.modifiers[key], 0);
+                }
+            }
+            if (payload.equipped === true) {
+                player.equippedTitleId = title.id;
+                for (const other of player.titles) other.equipped = other.id === title.id;
+            }
+        }
+
+        for (const raw of update.titlesUpdate || []) {
+            if (!raw?.name) continue;
+            const title = player.titles.find(x => normalizeName(x.name) === normalizeName(raw.name));
+            if (!title) continue;
+            if (raw.description !== undefined) title.description = String(raw.description || '');
+            if (Array.isArray(raw.effects)) title.effects = raw.effects.filter(Boolean).map(String);
+            if (raw.modifiers && typeof raw.modifiers === 'object') {
+                title.modifiers ||= {};
+                for (const key of CORE_ATTRIBUTES) {
+                    if (raw.modifiers[key] !== undefined && raw.modifiers[key] !== '') title.modifiers[key] = numeric(raw.modifiers[key], 0);
+                }
+            }
+            if (raw.equipped !== undefined) {
+                if (raw.equipped) player.equippedTitleId = title.id;
+                else if (player.equippedTitleId === title.id) player.equippedTitleId = '';
+                for (const other of player.titles) other.equipped = other.id === player.equippedTitleId;
+            }
         }
     }
 
