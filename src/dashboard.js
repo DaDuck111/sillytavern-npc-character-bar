@@ -1160,12 +1160,25 @@ function bindEvents(root) {
         renderDashboard();
     });
 
+    root.querySelector('.npcb-npc-scene-only')?.addEventListener('change', event => {
+        npcSceneOnly = event.target.checked;
+        renderDashboard();
+    });
+
+    root.querySelector('.npcb-npc-group-filter')?.addEventListener('change', event => {
+        npcGroupFilter = event.target.value || 'all';
+        renderDashboard();
+    });
+
     root.querySelector('.npcb-side-close')?.addEventListener('click', () => {
         root.classList.add('npcb-side-hidden');
         document.getElementById(TOGGLE_ID)?.classList.add('visible');
     });
 
-    root.querySelectorAll('.npcb-side-character').forEach(row => row.addEventListener('click', () => openWorkshop(row.dataset.id)));
+    root.querySelectorAll('.npcb-side-character').forEach(row => row.addEventListener('click', event => {
+        if (event.target.closest('button, select, input, label')) return;
+        openWorkshop(row.dataset.id);
+    }));
     root.querySelectorAll('.npcb-side-archive').forEach(button => button.addEventListener('click', openArchive));
 
     root.querySelectorAll('.npcb-side-scan').forEach(button => {
@@ -1262,6 +1275,42 @@ function bindEvents(root) {
                     year: year.trim(),
                     holiday: holiday.trim(),
                 }));
+                return renderDashboard();
+            }
+            if (action === 'npc-group-create') {
+                const name = prompt('New NPC group name');
+                if (!name?.trim()) return;
+                const group = createArchiveGroup(name.trim());
+                if (group?.id) npcGroupFilter = group.id;
+                return renderDashboard();
+            }
+            if (action === 'npc-group-assign') {
+                const row = button.closest('[data-id]');
+                const localId = row?.dataset.id;
+                const state = getState();
+                const npc = state.characters[localId];
+                if (!npc?.archiveId) return;
+                const archive = getGlobalArchive();
+                const current = archive.npcs?.[npc.archiveId];
+                const currentNames = (current?.groupIds || []).map(id => archive.groups?.[id]?.name).filter(Boolean);
+                const value = prompt(
+                    'NPC groups, comma-separated. You can type new group names too.',
+                    currentNames.join(', '),
+                );
+                if (value === null) return;
+
+                const names = [...new Set(value.split(',').map(x => x.trim()).filter(Boolean))];
+                const ids = [];
+                let latest = getGlobalArchive();
+                for (const name of names) {
+                    let group = Object.values(latest.groups || {}).find(g => g.name.toLowerCase() === name.toLowerCase());
+                    if (!group) {
+                        group = createArchiveGroup(name);
+                        latest = getGlobalArchive();
+                    }
+                    if (group?.id) ids.push(group.id);
+                }
+                setNpcGroups(npc.archiveId, ids);
                 return renderDashboard();
             }
             if (action === 'player-edit') return editPlayer();
