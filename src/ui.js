@@ -25,6 +25,9 @@ import {
     getArchiveSeed,
     getCurrentChatRef,
     getGlobalArchive,
+    bulkUpdateArchiveNpcTags,
+    mergeArchiveNpcs,
+    removeArchiveNpcs,
     removeNpcFromGroup,
     renameArchiveGroup,
     setNpcGroups,
@@ -36,6 +39,7 @@ import {
     debounce,
     downloadJson,
     escapeHtml,
+    getContext,
     imageFileToDataUrl,
     toast,
 } from './utils.js';
@@ -48,6 +52,8 @@ let archiveGroupFilter = 'all';
 let archiveChatFilter = 'all';
 let archiveSort = 'name';
 let archiveTagFilter = 'all';
+let archiveFocusId = '';
+const archiveSelectedIds = new Set();
 let loreSearch = '';
 let loreGroupFilter = 'all';
 let loreTagFilter = 'all';
