@@ -59,6 +59,22 @@ function buildPrompt(state) {
         playerBits.push('No System; Lv0/XP locked');
     }
     if (p.condition) playerBits.push(`Condition=${p.condition}`);
+
+    const equippedTitle = (p.titles || []).find(title => title.id === p.equippedTitleId || title.equipped);
+    if (equippedTitle) {
+        const titleMods = Object.entries(equippedTitle.modifiers || {})
+            .filter(([, value]) => Number(value) !== 0)
+            .map(([key, value]) => `${key}${Number(value) > 0 ? '+' : ''}${value}`);
+        playerBits.push(`Title="${equippedTitle.name}"${titleMods.length ? ` [${titleMods.join(',')}]` : ''}`);
+        if (equippedTitle.effects?.length) playerBits.push(`TitleEffects=${equippedTitle.effects.slice(0, 3).join('; ')}`);
+    }
+
+    const resistances = (p.resistances || [])
+        .filter(resistance => Number(resistance.value) !== 0)
+        .slice(0, 8)
+        .map(resistance => `${resistance.name} ${Number(resistance.value) > 0 ? '+' : ''}${resistance.value}%`);
+    if (resistances.length) playerBits.push(`Resistances=${resistances.join(', ')}`);
+
     if (p.hasSystem && p.funds?.system) {
         playerBits.push(`SystemFund=${p.funds.system.amount || 0} ${p.funds.system.currency || 'Gold'}`);
     }
@@ -120,7 +136,7 @@ function buildPrompt(state) {
     if (recentEvents.length) lines.push(`Recent continuity: ${recentEvents.join(' || ')}`);
 
     lines.push(
-        'Gameplay rule: an attempted action is not automatically successful. Respect injuries, fatigue, Mana/Stamina/Health, active effects, skill cooldowns/costs/requirements, equipment, and established abilities.',
+        'Gameplay rule: an attempted action is not automatically successful. Respect injuries, fatigue, Mana/Stamina/Health, resistances/vulnerabilities, equipped title effects, active effects, skill cooldowns/costs/requirements, equipment, and established abilities.',
         'When an outcome is uncertain, resolve it proportionally to the tracked state and narrative difficulty, like a lightweight tabletop ability check. Strong stats/skills help; poor state, missing requirements, depleted resources, or cooldowns can cause failure, partial success, delay, or consequences.',
         'Do not invent hidden numeric requirements or change tracked values silently. Any resource loss, injury, cooldown, buff/debuff, acquisition, or major consequence should be made clear in the narration so the tracker can record it.',
         'Do not take control of the user character’s choices; only resolve consequences of actions the user attempts.',
