@@ -172,8 +172,13 @@ export function renderBar() {
             <div class="npcb-card-body">
                 <div class="npcb-card-name">${escapeHtml(character.name)}</div>
                 <div class="npcb-card-meta">${escapeHtml(character.role || character.faction || statusLabel(character.status))}</div>
-                <div class="npcb-card-hp" title="HP ${escapeHtml(character.vitals?.hp ?? 100)} / ${escapeHtml(character.vitals?.maxHp ?? 100)}">
-                    <i style="width:${Math.max(0, Math.min(100, ((Number(character.vitals?.hp) || 0) / Math.max(1, Number(character.vitals?.maxHp) || 100)) * 100))}%"></i>
+                <div class="npcb-card-vitals">
+                    <div class="npcb-card-hp" title="HP ${escapeHtml(character.vitals?.hp ?? 100)} / ${escapeHtml(character.vitals?.maxHp ?? 100)}">
+                        <i style="width:${Math.max(0, Math.min(100, ((Number(character.vitals?.hp) || 0) / Math.max(1, Number(character.vitals?.maxHp) || 100)) * 100))}%"></i>
+                    </div>
+                    <div class="npcb-card-mana ${Number(character.vitals?.maxMana) > 0 ? 'known' : 'unknown'}" title="${Number(character.vitals?.maxMana) > 0 ? `Mana ${escapeHtml(character.vitals?.mana ?? 0)} / ${escapeHtml(character.vitals?.maxMana ?? 0)}` : 'Mana not established'}">
+                        <i style="width:${Number(character.vitals?.maxMana) > 0 ? Math.max(0, Math.min(100, ((Number(character.vitals?.mana) || 0) / Math.max(1, Number(character.vitals?.maxMana) || 1)) * 100)) : 0}%"></i>
+                    </div>
                 </div>
                 <div class="npcb-card-state">${escapeHtml(character.scene?.action || character.scene?.mood || character.relationship?.label || '')}</div>
             </div>
