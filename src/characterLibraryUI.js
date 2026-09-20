@@ -191,12 +191,20 @@ async function fetchCharacterChats(chid, { force = false } = {}) {
     return chats;
 }
 
+function backToCharacterList() {
+    selectedChid = '';
+    markSelectedCard();
+    renderEmptyDetail();
+}
+
 function renderLoading(character, card) {
     const detail = document.getElementById(DETAIL_ID);
     if (!detail) return;
 
     const avatar = avatarUrl(character, card);
     detail.innerHTML = `
+        <div class="npcb-char-library-detail-scroll">
+        <button type="button" class="npcb-char-library-back">← CHARACTERS</button>
         <div class="npcb-char-library-hero">
             <div class="npcb-char-library-avatar">${avatar ? `<img src="${escapeHtml(avatar)}" alt="">` : '<span>?</span>'}</div>
             <div class="npcb-char-library-identity">
@@ -208,7 +216,9 @@ function renderLoading(character, card) {
         <div class="npcb-char-library-loading">
             <i></i><span>Reading SillyTavern chat history…</span>
         </div>
+        </div>
     `;
+    detail.querySelector('.npcb-char-library-back')?.addEventListener('click', backToCharacterList);
 }
 
 function cardTags(card) {
@@ -252,7 +262,7 @@ function renderCharacterDetail(chid, chats, card) {
             ` : ''}
 
             <div class="npcb-char-library-actions">
-                <button type="button" data-char-action="open-current">OPEN LAST / CURRENT CHAT</button>
+                <button type="button" data-char-action="open-current">OPEN MOST RECENT CHAT</button>
                 <button type="button" data-char-action="refresh">↻ REFRESH CHATS</button>
             </div>
 
@@ -296,11 +306,7 @@ function renderCharacterDetail(chid, chats, card) {
         </div>
     `;
 
-    detail.querySelector('.npcb-char-library-back')?.addEventListener('click', () => {
-        selectedChid = '';
-        markSelectedCard();
-        renderEmptyDetail();
-    });
+    detail.querySelector('.npcb-char-library-back')?.addEventListener('click', backToCharacterList);
 
     const openExactChat = async chat => {
         const latestCtx = currentContext();
@@ -375,13 +381,17 @@ async function selectCharacterPreview(chid, card = null, { force = false } = {})
         const detail = document.getElementById(DETAIL_ID);
         if (detail) {
             detail.innerHTML = `
-                <div class="npcb-char-library-error">
-                    <strong>Could not load chats</strong>
-                    <span>${escapeHtml(error.message || String(error))}</span>
-                    <button type="button">TRY AGAIN</button>
+                <div class="npcb-char-library-detail-scroll">
+                    <button type="button" class="npcb-char-library-back">← CHARACTERS</button>
+                    <div class="npcb-char-library-error">
+                        <strong>Could not load chats</strong>
+                        <span>${escapeHtml(error.message || String(error))}</span>
+                        <button type="button" class="npcb-char-library-retry">TRY AGAIN</button>
+                    </div>
                 </div>
             `;
-            detail.querySelector('button')?.addEventListener('click', () => selectCharacterPreview(chid, card, { force: true }));
+            detail.querySelector('.npcb-char-library-back')?.addEventListener('click', backToCharacterList);
+            detail.querySelector('.npcb-char-library-retry')?.addEventListener('click', () => selectCharacterPreview(chid, card, { force: true }));
         }
     }
 }
