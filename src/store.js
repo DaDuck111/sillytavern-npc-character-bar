@@ -46,11 +46,13 @@ export const DEFAULT_PLAYER = Object.freeze({
     inventory: [],
     skills: [],
     effects: [],
+    resistances: [],
     titles: [],
+    equippedTitleId: '',
 });
 
 export const DEFAULT_STATE = Object.freeze({
-    version: 7,
+    version: 8,
     characters: {},
     order: [],
     scene: {
@@ -97,14 +99,54 @@ function normalizeAttributes(raw = {}) {
     return result;
 }
 
+function numeric(value, fallback = 0) {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    const parsed = Number.parseFloat(String(value ?? '').replace(/,/g, '').replace(/%/g, '').trim());
+    return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 function normalizeStat(raw, index = 0) {
+    const max = Math.max(0, numeric(raw?.max, 100));
     return {
         id: raw?.id || uid('stat'),
         name: String(raw?.name || `Stat ${index + 1}`),
-        value: Number.isFinite(Number(raw?.value)) ? Number(raw.value) : 0,
-        max: Number.isFinite(Number(raw?.max)) ? Number(raw.max) : 100,
+        value: numeric(raw?.value, 0),
+        max,
         unit: String(raw?.unit ?? ''),
         aiTrack: raw?.aiTrack !== false,
+    };
+}
+
+function normalizeResistance(raw = {}, index = 0) {
+    return {
+        id: raw.id || uid('resist'),
+        name: String(raw.name || `Resistance ${index + 1}`),
+        value: Math.max(-100, Math.min(100, numeric(raw.value, 0))),
+        aiTrack: raw.aiTrack !== false,
+        description: String(raw.description || ''),
+    };
+}
+
+function normalizeTitle(raw = {}, index = 0) {
+    if (typeof raw === 'string') {
+        return {
+            id: uid('title'),
+            name: raw,
+            equipped: false,
+            description: '',
+            effects: [],
+            modifiers: {},
+        };
+    }
+    return {
+        id: raw.id || uid('title'),
+        name: String(raw.name || `Title ${index + 1}`),
+        equipped: Boolean(raw.equipped),
+        description: String(raw.description || ''),
+        effects: Array.isArray(raw.effects) ? raw.effects.filter(Boolean).map(String) : [],
+        modifiers: Object.fromEntries(CORE_ATTRIBUTES
+            .filter(key => raw.modifiers?.[key] !== undefined)
+            .map(key => [key, numeric(raw.modifiers[key], 0)])),
     };
 }
 
@@ -245,7 +287,8 @@ function normalizePlayer(raw = {}) {
         inventory: Array.isArray(raw.inventory) ? raw.inventory.map(normalizeInventoryItem) : [],
         skills: Array.isArray(raw.skills) ? raw.skills.map(normalizeSkill) : [],
         effects: Array.isArray(raw.effects) ? raw.effects.map(normalizeEffect) : [],
-        titles: Array.isArray(raw.titles) ? raw.titles.filter(Boolean).map(String) : [],
+        resistances: Array.isArray(raw.resistances) ? raw.resistances.map(normalizeResistance) : [],
+        titles: Array.isArray(raw.titles) ? raw.titles.filter(Boolean).map(normalizeTitle) : [],
         inventoryLimits: { ...base.inventoryLimits, ...(raw.inventoryLimits || {}) },
     };
 
@@ -266,6 +309,10 @@ function normalizePlayer(raw = {}) {
 
     merged.statPointsPerLevel = Math.max(0, Number(merged.statPointsPerLevel) || 5);
     merged.statPoints = Math.max(0, Number(merged.statPoints) || 0);
+
+    const explicitlyEquipped = merged.titles.find(title => title.id === raw.equippedTitleId || title.equipped);
+    merged.equippedTitleId = explicitlyEquipped?.id || '';
+    for (const title of merged.titles) title.equipped = title.id === merged.equippedTitleId;
 
     if (!hasSystem) {
         merged.level = 0;
@@ -320,8 +367,9 @@ export function makeCharacter(seed = {}) {
         vitals: {
             hp: Number.isFinite(Number(seed.vitals?.hp)) ? Number(seed.vitals.hp) : 100,
             maxHp: Math.max(1, Number(seed.vitals?.maxHp) || 100),
-            mana: Math.max(0, Number(seed.vitals?.mana) || 0),
-            maxMana: Math.max(0, Number(seed.vitals?.maxMana) || 0),
+            mana: Math.max(0, numeric(seed.vitals?.mana, 0)),
+            maxMana: Math.max(0, numeric(seed.vitals?.maxMana, 0)),
+            manaRelative: Boolean(seed.vitals?.manaRelative),
             fatigue: Math.max(0, Number(seed.vitals?.fatigue) || 0),
             maxFatigue: Math.max(1, Number(seed.vitals?.maxFatigue) || 100),
         },
@@ -367,8 +415,9 @@ function normalizeCharacter(raw = {}) {
             ...(raw.vitals || {}),
             hp: Number.isFinite(Number(raw.vitals?.hp)) ? Number(raw.vitals.hp) : base.vitals.hp,
             maxHp: Math.max(1, Number(raw.vitals?.maxHp) || base.vitals.maxHp),
-            mana: Math.max(0, Number(raw.vitals?.mana) || 0),
-            maxMana: Math.max(0, Number(raw.vitals?.maxMana) || 0),
+            mana: Math.max(0, numeric(raw.vitals?.mana, 0)),
+            maxMana: Math.max(0, numeric(raw.vitals?.maxMana, 0)),
+            manaRelative: Boolean(raw.vitals?.manaRelative),
             fatigue: Math.max(0, Number(raw.vitals?.fatigue) || 0),
             maxFatigue: Math.max(1, Number(raw.vitals?.maxFatigue) || base.vitals.maxFatigue),
         },
@@ -392,7 +441,7 @@ export function getState() {
     const ctx = getContext();
     const raw = ctx.chatMetadata?.[META_KEY];
     const state = deepClone(raw || DEFAULT_STATE);
-    state.version = 7;
+    state.version = 8;
     state.characters ||= {};
     state.order ||= [];
     state.scene = { ...DEFAULT_STATE.scene, ...(state.scene || {}) };
