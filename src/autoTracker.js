@@ -560,7 +560,9 @@ SKILL / STATUS RULES:
 - Skills are gameplay state, not decorative labels. Keep description, cost, cooldown, requirements and effects when the story establishes them.
 - If the newest reply shows a known tracked skill being used, apply its ALREADY-KNOWN cost and base cooldown even if the narration does not repeat those numbers. Do not charge twice.
 - When a known cooldown is turn-based, reduce remainingCooldown as relevant RP turns/actions pass; for time-based cooldowns, update only when enough in-story time clearly passes.
+- If a known skill has an explicit numeric tracked effect (for example restores 15 Health or spends 20 Mana), apply that known effect through statUpdates when the skill successfully takes effect. Do not infer numbers from vague prose.
 - If a known skill produces a tracked buff/debuff/status effect, reflect it with effectsAdd/effectsUpdate when the use actually applies that effect.
+- If an active status effect has an explicit per-turn/per-time resource change and the newest RP clearly advances that interval, apply the known change through statUpdates.
 - Passive skill modifiers belong in modifiers; temporary buffs/debuffs belong in player effects.
 - Do not invent exact numeric costs/cooldowns/stat requirements when the tracked skill and RP do not establish them. Text requirements are allowed when clear.
 
