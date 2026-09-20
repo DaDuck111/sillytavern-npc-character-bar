@@ -635,15 +635,37 @@ function renderQuestCard(quest) {
 }
 
 function renderQuests(state) {
-    const quests = [...(state.quests || [])].sort((a, b) => {
-        const rank = { active: 0, completed: 1, failed: 2, hidden: 3 };
-        return (rank[a.status] ?? 9) - (rank[b.status] ?? 9) || String(b.updatedAt).localeCompare(String(a.updatedAt));
+    const typeOrder = ['main', 'side', 'system', 'story'];
+    const typeLabels = { main: 'MAIN', side: 'SIDE', system: 'SYSTEM', story: 'STORY' };
+    let quests = [...(state.quests || [])].sort((a, b) => {
+        const statusRank = { active: 0, completed: 1, failed: 2, hidden: 3 };
+        const typeRank = Object.fromEntries(typeOrder.map((type, index) => [type, index]));
+        return (typeRank[a.type] ?? 9) - (typeRank[b.type] ?? 9)
+            || (statusRank[a.status] ?? 9) - (statusRank[b.status] ?? 9)
+            || String(b.updatedAt).localeCompare(String(a.updatedAt));
     });
+
+    if (questCategory !== 'all') quests = quests.filter(q => q.type === questCategory);
+
+    const grouped = typeOrder
+        .map(type => [type, quests.filter(q => q.type === type)])
+        .filter(([, list]) => list.length);
 
     return `
         <div class="npcb-system-section-head"><span>QUEST LOG</span><button data-action="quest-add">＋ ADD QUEST</button></div>
-        <div class="npcb-quest-list">
-            ${quests.length ? quests.map(renderQuestCard).join('') : '<div class="npcb-side-empty">No quests tracked. Story goals and explicit System quests can be detected automatically.</div>'}
+        <div class="npcb-quest-category-tabs">
+            ${[
+                ['all', 'ALL'],
+                ...typeOrder.map(type => [type, typeLabels[type]]),
+            ].map(([key,label]) => `<button data-quest-category="${key}" class="${questCategory === key ? 'active' : ''}">${label}</button>`).join('')}
+        </div>
+        <div class="npcb-quest-groups">
+            ${grouped.length ? grouped.map(([type, list]) => `
+                <section class="npcb-quest-group type-${type}">
+                    <div class="npcb-quest-group-head"><span>${typeLabels[type]} QUESTS</span><b>${list.length}</b></div>
+                    <div class="npcb-quest-list">${list.map(renderQuestCard).join('')}</div>
+                </section>
+            `).join('') : '<div class="npcb-side-empty">No quests in this category.</div>'}
         </div>
     `;
 }
