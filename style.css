@@ -3732,3 +3732,34 @@
     width: 0;
     height: 0;
 }
+
+
+.npcb-lore-link-actions {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+.npcb-lore-library-group + .npcb-lore-library-group {
+    margin-top: 9px;
+}
+.npcb-lore-library-group-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 6px;
+    border-bottom: 1px solid rgba(75,220,255,.08);
+    color: rgba(128,225,246,.62);
+    background: rgba(7,14,22,.96);
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: .07em;
+}
+.npcb-lore-library-group-head b {
+    color: rgba(195,235,245,.38);
+    font-size: 7px;
+}
