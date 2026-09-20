@@ -195,6 +195,13 @@ Schema:
   "scene": {
     "location": "",
     "time": "",
+    "date": "",
+    "day": "",
+    "dayPart": "",
+    "weather": "",
+    "season": "",
+    "year": "",
+    "holiday": "",
     "summary": ""
   },
 
@@ -290,7 +297,17 @@ Schema:
         { "text": "", "complete": false }
       ],
       "reward": "",
-      "source": ""
+      "source": "",
+      "conditions": {
+        "time": "",
+        "date": "",
+        "day": "",
+        "dayPart": "",
+        "weather": "",
+        "season": "",
+        "year": "",
+        "holiday": ""
+      }
     }
   ],
 
@@ -303,7 +320,17 @@ Schema:
         { "text": "", "complete": true }
       ],
       "reward": "",
-      "source": ""
+      "source": "",
+      "conditions": {
+        "time": "",
+        "date": "",
+        "day": "",
+        "dayPart": "",
+        "weather": "",
+        "season": "",
+        "year": "",
+        "holiday": ""
+      }
     }
   ],
 
@@ -314,7 +341,18 @@ Schema:
       "description": "",
       "location": "",
       "participants": [],
-      "importance": "minor | normal | major | critical"
+      "importance": "minor | normal | major | critical",
+      "status": "pending | occurred | cancelled",
+      "trigger": {
+        "time": "",
+        "date": "",
+        "day": "",
+        "dayPart": "",
+        "weather": "",
+        "season": "",
+        "year": "",
+        "holiday": ""
+      }
     }
   ],
 
@@ -370,7 +408,6 @@ Schema:
       "condition": "",
       "clothing": "",
       "thoughts": "",
-      "memory": "",
       "profile": {
         "age": "",
         "gender": "",
@@ -423,6 +460,15 @@ INVENTORY LOCATION RULES:
 - Do not silently teleport items between storage categories.
 - Capacity is a tracking limitation, not permission to invent extra storage.
 
+WORLD TIME / WEATHER RULES:
+- Track in-world time only from story evidence. Do not use the real user's current date/time.
+- Keep the last known RP time/date/weather when the newest reply does not change it.
+- dayPart should be a compact value such as dawn, morning, afternoon, evening, night, late night.
+- weather should be short and story-grounded: clear, rain, snow, storm, fog, etc.
+- season/year/holiday are optional and only set when established. Holiday may be values such as Christmas, New Year, Lunar New Year, festival names, or fictional holidays.
+- If a quest has an explicit time/weather/season/date/holiday requirement, put it in conditions.
+- A future event may be tracked as status="pending" with trigger fields. Do not say it occurred until the story actually narrates it.
+
 QUEST RULES:
 - Add a quest when the story clearly establishes a goal, assignment, contract, mission, promise, investigation, survival objective, or explicit System quest.
 - Story quests are allowed even without a System.
@@ -439,6 +485,8 @@ NPC RULES:
 - All recurring/distinct NPCs may track HP, fatigue, relationship, condition, location, mood, and action.
 - HP/Fatigue values should only change when narration makes a change clear. If exact numbers are not available, use delta only when magnitude is clearly implied; otherwise leave blank.
 - relationshipValue is -100 to 100 and should change conservatively.
+- You MAY set an NPC's hasSystem=true automatically when the newest roleplay clearly establishes that NPC has/awakens/uses a System, status window, RPG stat interface, or equivalent mechanic. This is not limited to manual user toggles.
+- You MAY set hasSystem=false only when the story clearly removes/disables that mechanic.
 - NPC detailed level/XP/STR/DEX/INT/STA/SEN/custom System stats are ONLY allowed when that NPC explicitly has a System or equivalent stat interface.
 - If NPC hasSystem=false, do not assign detailed RPG attributes/level/XP.
 - presentCharacters means NPCs present NOW in the newest assistant reply, not merely mentioned.
@@ -453,7 +501,8 @@ NPC RULES:
         { role: 'system', content: system },
         {
             role: 'user',
-            content: `Existing player state:\n${JSON.stringify(playerSummary)}
+            content: `Existing RP world state:\n${JSON.stringify(state.scene || {})}
+\nExisting player state:\n${JSON.stringify(playerSummary)}
 \nExisting quests:\n${JSON.stringify(questSummary)}
 \nRecent tracked events:\n${JSON.stringify(recentEvents)}
 \nExisting NPC roster:\n${JSON.stringify(summarizeRoster(state))}
