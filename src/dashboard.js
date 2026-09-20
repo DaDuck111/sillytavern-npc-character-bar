@@ -371,7 +371,7 @@ function renderStatus(state) {
                 <button data-action="fund-edit" data-fund-kind="system">EDIT</button>
             </div>
             <div class="npcb-fund-card real-fund">
-                <small>REAL-WORLD FUND</small>
+                <small>REAL-WORLD / SETTING FUND</small>
                 <strong>${escapeHtml((p.funds?.real?.amount ?? 0).toLocaleString?.() ?? p.funds?.real?.amount ?? 0)} <em>${escapeHtml(p.funds?.real?.currency || 'Currency unknown')}</em></strong>
                 <button data-action="fund-edit" data-fund-kind="real">EDIT</button>
             </div>
@@ -455,7 +455,7 @@ function renderInventory(state) {
                 <button data-action="fund-edit" data-fund-kind="system">EDIT</button>
             </div>
             <div>
-                <span>REAL-WORLD FUND</span>
+                <span>REAL-WORLD / SETTING FUND</span>
                 <strong>${escapeHtml((p.funds?.real?.amount ?? 0).toLocaleString?.() ?? p.funds?.real?.amount ?? 0)} ${escapeHtml(p.funds?.real?.currency || 'Currency unknown')}</strong>
                 <button data-action="fund-edit" data-fund-kind="real">EDIT</button>
             </div>
@@ -1344,10 +1344,10 @@ function bindEvents(root) {
                 const kind = button.dataset.fundKind === 'real' ? 'real' : 'system';
                 const p = getState().player;
                 const fund = p.funds?.[kind] || { amount: 0, currency: kind === 'system' ? 'Gold' : '' };
-                const amount = prompt(kind === 'system' ? 'System fund amount' : 'Real-world fund amount', String(fund.amount || 0));
+                const amount = prompt(kind === 'system' ? 'System fund amount' : 'Setting / real-world fund amount', String(fund.amount || 0));
                 if (amount === null) return;
                 const currency = prompt(
-                    kind === 'system' ? 'System currency' : 'Real-world currency used in this story/setting',
+                    kind === 'system' ? 'System currency' : 'Currency used in this story/setting',
                     fund.currency || (kind === 'system' ? 'Gold' : ''),
                 );
                 if (currency === null) return;
