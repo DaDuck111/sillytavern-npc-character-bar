@@ -820,8 +820,8 @@ function renderTrackerSettings(state) {
         ${toggle('tracker.trackPlayer', t.trackPlayer !== false, 'Track player state', 'Track System state, location and condition.')}
         ${toggle('tracker.trackStats', t.trackStats !== false, 'Track player vitals', 'Update AI-enabled custom stats.')}
         ${toggle('tracker.trackInventory', t.trackInventory !== false, 'Track inventory + storage', 'Track carried, clothing and stored items.')}
-        ${toggle('tracker.trackSkills', t.trackSkills !== false, 'Track skills & titles', 'Record acquired skills/ranks/titles.')}
-        ${toggle('tracker.trackMoney', t.trackMoney !== false, 'Track money', 'Update funds when explicit spending/rewards occur.')}
+        ${toggle('tracker.trackSkills', t.trackSkills !== false, 'Track skills, cooldowns & effects', 'Record skill details, cooldown state, titles and buffs/debuffs.')}
+        ${toggle('tracker.trackMoney', t.trackMoney !== false, 'Track both funds', 'Track System Gold separately from ordinary setting/story currency.')}
         ${toggle('tracker.trackQuests', t.trackQuests !== false, 'Track quests', 'Create/update story and System quests from clear objectives.')}
         ${toggle('tracker.trackEvents', t.trackEvents !== false, 'Track events', 'Record compact story developments for continuity after RP replies.')}
         ${toggle('tracker.injectGameState', t.injectGameState !== false, 'Respect RPG constraints in RP', 'Inject a compact live state so the roleplay model considers injuries, resources, cooldowns, requirements and status effects.')}
