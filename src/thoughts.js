@@ -10,8 +10,11 @@ function prefs() {
     const raw = ctx.extensionSettings[PREF_KEY] || {};
     return {
         visible: Boolean(raw.visible),
-        left: Number(raw.left) || Math.max(12, window.innerWidth - 360),
+        left: Number(raw.left) || Math.max(12, window.innerWidth - 390),
         top: Number(raw.top) || 120,
+        width: Math.max(280, Number(raw.width) || 370),
+        height: Math.max(220, Number(raw.height) || 360),
+        fontSize: Math.max(9, Math.min(20, Number(raw.fontSize) || 12)),
     };
 }
 
@@ -37,6 +40,23 @@ function clamp(panel, left, top) {
         left: Math.max(6, Math.min(left, window.innerWidth - rect.width - 6)),
         top: Math.max(6, Math.min(top, window.innerHeight - rect.height - 6)),
     };
+}
+
+function installResizePersistence(panel) {
+    if (panel._npcbResizeObserver || typeof ResizeObserver === 'undefined') return;
+    let ready = false;
+    let timer = null;
+    const observer = new ResizeObserver(() => {
+        if (!ready) return;
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+            const rect = panel.getBoundingClientRect();
+            savePrefs({ width: rect.width, height: rect.height, left: rect.left, top: rect.top });
+        }, 180);
+    });
+    observer.observe(panel);
+    panel._npcbResizeObserver = observer;
+    requestAnimationFrame(() => { ready = true; });
 }
 
 function installDrag(panel) {
@@ -103,13 +123,20 @@ export function renderThoughts() {
     panel.classList.toggle('visible', p.visible);
     panel.style.left = `${p.left}px`;
     panel.style.top = `${p.top}px`;
+    panel.style.width = `${Math.min(p.width, Math.max(280, window.innerWidth - 12))}px`;
+    panel.style.height = `${Math.min(p.height, Math.max(220, window.innerHeight - 12))}px`;
+    panel.style.setProperty('--npcb-thought-font', `${p.fontSize}px`);
 
     panel.innerHTML = `
         <div class="npcb-thoughts-head" title="Drag thoughts panel">
             <span>💭</span>
             <strong>NPC THOUGHTS</strong>
             <small>${list.length}</small>
-            <button type="button" title="Hide thoughts">×</button>
+            <div class="npcb-thought-font-controls">
+                <button type="button" data-font="-1" title="Smaller text">A−</button>
+                <button type="button" data-font="1" title="Larger text">A＋</button>
+            </div>
+            <button type="button" class="npcb-thought-close" title="Hide thoughts">×</button>
         </div>
         <div class="npcb-thoughts-list">
             ${list.length ? list.map(c => `
@@ -126,8 +153,17 @@ export function renderThoughts() {
         </div>
     `;
 
-    panel.querySelector('.npcb-thoughts-head button')?.addEventListener('click', () => toggleThoughts(false));
+    panel.querySelector('.npcb-thought-close')?.addEventListener('click', () => toggleThoughts(false));
+    panel.querySelectorAll('[data-font]').forEach(button => {
+        button.addEventListener('click', event => {
+            event.stopPropagation();
+            const next = Math.max(9, Math.min(20, p.fontSize + Number(button.dataset.font || 0)));
+            savePrefs({ fontSize: next });
+            renderThoughts();
+        });
+    });
     installDrag(panel);
+    installResizePersistence(panel);
 
     requestAnimationFrame(() => {
         if (!p.visible) return;
