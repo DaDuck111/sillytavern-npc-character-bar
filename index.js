@@ -77,7 +77,7 @@ async function boot() {
     refreshGameContext();
 
     window.NPCCharacterBar = {
-        version: '0.6.0',
+        version: '0.7.0',
         getState,
         addCharacter: async seed => { const c = await addCharacter(seed); renderBar(); renderDashboard(); return c; },
         updateCharacter: async (id, patch) => { const c = await updateCharacter(id, patch); renderBar(); renderDashboard(); return c; },
@@ -102,7 +102,7 @@ async function boot() {
     renderBar();
     renderDashboard();
     scheduleAutoTrack(1200);
-    console.info(`${TAG} v0.6.0 ready — responsive NPC profiles, thoughts, archive organizer, Lorebook sync and RP world tracking enabled.`);
+    console.info(`${TAG} v0.7.0 ready — RPG constraints, Lorebook library, split funds, rich skills, NPC Mana and continuity tracking enabled.`);
 }
 
 const timer = setInterval(() => {
