@@ -625,9 +625,29 @@ function renderSkills(state) {
         <div class="npcb-system-section-head"><span>ACTIVE STATUS EFFECTS</span></div>
         <div class="npcb-effect-list">${effects || '<div class="npcb-side-empty">No active buffs/debuffs.</div>'}</div>
 
-        <div class="npcb-system-section-head"><span>TITLES</span></div>
-        <div class="npcb-system-tags">
-            ${p.titles?.length ? p.titles.map(title => `<span>${escapeHtml(title)}</span>`).join('') : '<em>No titles yet</em>'}
+        <div class="npcb-system-section-head"><span>TITLES</span><button data-action="title-add">＋ ADD TITLE</button></div>
+        <div class="npcb-title-list">
+            ${p.titles?.length ? p.titles.map(title => {
+                const equipped = title.id === p.equippedTitleId || title.equipped;
+                const mods = Object.entries(title.modifiers || {})
+                    .filter(([, value]) => Number(value) !== 0)
+                    .map(([key, value]) => `${key} ${Number(value) > 0 ? '+' : ''}${value}`);
+                return `
+                    <article class="npcb-title-card ${equipped ? 'equipped' : ''}" data-title-id="${escapeHtml(title.id)}">
+                        <div class="npcb-title-head">
+                            <div><small>${equipped ? 'EQUIPPED TITLE' : 'TITLE'}</small><strong>${escapeHtml(title.name)}</strong></div>
+                            <button data-action="title-equip">${equipped ? 'UNEQUIP' : 'EQUIP'}</button>
+                        </div>
+                        <p>${escapeHtml(title.description || 'No description recorded.')}</p>
+                        ${mods.length || title.effects?.length ? `
+                            <div class="npcb-title-effects">
+                                ${mods.map(text => `<i>${escapeHtml(text)}</i>`).join('')}
+                                ${(title.effects || []).map(text => `<i>${escapeHtml(text)}</i>`).join('')}
+                            </div>` : ''}
+                        <div class="npcb-title-actions"><button data-action="title-edit">EDIT</button><button data-action="title-delete">×</button></div>
+                    </article>
+                `;
+            }).join('') : '<div class="npcb-side-empty">No titles acquired yet.</div>'}
         </div>
     `;
 }
@@ -787,6 +807,7 @@ function renderCharacters(state) {
     const allChars = state.order.map(id => state.characters[id]).filter(Boolean);
     const present = allChars.filter(c => ['present', 'nearby'].includes(c.status)).length;
 
+    const factions = [...new Set(allChars.map(c => String(c.faction || '').trim()).filter(Boolean))].sort((a,b) => a.localeCompare(b));
     let chars = allChars;
     if (npcSceneOnly) chars = chars.filter(c => ['present', 'nearby'].includes(c.status));
     if (npcGroupFilter !== 'all') {
@@ -795,6 +816,13 @@ function renderCharacters(state) {
             return (entry?.groupIds || []).includes(npcGroupFilter);
         });
     }
+    if (npcFactionFilter !== 'all') chars = chars.filter(c => (c.faction || '') === npcFactionFilter);
+
+    const factionGroups = Object.entries(chars.reduce((acc, character) => {
+        const key = String(character.faction || '').trim() || 'Unaffiliated';
+        (acc[key] ||= []).push(character);
+        return acc;
+    }, {})).sort(([a],[b]) => a === 'Unaffiliated' ? 1 : b === 'Unaffiliated' ? -1 : a.localeCompare(b));
 
     return `
         <div class="npcb-side-actions">
@@ -805,14 +833,25 @@ function renderCharacters(state) {
         <div class="npcb-npc-view-tools">
             <label><input type="checkbox" class="npcb-npc-scene-only" ${npcSceneOnly ? 'checked' : ''}> SCENE ONLY</label>
             <select class="npcb-npc-group-filter">
-                <option value="all">All groups</option>
+                <option value="all">All folders</option>
                 ${groups.map(group => `<option value="${escapeHtml(group.id)}" ${npcGroupFilter === group.id ? 'selected' : ''}>${escapeHtml(group.name)}</option>`).join('')}
             </select>
-            <button data-action="npc-group-create">＋ GROUP</button>
+            <select class="npcb-npc-faction-filter">
+                <option value="all">All factions</option>
+                ${factions.map(faction => `<option value="${escapeHtml(faction)}" ${npcFactionFilter === faction ? 'selected' : ''}>${escapeHtml(faction)}</option>`).join('')}
+            </select>
+            <button data-action="npc-group-create">＋ FOLDER</button>
         </div>
 
         <div class="npcb-side-section-title"><span>NPC VITAL TRACKER</span><small>${present} in scene · ${allChars.length} linked</small></div>
-        <div class="npcb-side-character-list">${characterRows(state, chars, archive)}</div>
+        <div class="npcb-side-character-list">
+            ${factionGroups.length ? factionGroups.map(([faction, list]) => `
+                <section class="npcb-faction-section">
+                    <div class="npcb-faction-head"><span>◈ ${escapeHtml(faction)}</span><b>${list.length}</b></div>
+                    ${characterRows(state, list, archive)}
+                </section>
+            `).join('') : '<div class="npcb-side-empty">No NPCs match this view.</div>'}
+        </div>
         <div class="npcb-npc-legend">
             <span>HP</span><span class="mana">MANA</span><span>FATIGUE</span><span>RELATIONSHIP</span>
             <em>Scene Only hides NPCs who are not currently present/nearby. Detailed STR/DEX/INT/STA/SEN remains System-only.</em>
@@ -950,8 +989,8 @@ async function editPlayer() {
 async function addStat() {
     const name = prompt('Stat name (Health, Mana, Sanity, etc.)');
     if (!name?.trim()) return;
-    const value = Number(prompt('Starting value', '100') ?? 100);
-    const max = Number(prompt('Maximum value', '100') ?? 100);
+    const value = Number.parseFloat(prompt('Starting value', '100') ?? '100');
+    const max = Number.parseFloat(prompt('Maximum value', '100') ?? '100');
     const unit = prompt('Unit (%, pts, etc.)', '') ?? '';
     await mutateState(s => s.player.stats.push({
         id: uid('stat'),
@@ -975,9 +1014,46 @@ async function editStat(id) {
         const x = s.player.stats.find(v => v.id === id);
         if (!x) return;
         x.name = name.trim() || x.name;
-        if (value !== null && value !== '') x.value = Number(value) || 0;
-        if (max !== null && max !== '') x.max = Math.max(1, Number(max) || 1);
+        if (value !== null && value !== '') x.value = Number.parseFloat(String(value).replace('%','')) || 0;
+        if (max !== null && max !== '') x.max = Math.max(0, Number.parseFloat(String(max).replace('%','')) || 0);
         x.unit = unit;
+    });
+    renderDashboard();
+}
+
+async function addResistance() {
+    const name = prompt('Resistance name (Fire, Cold, Poison, Magic, etc.)');
+    if (!name?.trim()) return;
+    const valueRaw = prompt('Resistance % (-100 vulnerability to +100 resistance)', '0');
+    if (valueRaw === null) return;
+    const description = prompt('Notes / source', '') ?? '';
+    const value = Math.max(-100, Math.min(100, Number.parseFloat(String(valueRaw).replace('%','')) || 0));
+    await mutateState(s => {
+        s.player.resistances ||= [];
+        s.player.resistances.push({
+            id: uid('resist'),
+            name: name.trim(),
+            value,
+            description: description.trim(),
+            aiTrack: true,
+        });
+    });
+    renderDashboard();
+}
+
+async function editResistance(id) {
+    const resistance = getState().player.resistances?.find(x => x.id === id);
+    if (!resistance) return;
+    const name = prompt('Resistance name', resistance.name) ?? resistance.name;
+    const valueRaw = prompt('Resistance % (-100 to +100)', String(resistance.value));
+    if (valueRaw === null) return;
+    const description = prompt('Notes / source', resistance.description || '') ?? resistance.description;
+    await mutateState(s => {
+        const x = s.player.resistances?.find(v => v.id === id);
+        if (!x) return;
+        x.name = name.trim() || x.name;
+        x.value = Math.max(-100, Math.min(100, Number.parseFloat(String(valueRaw).replace('%','')) || 0));
+        x.description = description.trim();
     });
     renderDashboard();
 }
@@ -1091,6 +1167,55 @@ async function editSkill(id) {
         x.requirements ||= { text: '', attributes: {} };
         x.requirements.text = requirement.trim();
         x.effects = effectsRaw.split('\n').map(v => v.trim()).filter(Boolean);
+    });
+    renderDashboard();
+}
+
+async function addTitle() {
+    const name = prompt('Title name');
+    if (!name?.trim()) return;
+    const description = prompt('Title description', '') ?? '';
+    const effectsRaw = prompt('Title effects, one per line', '') ?? '';
+    await mutateState(s => {
+        s.player.titles ||= [];
+        s.player.titles.push({
+            id: uid('title'),
+            name: name.trim(),
+            equipped: false,
+            description: description.trim(),
+            effects: effectsRaw.split('\n').map(x => x.trim()).filter(Boolean),
+            modifiers: {},
+        });
+    });
+    renderDashboard();
+}
+
+async function editTitle(id) {
+    const title = getState().player.titles?.find(x => x.id === id);
+    if (!title) return;
+    const name = prompt('Title name', title.name) ?? title.name;
+    const description = prompt('Title description', title.description || '') ?? title.description;
+    const effectsRaw = prompt('Title effects, one per line', (title.effects || []).join('\n')) ?? (title.effects || []).join('\n');
+    const modsRaw = prompt(
+        'Attribute modifiers, comma-separated (example: STR:+2, INT:+5)',
+        Object.entries(title.modifiers || {}).filter(([,v]) => Number(v) !== 0).map(([k,v]) => `${k}:${v}`).join(', '),
+    );
+    await mutateState(s => {
+        const x = s.player.titles?.find(v => v.id === id);
+        if (!x) return;
+        x.name = name.trim() || x.name;
+        x.description = description.trim();
+        x.effects = effectsRaw.split('\n').map(v => v.trim()).filter(Boolean);
+        if (modsRaw !== null) {
+            x.modifiers = {};
+            for (const pair of modsRaw.split(',')) {
+                const [keyRaw, valueRaw] = pair.split(':');
+                const key = String(keyRaw || '').trim().toUpperCase();
+                if (!CORE_ATTRIBUTES.includes(key)) continue;
+                const value = Number.parseFloat(String(valueRaw || '').trim());
+                if (Number.isFinite(value)) x.modifiers[key] = value;
+            }
+        }
     });
     renderDashboard();
 }
@@ -1230,6 +1355,11 @@ function bindEvents(root) {
         renderDashboard();
     });
 
+    root.querySelector('.npcb-npc-faction-filter')?.addEventListener('change', event => {
+        npcFactionFilter = event.target.value || 'all';
+        renderDashboard();
+    });
+
     root.querySelector('.npcb-side-close')?.addEventListener('click', () => {
         root.classList.add('npcb-side-hidden');
         document.getElementById(TOGGLE_ID)?.classList.add('visible');
@@ -1274,6 +1404,16 @@ function bindEvents(root) {
             await mutateState(s => {
                 const stat = s.player.stats.find(x => x.id === id);
                 if (stat) stat.aiTrack = input.checked;
+            });
+        });
+    });
+
+    root.querySelectorAll('.npcb-resistance-ai').forEach(input => {
+        input.addEventListener('change', async () => {
+            const id = input.closest('[data-resistance-id]')?.dataset.resistanceId;
+            await mutateState(s => {
+                const resistance = s.player.resistances?.find(x => x.id === id);
+                if (resistance) resistance.aiTrack = input.checked;
             });
         });
     });
@@ -1375,9 +1515,11 @@ function bindEvents(root) {
             }
             if (action === 'player-edit') return editPlayer();
             if (action === 'stat-add') return addStat();
+            if (action === 'resistance-add') return addResistance();
             if (action === 'item-add') return addItem();
             if (action === 'storage-add') return addStorage();
             if (action === 'skill-add') return addSkill();
+            if (action === 'title-add') return addTitle();
             if (action === 'quest-add') return addQuest();
             if (action === 'event-add') return addEvent();
 
@@ -1404,6 +1546,36 @@ function bindEvents(root) {
                 return renderDashboard();
             }
 
+            if (action === 'resistance-edit') {
+                const id = button.closest('[data-resistance-id]')?.dataset.resistanceId;
+                return editResistance(id);
+            }
+            if (action === 'resistance-delete') {
+                const id = button.closest('[data-resistance-id]')?.dataset.resistanceId;
+                await mutateState(s => { s.player.resistances = (s.player.resistances || []).filter(x => x.id !== id); });
+                return renderDashboard();
+            }
+            if (action === 'title-equip') {
+                const id = button.closest('[data-title-id]')?.dataset.titleId;
+                await mutateState(s => {
+                    const next = s.player.equippedTitleId === id ? '' : id;
+                    s.player.equippedTitleId = next;
+                    for (const title of s.player.titles || []) title.equipped = title.id === next;
+                });
+                return renderDashboard();
+            }
+            if (action === 'title-edit') {
+                const id = button.closest('[data-title-id]')?.dataset.titleId;
+                return editTitle(id);
+            }
+            if (action === 'title-delete') {
+                const id = button.closest('[data-title-id]')?.dataset.titleId;
+                await mutateState(s => {
+                    s.player.titles = (s.player.titles || []).filter(x => x.id !== id);
+                    if (s.player.equippedTitleId === id) s.player.equippedTitleId = '';
+                });
+                return renderDashboard();
+            }
             if (action === 'attribute-plus') {
                 const key = button.closest('[data-attribute]')?.dataset.attribute;
                 await mutateState(s => {
