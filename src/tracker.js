@@ -643,7 +643,10 @@ function applyQuestUpdates(state, payload) {
             quest = {
                 id: uid('quest'),
                 title: String(raw.title),
-                type: String(raw.type || 'story'),
+                type: (() => {
+                    const type = String(raw.type || 'side').toLowerCase();
+                    return type === 'story' ? 'side' : (['main', 'side', 'system'].includes(type) ? type : 'side');
+                })(),
                 status: ['active', 'completed', 'failed', 'hidden'].includes(raw.status) ? raw.status : 'active',
                 description: String(raw.description || ''),
                 objectives: Array.isArray(raw.objectives)
