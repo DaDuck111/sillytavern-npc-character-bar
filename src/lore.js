@@ -1,4 +1,8 @@
-import { world_names } from '../../../../../scripts/world-info.js';
+import {
+    world_names,
+    selected_world_info,
+    updateWorldInfoList,
+} from '../../../../../scripts/world-info.js';
 import { getContext } from './utils.js';
 
 function q(value) {
@@ -146,6 +150,71 @@ export function buildLoreContent(character) {
     }
 
     return lines.join('\n');
+}
+
+const LORE_META_KEY = 'npc_character_bar_lore_meta_v1';
+
+function loreMetaRoot() {
+    const ctx = getContext();
+    ctx.extensionSettings ||= {};
+    if (!ctx.extensionSettings[LORE_META_KEY] || typeof ctx.extensionSettings[LORE_META_KEY] !== 'object') {
+        ctx.extensionSettings[LORE_META_KEY] = { books: {} };
+    }
+    ctx.extensionSettings[LORE_META_KEY].books ||= {};
+    return ctx.extensionSettings[LORE_META_KEY];
+}
+
+function saveLoreMeta() {
+    getContext().saveSettingsDebounced?.();
+}
+
+export function getLorebookCatalog() {
+    const meta = loreMetaRoot();
+    return getLorebookNames().map(name => ({
+        name,
+        active: (selected_world_info || []).includes(name),
+        group: String(meta.books?.[name]?.group || ''),
+        tags: Array.isArray(meta.books?.[name]?.tags) ? [...meta.books[name].tags] : [],
+    }));
+}
+
+export function updateLorebookMeta(name, patch = {}) {
+    const clean = String(name || '').trim();
+    if (!clean) return false;
+    const meta = loreMetaRoot();
+    meta.books[clean] ||= { group: '', tags: [] };
+    if (patch.group !== undefined) meta.books[clean].group = String(patch.group || '').trim();
+    if (patch.tags !== undefined) {
+        meta.books[clean].tags = [...new Set((Array.isArray(patch.tags) ? patch.tags : [])
+            .map(tag => String(tag || '').trim().replace(/^#/, ''))
+            .filter(Boolean))];
+    }
+    saveLoreMeta();
+    return true;
+}
+
+export function getLorebookGroups() {
+    return [...new Set(getLorebookCatalog().map(book => book.group).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+}
+
+export function getLorebookTags() {
+    return [...new Set(getLorebookCatalog().flatMap(book => book.tags || []).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+}
+
+export async function setLorebookActive(name, active) {
+    const clean = String(name || '').trim();
+    if (!clean) return false;
+    const list = selected_world_info || [];
+    const index = list.indexOf(clean);
+
+    if (active && index < 0) list.push(clean);
+    if (!active && index >= 0) list.splice(index, 1);
+
+    await updateWorldInfoList();
+    if (typeof window.$ === 'function') window.$('#world_info').trigger('change');
+    else getContext().saveSettingsDebounced?.();
+
+    return true;
 }
 
 export function getLorebookNames() {
