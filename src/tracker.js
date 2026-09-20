@@ -445,6 +445,7 @@ function applyQuestUpdates(state, payload) {
 
     for (const raw of payload.questsAdd || []) {
         if (!raw?.title) continue;
+        if (String(raw.type || '').toLowerCase() === 'system' && !state.player.hasSystem) continue;
         let quest = findQuest(state, raw);
         if (!quest) {
             quest = {
