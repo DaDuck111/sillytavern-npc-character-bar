@@ -130,6 +130,8 @@ function ensureHeading() {
 
 function renderEmptyDetail() {
     const detail = document.getElementById(DETAIL_ID);
+    const shell = document.getElementById(SHELL_ID);
+    shell?.classList.remove('has-selection');
     if (!detail) return;
     detail.innerHTML = `
         <div class="npcb-char-library-empty">
@@ -231,6 +233,7 @@ function renderCharacterDetail(chid, chats, card) {
 
     detail.innerHTML = `
         <div class="npcb-char-library-detail-scroll">
+            <button type="button" class="npcb-char-library-back">← CHARACTERS</button>
             <div class="npcb-char-library-hero">
                 <div class="npcb-char-library-avatar">${avatar ? `<img src="${escapeHtml(avatar)}" alt="${escapeHtml(character.name || '')}">` : '<span>?</span>'}</div>
                 <div class="npcb-char-library-identity">
@@ -293,6 +296,12 @@ function renderCharacterDetail(chid, chats, card) {
         </div>
     `;
 
+    detail.querySelector('.npcb-char-library-back')?.addEventListener('click', () => {
+        selectedChid = '';
+        markSelectedCard();
+        renderEmptyDetail();
+    });
+
     const openExactChat = async chat => {
         const latestCtx = currentContext();
         if (!latestCtx) return;
@@ -352,6 +361,7 @@ async function selectCharacterPreview(chid, card = null, { force = false } = {})
     if (!character) return;
 
     selectedChid = String(chid);
+    document.getElementById(SHELL_ID)?.classList.add('has-selection');
     markSelectedCard();
     renderLoading(character, card);
 
