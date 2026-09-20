@@ -1,5 +1,59 @@
 # NPC Character Bar for SillyTavern
 
+## v0.7.0 — RPG Rules, Lorebook Library & Readability
+
+- **Responsive overlay fix**
+  - NPC profile/archive dialogs now use a viewport-level overlay with a very high stacking layer so SillyTavern drawers do not cover them.
+  - Half-width and narrow windows use a compact header and 2×2 profile tabs.
+  - Horizontal overflow is suppressed in the System HUD and dialogs.
+
+- **Thoughts as current RP reactions**
+  - Present/nearby NPCs can receive one short current inner thought based on known personality, goals, mood, relationship and current events.
+  - Thoughts are ephemeral UI flavor, not NPC memory and not Lorebook canon.
+  - The floating thought panel remains draggable and toggleable.
+
+- **Automatic continuity events**
+  - Scene-advancing assistant replies produce 1–2 compact durable event summaries when material changes occur.
+  - Event titles stay short and descriptions are one compact sentence.
+  - The rolling scene summary and recent events are injected back into normal RP context for continuity.
+
+- **Lorebook Library**
+  - Raw Lorebook text is removed from the normal NPC UI.
+  - Browse Lorebooks as readable cards, search them, filter Active/Inactive, filter by group and tags.
+  - User-defined Lorebook groups/tags are stored by this extension.
+  - Toggle SillyTavern global Lorebooks active/inactive directly from the NPC Lorebook tab.
+  - Choose a Lorebook for the NPC or return to the current chat Lorebook.
+  - **SYNC NPC** remains the one normal sync action: existing entry refreshes the NPC; missing entry creates it.
+
+- **NPC Mana & scene views**
+  - NPC portrait covers and the System NPC tab now support Mana alongside HP.
+  - System NPC tab has **Scene Only** to hide absent NPCs.
+  - NPCs can be assigned to archive groups directly from the System NPC tab.
+
+- **Quest categories**
+  - Quest UI is divided into **Main / Side / System / Story** categories with quick filters.
+
+- **Two fund types**
+  - **System Fund** is System-only currency, normally Gold.
+  - **Real-world / setting fund** is ordinary story currency and is inferred only from the fictional setting/story evidence.
+  - The two balances are tracked and edited separately.
+
+- **Skills as gameplay rules**
+  - Skills can store type, rank, explanation, resource cost, cooldown, remaining cooldown, requirements, passive attribute modifiers and gameplay effects.
+  - Buffs/debuffs/status effects are tracked separately with durations and attribute modifiers.
+  - Effective STR/DEX/INT/STA/SEN display includes passive/status modifiers.
+
+- **Lightweight tabletop-style feasibility**
+  - Optional **Respect RPG constraints in RP** setting injects a compact live state into normal SillyTavern generation.
+  - The RP model is instructed to consider HP/Mana/Stamina, injuries, status effects, equipment, skill costs/cooldowns/requirements and attributes before resolving attempted actions.
+  - Difficult or state-constrained actions may fail, partially succeed, be delayed or carry consequences instead of automatically succeeding.
+  - This is a narrative constraint layer, not a full dice engine; it does not take control of the user's choices.
+
+- **Readability**
+  - RP date/time/weather and event text are larger.
+  - The System panel uses narrow themed scrollbars and suppresses native scrollbar buttons.
+  - The layout avoids the horizontal scrollbar seen in narrow System windows.
+
 ## v0.6.0 — NPC UX, Thoughts, Archive Scopes & RP World State
 
 - **NPC profile layout**
