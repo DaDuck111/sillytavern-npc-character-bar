@@ -107,52 +107,16 @@ function ensureShell() {
         shell.prepend(list);
     }
 
-    ensureHeading();
+    document.getElementById('npcb-character-library-heading')?.remove();
+    enhanceNativeCharacterEditor();
     enhanceCards();
     return shell;
-}
-
-function ensureHeading() {
-    const pagination = document.getElementById('rm_print_characters_pagination');
-    if (!pagination) return;
-
-    let heading = document.getElementById('npcb-character-library-heading');
-    if (!heading) {
-        heading = document.createElement('div');
-        heading.id = 'npcb-character-library-heading';
-        pagination.parentNode?.insertBefore(heading, pagination);
-    }
-    updateHeading();
-}
-
-function updateHeading() {
-    const heading = document.getElementById('npcb-character-library-heading');
-    if (!heading) return;
-
-    const mode = selectedChid ? 'chat' : 'character';
-    if (heading.dataset.mode === mode) return;
-    heading.dataset.mode = mode;
-
-    heading.innerHTML = mode === 'chat' ? `
-        <div>
-            <small>STEP 2</small>
-            <strong>Choose a Chat</strong>
-            <span>Select one of this character's saved chats to continue.</span>
-        </div>
-    ` : `
-        <div>
-            <small>STEP 1</small>
-            <strong>Choose a Character</strong>
-            <span>Click a character below to see all chats with them.</span>
-        </div>
-    `;
 }
 
 function renderEmptyDetail() {
     const detail = document.getElementById(DETAIL_ID);
     const shell = document.getElementById(SHELL_ID);
     shell?.classList.remove('has-selection');
-    updateHeading();
     if (!detail) return;
     detail.innerHTML = '';
 }
@@ -161,6 +125,18 @@ function markSelectedCard() {
     document.querySelectorAll('#rm_print_characters_block .character_select').forEach(card => {
         card.classList.toggle('npcb-library-selected', String(card.dataset.chid) === String(selectedChid));
     });
+}
+
+function enhanceNativeCharacterEditor() {
+    const back = document.getElementById('rm_button_back');
+    if (back) {
+        back.setAttribute('title', 'Back to Characters');
+        back.setAttribute('aria-label', 'Back to Characters');
+        back.dataset.npcbBackReady = '1';
+    }
+
+    const editor = document.getElementById('rm_ch_create_block');
+    if (editor) editor.classList.add('npcb-native-character-editor');
 }
 
 function enhanceCards() {
@@ -216,7 +192,6 @@ function backToCharacterList() {
     selectedChid = '';
     markSelectedCard();
     renderEmptyDetail();
-    updateHeading();
 }
 
 function renderLoading(character, card) {
@@ -390,7 +365,6 @@ async function selectCharacterPreview(chid, card = null, { force = false } = {})
 
     selectedChid = String(chid);
     document.getElementById(SHELL_ID)?.classList.add('has-selection');
-    updateHeading();
     markSelectedCard();
     renderLoading(character, card);
 
@@ -449,6 +423,7 @@ function handleKeyboard(event) {
 
 export function refreshCharacterLibrary() {
     const shell = ensureShell();
+    enhanceNativeCharacterEditor();
     if (!shell) return;
 
     if (selectedChid) {
