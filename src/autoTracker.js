@@ -73,7 +73,19 @@ function summarizeRoster(state) {
         role: c.role || '',
         faction: c.faction || '',
         status: c.status,
-        relationship: c.relationship?.label || '',
+        relationship: {
+            label: c.relationship?.label || '',
+            value: c.relationship?.value ?? 0,
+        },
+        vitals: c.vitals || {},
+        system: c.system?.hasSystem ? {
+            hasSystem: true,
+            level: c.system.level,
+            xp: c.system.xp,
+            xpToNext: c.system.xpToNext,
+            attributes: c.system.attributes,
+            stats: c.system.stats,
+        } : { hasSystem: false },
     }));
 }
 
@@ -89,49 +101,91 @@ function buildPrompt(ctx, state, latestIndex) {
         }))
         .filter(m => m.text);
 
+    const p = state.player || {};
     const playerSummary = {
-        name: state.player?.name || ctx.name1 || '{{user}}',
-        title: state.player?.title || '',
-        className: state.player?.className || '',
-        level: state.player?.level || 1,
-        xp: state.player?.xp || 0,
-        xpToNext: state.player?.xpToNext || 100,
-        money: state.player?.money || 0,
-        currency: state.player?.currency || 'Gold',
-        currentLocation: state.player?.currentLocation || '',
-        homeLocation: state.player?.homeLocation || '',
-        stats: (state.player?.stats || []).map(stat => ({
+        name: p.name || ctx.name1 || '{{user}}',
+        title: p.title || '',
+        className: p.className || '',
+        hasSystem: Boolean(p.hasSystem),
+        level: p.level || 0,
+        xp: p.xp || 0,
+        xpToNext: p.xpToNext || 0,
+        statPoints: p.statPoints || 0,
+        attributes: p.attributes || {},
+        money: p.money || 0,
+        currency: p.currency || 'Gold',
+        currentLocation: p.currentLocation || '',
+        homeLocation: p.homeLocation || '',
+        stats: (p.stats || []).map(stat => ({
             name: stat.name,
             value: stat.value,
             max: stat.max,
             unit: stat.unit,
             aiTrack: stat.aiTrack !== false,
         })),
-        inventory: (state.player?.inventory || []).map(item => ({
+        inventoryLimits: p.inventoryLimits || {},
+        storageLocations: (p.storageLocations || []).map(storage => ({
+            id: storage.id,
+            name: storage.name,
+            capacity: storage.capacity,
+            type: storage.type,
+            systemOnly: storage.systemOnly,
+        })),
+        inventory: (p.inventory || []).map(item => ({
             name: item.name,
             quantity: item.quantity,
             type: item.type,
             equipped: item.equipped,
+            locationType: item.locationType,
+            storageId: item.storageId,
         })),
-        skills: (state.player?.skills || []).map(skill => ({
+        skills: (p.skills || []).map(skill => ({
             name: skill.name,
             rank: skill.rank,
         })),
-        titles: state.player?.titles || [],
+        titles: p.titles || [],
     };
 
+    const questSummary = (state.quests || []).map(q => ({
+        title: q.title,
+        type: q.type,
+        status: q.status,
+        description: q.description,
+        objectives: q.objectives,
+        reward: q.reward,
+        source: q.source,
+    }));
+
+    const recentEvents = (state.events || []).slice(-12).map(e => ({
+        type: e.type,
+        title: e.title,
+        description: e.description,
+        location: e.location,
+        importance: e.importance,
+    }));
+
     const system = `You are a silent RPG state extractor for SillyTavern.
-Read the recent roleplay and update BOTH the persistent NPC roster and the user's RPG state.
-Return ONLY one JSON object. Do not roleplay, explain, use markdown, or invent facts.
+Read the recent roleplay and update the persistent System HUD.
+Return ONLY one JSON object. No markdown, no prose outside JSON, no invented facts.
+
+PLAYER SYSTEM RULE:
+- The player's System is a story fact, not an always-on mechanic.
+- If the player does NOT currently have a System, hasSystem is false, level MUST remain 0, XP MUST remain 0, XP cannot be gained, and STR/DEX/INT/STA/SEN must not be assigned.
+- Set playerUpdates.hasSystem=true ONLY if the newest roleplay clearly grants/awakens/activates a System or equivalent RPG status interface for the player.
+- Set hasSystem=false only if the story explicitly removes/destroys/disables that System.
+- When a System user levels up, return the new level. The extension grants allocatable stat points automatically.
+- Only output attribute changes when the story/System explicitly changes STR, DEX, INT, STA, or SEN. Do not invent stat growth.
 
 Schema:
 {
   "scene": {
-    "location": "current scene location if known, otherwise empty string",
-    "time": "current in-world time/date if explicitly known, otherwise empty string",
-    "summary": "one short sentence describing the immediate scene"
+    "location": "",
+    "time": "",
+    "summary": ""
   },
+
   "playerUpdates": {
+    "hasSystem": "",
     "name": "",
     "title": "",
     "className": "",
@@ -139,6 +193,15 @@ Schema:
     "xp": "",
     "xpDelta": "",
     "xpToNext": "",
+    "statPoints": "",
+    "statPointsDelta": "",
+    "attributes": {
+      "STR": "",
+      "DEX": "",
+      "INT": "",
+      "STA": "",
+      "SEN": ""
+    },
     "money": "",
     "moneyDelta": "",
     "currency": "",
@@ -146,18 +209,54 @@ Schema:
     "homeLocation": "",
     "homeDescription": "",
     "condition": "",
+
     "statUpdates": [
       { "name": "Health", "value": "", "delta": "", "max": "", "unit": "" }
     ],
+
+    "storageLocationsAdd": [
+      {
+        "name": "Player Apartment",
+        "capacity": 30,
+        "type": "home",
+        "systemOnly": false,
+        "description": ""
+      }
+    ],
+
     "inventoryAdd": [
-      { "name": "", "quantity": 1, "type": "", "description": "", "equipped": false, "value": "" }
+      {
+        "name": "",
+        "quantity": 1,
+        "type": "",
+        "description": "",
+        "equipped": false,
+        "value": "",
+        "locationType": "person | clothing | stored",
+        "storageName": "",
+        "storageId": "",
+        "createStorage": false,
+        "storageCapacity": "",
+        "systemOnly": false
+      }
     ],
     "inventoryRemove": [
       { "name": "", "quantity": 1 }
     ],
     "inventoryUpdate": [
-      { "name": "", "quantity": "", "type": "", "description": "", "equipped": "", "value": "" }
+      {
+        "name": "",
+        "quantity": "",
+        "type": "",
+        "description": "",
+        "equipped": "",
+        "value": "",
+        "locationType": "",
+        "storageName": "",
+        "storageId": ""
+      }
     ],
+
     "skillsAdd": [
       { "name": "", "rank": "", "description": "", "source": "" }
     ],
@@ -166,11 +265,51 @@ Schema:
     ],
     "titlesAdd": []
   },
-  "presentCharacters": ["names of NPCs physically or conversationally present NOW"],
+
+  "questsAdd": [
+    {
+      "title": "",
+      "type": "story | main | side | system",
+      "status": "active",
+      "description": "",
+      "objectives": [
+        { "text": "", "complete": false }
+      ],
+      "reward": "",
+      "source": ""
+    }
+  ],
+
+  "questsUpdate": [
+    {
+      "title": "",
+      "status": "active | completed | failed | hidden",
+      "description": "",
+      "objectives": [
+        { "text": "", "complete": true }
+      ],
+      "reward": "",
+      "source": ""
+    }
+  ],
+
+  "eventsAdd": [
+    {
+      "type": "combat | discovery | social | travel | quest | system | acquisition | story",
+      "title": "",
+      "description": "",
+      "location": "",
+      "participants": [],
+      "importance": "minor | normal | major | critical"
+    }
+  ],
+
+  "presentCharacters": [],
+
   "newCharacters": [
     {
-      "name": "canonical or best observed name",
-      "aliases": ["other names/titles actually used"],
+      "name": "",
+      "aliases": [],
       "role": "",
       "faction": "",
       "age": "",
@@ -179,57 +318,121 @@ Schema:
       "personality": "",
       "background": "",
       "relationship": "",
+      "relationshipValue": "",
       "location": "",
       "mood": "",
       "action": "",
-      "condition": ""
+      "condition": "",
+      "hp": "",
+      "maxHp": "",
+      "fatigue": "",
+      "maxFatigue": "",
+      "hasSystem": false,
+      "level": "",
+      "xp": "",
+      "xpToNext": "",
+      "attributes": {
+        "STR": "",
+        "DEX": "",
+        "INT": "",
+        "STA": "",
+        "SEN": ""
+      },
+      "systemStats": []
     }
   ],
+
   "characterUpdates": [
     {
-      "name": "existing or observed NPC name",
+      "name": "",
       "aliases": [],
       "role": "",
       "faction": "",
       "relationship": "",
+      "relationshipValue": "",
       "location": "",
       "mood": "",
       "action": "",
       "condition": "",
       "clothing": "",
       "thoughts": "",
-      "memory": "one important durable event/fact worth remembering, or empty string"
+      "memory": "",
+
+      "hp": "",
+      "hpDelta": "",
+      "maxHp": "",
+      "fatigue": "",
+      "fatigueDelta": "",
+      "maxFatigue": "",
+
+      "hasSystem": "",
+      "level": "",
+      "xp": "",
+      "xpDelta": "",
+      "xpToNext": "",
+      "attributes": {
+        "STR": "",
+        "DEX": "",
+        "INT": "",
+        "STA": "",
+        "SEN": ""
+      },
+      "systemStats": [
+        { "name": "", "value": "", "delta": "", "max": "", "unit": "" }
+      ]
     }
   ]
 }
 
-Player tracking rules:
-- Track the user's persona separately from NPCs. Never create the user as an NPC.
-- Only change player level, XP, money, items, skills, titles, or stats when the roleplay clearly establishes a change.
-- Prefer delta fields when the RP describes a gain/loss but not an exact new total.
-- Do not invent RPG rewards because a fight happened. A reward/level-up/skill/item must be stated or strongly and unambiguously established.
-- InventoryAdd means the player actually acquired/received/kept an item. InventoryRemove means the player actually lost/used/gave away an item.
-- Existing inventory quantities are authoritative unless the latest RP changes them.
-- Existing custom stats are authoritative. Update only stats with aiTrack=true.
-- If the RP explicitly creates a new measurable player stat, you may add it through statUpdates.
-- currentLocation may follow the scene location when the player is there.
-- homeLocation/homeDescription should only change when a home/base/residence is established or explicitly changed.
+GENERAL PLAYER RULES:
+- Track the user's persona separately. Never create the user as an NPC.
+- Only change player level, XP, money, items, skills, titles, System status, attributes, or stats when the newest roleplay clearly establishes a change.
+- Prefer delta fields when only a gain/loss is known.
+- Never invent loot, XP, money, skills, stat increases, or quest rewards merely because combat happened.
+- Existing inventory quantities and storage locations are authoritative unless the roleplay changes them.
 
-NPC rules:
-- presentCharacters means NPCs present in the newest assistant roleplay reply, not merely mentioned in history.
-- If a named or clearly distinct recurring NPC appears and is not in the existing roster, include them in newCharacters.
-- Do NOT create entries for anonymous crowds, generic soldiers/guards, or throwaway labels unless the roleplay clearly treats that individual as a distinct character.
-- Match titles, nicknames, translated names, and parenthetical variants to an existing character when they are obviously the same person. Put the observed variant into aliases.
-- Never duplicate an existing character just because spelling/casing/title changed.
-- Do not overwrite permanent biography with temporary mood/action.
-- Only state thoughts when the narration explicitly reveals them.
-- Use empty strings/arrays for unknown or unchanged data. Do not guess.`;
+INVENTORY LOCATION RULES:
+- locationType="person": item is carried on the user's person/bag/pockets.
+- locationType="clothing": item is currently worn as clothing/armor/accessory.
+- locationType="stored": item is not carried and belongs to a named storage location.
+- Only create storageLocationsAdd when the story clearly establishes a usable storage place: apartment, house, locker, guild storage, vehicle trunk, vault, System inventory, etc.
+- A System inventory/storage may only exist if the player has a System or the newest reply grants one.
+- Do not silently teleport items between storage categories.
+- Capacity is a tracking limitation, not permission to invent extra storage.
+
+QUEST RULES:
+- Add a quest when the story clearly establishes a goal, assignment, contract, mission, promise, investigation, survival objective, or explicit System quest.
+- Story quests are allowed even without a System.
+- System quests require an actual System.
+- Do not create a quest for every casual action.
+- Update objective completion/status only when the newest reply establishes progress, completion, or failure.
+
+EVENT RULES:
+- Record meaningful developments useful for continuity: combat outcome, discovery, arrival/departure, major social development, acquisition, System event, quest turning point.
+- Skip trivial conversational beats.
+- Avoid duplicating an event already present in recent events.
+
+NPC RULES:
+- All recurring/distinct NPCs may track HP, fatigue, relationship, condition, location, mood, and action.
+- HP/Fatigue values should only change when narration makes a change clear. If exact numbers are not available, use delta only when magnitude is clearly implied; otherwise leave blank.
+- relationshipValue is -100 to 100 and should change conservatively.
+- NPC detailed level/XP/STR/DEX/INT/STA/SEN/custom System stats are ONLY allowed when that NPC explicitly has a System or equivalent stat interface.
+- If NPC hasSystem=false, do not assign detailed RPG attributes/level/XP.
+- presentCharacters means NPCs present NOW in the newest assistant reply, not merely mentioned.
+- Do not create entries for anonymous crowds/generic guards unless the story treats one as a distinct recurring character.
+- Match aliases/titles/translations to existing NPC identities.
+- Use empty strings/arrays for unchanged or unknown data. Never guess.`;
 
     return [
         { role: 'system', content: system },
         {
             role: 'user',
-            content: `Existing player state:\n${JSON.stringify(playerSummary, null, 2)}\n\nExisting NPC roster:\n${JSON.stringify(summarizeRoster(state), null, 2)}\n\nRecent roleplay:\n${JSON.stringify(history, null, 2)}\n\nExtract only the changes established by the newest assistant reply.`,
+            content: `Existing player state:\n${JSON.stringify(playerSummary, null, 2)}
+\nExisting quests:\n${JSON.stringify(questSummary, null, 2)}
+\nRecent tracked events:\n${JSON.stringify(recentEvents, null, 2)}
+\nExisting NPC roster:\n${JSON.stringify(summarizeRoster(state), null, 2)}
+\nRecent roleplay:\n${JSON.stringify(history, null, 2)}
+\nExtract ONLY changes established by the newest assistant reply.`,
         },
     ];
 }
@@ -274,6 +477,9 @@ export async function scanLatestRoleplay({ force = false, manual = false } = {})
         await applyTrackerPayload({
             scene: parsed.scene || {},
             playerUpdates: parsed.playerUpdates && typeof parsed.playerUpdates === 'object' ? parsed.playerUpdates : {},
+            questsAdd: Array.isArray(parsed.questsAdd) ? parsed.questsAdd : [],
+            questsUpdate: Array.isArray(parsed.questsUpdate) ? parsed.questsUpdate : [],
+            eventsAdd: Array.isArray(parsed.eventsAdd) ? parsed.eventsAdd : [],
             presentCharacters: Array.isArray(parsed.presentCharacters) ? parsed.presentCharacters : [],
             replacePresent: true,
             newCharacters: Array.isArray(parsed.newCharacters) ? parsed.newCharacters : [],
