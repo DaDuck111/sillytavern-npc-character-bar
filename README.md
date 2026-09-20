@@ -1,5 +1,27 @@
 # NPC Character Bar for SillyTavern
 
+## v0.5.0 — Profile UX & movable System HUD
+
+- **NPC profile redesign**
+  - Replaced the crowded seven-tab workshop with four tabs: **Overview / Current / Memory & Lore / System**.
+  - Added a clear **Back** button to return to the Global Character Archive.
+  - Header and four-tab navigation stay fixed; only the profile body scrolls.
+  - Tab switching now re-renders the selected pane instead of relying on fragile in-place tab state.
+
+- **Automatic, token-conscious profile hydration**
+  - Structured Lorebook content is parsed locally and applied to NPC profiles with **zero model tokens**.
+  - Opening a Lorebook-linked NPC pulls its entry once per session and refreshes structured profile fields.
+  - **Pull Lore → Profile** forces a manual refresh at any time.
+  - AI-created NPCs and existing NPCs with missing fields use compact profile patches inside the existing tracker generation — no second generation call.
+  - Tracker context sends only missing profile field names plus a short Lore hint when needed and uses compact JSON to reduce token overhead.
+
+- **System HUD layout**
+  - Removed the **HOME** tab from the right-side HUD. Home/base data remains available to the tracker and inventory storage logic.
+  - HUD tabs are draggable to reorder; the order is stored in extension settings.
+  - The entire System HUD can be dragged by its header.
+  - The HUD is resizable from its lower-right edge.
+  - Position and size persist across chats/reloads through SillyTavern extension settings.
+
 ## v0.4.0 — Quests, Events, System Rules & RPG Inventory
 
 - **Event Tracker**
