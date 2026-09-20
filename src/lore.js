@@ -76,10 +76,6 @@ export function parseLoreProfile(content = '') {
             result.knowledge = value.split('|').map(x => x.trim()).filter(Boolean);
             continue;
         }
-        if (label === 'important memories') {
-            result.memories = value.split('|').map(x => x.trim()).filter(Boolean).map(text => ({ date: '', text }));
-            continue;
-        }
         const path = labelMap[label];
         if (path) setPath(result, path, value);
     }
@@ -116,18 +112,6 @@ export function applyLoreContentToCharacter(character, content, { overwrite = tr
     if (parsed.knowledge.length) {
         character.knowledge = [...new Set([...(character.knowledge || []), ...parsed.knowledge])];
     }
-    if (parsed.memories.length) {
-        const seen = new Set((character.memories || []).map(x => String(x?.text ?? x).trim().toLowerCase()));
-        character.memories ||= [];
-        for (const memory of parsed.memories) {
-            const key = memory.text.trim().toLowerCase();
-            if (key && !seen.has(key)) {
-                character.memories.push(memory);
-                seen.add(key);
-            }
-        }
-    }
-    assign(character, 'notes', parsed.notes);
     return character;
 }
 
@@ -152,8 +136,6 @@ export function buildLoreContent(character) {
     add('Relationship to {{user}}', character.relationship?.label);
     add('Relationship details', character.relationship?.detail);
     if (character.knowledge?.length) add('Knowledge / secrets known', character.knowledge.join(' | '));
-    if (character.memories?.length) add('Important memories', character.memories.map(x => x.text || x).filter(Boolean).join(' | '));
-    add('Notes', character.notes);
 
     if (character.lore?.includeScene) {
         add('Current location', character.scene?.location);
