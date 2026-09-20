@@ -420,6 +420,7 @@ export async function saveState(state) {
     syncArchiveFromState(state);
     ctx.chatMetadata[META_KEY] = deepClone(state);
     await ctx.saveMetadata();
+    window.dispatchEvent(new CustomEvent('npcb:state-changed'));
     return state;
 }
 
