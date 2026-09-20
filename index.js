@@ -83,7 +83,7 @@ async function boot() {
     refreshGameContext();
 
     window.NPCCharacterBar = {
-        version: '0.11.2',
+        version: '0.11.3',
         getState,
         addCharacter: async seed => { const c = await addCharacter(seed); renderBar(); renderDashboard(); return c; },
         updateCharacter: async (id, patch) => { const c = await updateCharacter(id, patch); renderBar(); renderDashboard(); return c; },
@@ -108,7 +108,7 @@ async function boot() {
     renderBar();
     renderDashboard();
     scheduleAutoTrack(1200);
-    console.info(`${TAG} v0.11.2 ready — Character Library observer loop hotfix applied.`);
+    console.info(`${TAG} v0.11.3 ready — cleaner scrollable character selector and themed native editor enabled.`);
 }
 
 const timer = setInterval(() => {
