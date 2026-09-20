@@ -332,7 +332,6 @@ export function makeCharacter(seed = {}) {
             stats: hasSystem && Array.isArray(seed.system?.stats) ? seed.system.stats.map(normalizeStat) : [],
         },
         knowledge: Array.isArray(seed.knowledge) ? seed.knowledge : [],
-        memories: Array.isArray(seed.memories) ? seed.memories : [],
         notes: seed.notes || '',
         lore: {
             book: seed.lore?.book || '',
@@ -383,7 +382,7 @@ function normalizeCharacter(raw = {}) {
         },
         lore: { ...base.lore, ...(raw.lore || {}) },
         knowledge: Array.isArray(raw.knowledge) ? raw.knowledge : [],
-        memories: Array.isArray(raw.memories) ? raw.memories : [],
+        memories: [],
     };
 }
 
