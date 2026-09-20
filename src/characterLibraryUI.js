@@ -17,10 +17,11 @@ function activityRoot() {
     if (!ctx) return { chats: {} };
     ctx.extensionSettings ||= {};
     if (!ctx.extensionSettings[ACTIVITY_KEY] || typeof ctx.extensionSettings[ACTIVITY_KEY] !== 'object') {
-        ctx.extensionSettings[ACTIVITY_KEY] = { chats: {} };
+        ctx.extensionSettings[ACTIVITY_KEY] = { chats: {}, favoriteChats: {} };
     }
     const root = ctx.extensionSettings[ACTIVITY_KEY];
     root.chats ||= {};
+    root.favoriteChats ||= {};
     return root;
 }
 
@@ -71,6 +72,25 @@ function getCharacterStreak(avatar) {
         best = Math.max(best, streakFromDays(record.days || []));
     }
     return best;
+}
+
+function isFavoriteChat(avatar, chatId) {
+    const root = activityRoot();
+    const key = String(avatar || '');
+    return (root.favoriteChats?.[key] || []).includes(String(chatId || ''));
+}
+
+function toggleFavoriteChat(avatar, chatId) {
+    const root = activityRoot();
+    const key = String(avatar || '');
+    const id = String(chatId || '');
+    root.favoriteChats ||= {};
+    const set = new Set(root.favoriteChats[key] || []);
+    if (set.has(id)) set.delete(id);
+    else set.add(id);
+    root.favoriteChats[key] = [...set];
+    currentContext()?.saveSettingsDebounced?.();
+    return set.has(id);
 }
 
 function backfillCurrentChatActivity() {
@@ -359,6 +379,11 @@ async function fetchCharacterChats(chid, { force = false } = {}) {
     const payload = await response.json();
     const chats = Array.isArray(payload) ? payload.filter(chat => chat?.file_id || chat?.file_name) : [];
     chats.sort((a, b) => {
+        const aId = String(a.file_id || String(a.file_name || '').replace(/\.jsonl$/i, ''));
+        const bId = String(b.file_id || String(b.file_name || '').replace(/\.jsonl$/i, ''));
+        const favDiff = Number(isFavoriteChat(character.avatar, bId)) - Number(isFavoriteChat(character.avatar, aId));
+        if (favDiff) return favDiff;
+
         const av = Number(new Date(a.last_mes).getTime()) || Number(a.last_mes) || 0;
         const bv = Number(new Date(b.last_mes).getTime()) || Number(b.last_mes) || 0;
         return bv - av;
@@ -455,9 +480,11 @@ function renderCharacterDetail(chid, chats, card) {
                 ${chats.length ? chats.map((chat, index) => {
                     const fileId = String(chat.file_id || String(chat.file_name || '').replace(/\.jsonl$/i, ''));
                     const current = isCurrentCharacter && fileId === currentChatId;
+                    const favorite = isFavoriteChat(character.avatar, fileId);
                     const preview = compactText(chat.mes, 180);
                     return `
-                        <article class="npcb-char-chat-card ${current ? 'current' : ''}" data-chat-index="${index}" data-search-text="${escapeHtml((chatTitle(chat) + ' ' + preview).toLowerCase())}">
+                        <article class="npcb-char-chat-card ${current ? 'current' : ''} ${favorite ? 'favorite' : ''}" data-chat-index="${index}" data-search-text="${escapeHtml((chatTitle(chat) + ' ' + preview).toLowerCase())}">
+                            <button type="button" class="npcb-chat-favorite ${favorite ? 'active' : ''}" data-favorite-chat="${index}" title="${favorite ? 'Remove from favorite chats' : 'Favorite this chat'}" aria-label="${favorite ? 'Remove from favorite chats' : 'Favorite this chat'}">★</button>
                             <div class="npcb-char-chat-main">
                                 <div class="npcb-char-chat-titleline">
                                     <strong>${escapeHtml(chatTitle(chat))}</strong>
@@ -502,6 +529,18 @@ function renderCharacterDetail(chid, chats, card) {
             console.error('[NPC Character Bar] Could not open character chat:', error);
         }
     };
+
+    detail.querySelectorAll('[data-favorite-chat]').forEach(button => {
+        button.addEventListener('click', event => {
+            event.stopPropagation();
+            const chat = chats[Number(button.dataset.favoriteChat)];
+            if (!chat) return;
+            const fileId = String(chat.file_id || String(chat.file_name || '').replace(/\.jsonl$/i, ''));
+            toggleFavoriteChat(character.avatar, fileId);
+            chatCache.delete(String(character.avatar || ''));
+            selectCharacterPreview(chid, card, { force: true });
+        });
+    });
 
     detail.querySelectorAll('[data-open-chat]').forEach(button => {
         button.addEventListener('click', async () => {
