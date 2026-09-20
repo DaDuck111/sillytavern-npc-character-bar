@@ -6745,3 +6745,98 @@ body.charListGrid #npcb-character-library-shell > #rm_print_characters_block {
         width: 100%;
     }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   v0.11.5 — compact, usable favorites hotbar
+   ═══════════════════════════════════════════════════════════════ */
+
+/*
+ * SillyTavern's native .hotswap can center its children. Inside our
+ * favorites shelf that leaves one/few avatars stranded in the middle
+ * of a wide empty bar. Force a compact left-aligned strip instead.
+ */
+#HotSwapWrapper {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 8px !important;
+    min-width: 0 !important;
+    min-height: 54px !important;
+    height: auto !important;
+    margin: 3px 7px 7px !important;
+    padding: 5px 8px !important;
+    overflow: hidden !important;
+}
+
+#HotSwapWrapper::before {
+    flex: 0 0 auto !important;
+    align-self: center !important;
+    margin: 0 !important;
+}
+
+#HotSwapWrapper .hotswap {
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    min-height: 44px !important;
+    height: auto !important;
+
+    display: flex !important;
+    flex-flow: row nowrap !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 7px !important;
+
+    margin: 0 !important;
+    padding: 2px 3px 4px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    touch-action: pan-x;
+}
+
+#HotSwapWrapper .hotswap .avatar {
+    flex: 0 0 44px !important;
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    max-width: 44px !important;
+    margin: 0 !important;
+    scroll-snap-align: start;
+}
+
+#HotSwapWrapper .hotswap .avatar img {
+    width: 44px !important;
+    height: 44px !important;
+}
+
+/* Avoid a second "row" on narrow drawers; keep favorites horizontally scrollable. */
+@container (max-width: 420px) {
+    #HotSwapWrapper {
+        display: flex !important;
+        grid-template-columns: unset !important;
+        row-gap: 0 !important;
+    }
+
+    #HotSwapWrapper::before {
+        content: "★" !important;
+        padding-left: 0 !important;
+        font-size: 13px !important;
+        letter-spacing: 0 !important;
+    }
+
+    #HotSwapWrapper .hotswap {
+        min-height: 42px !important;
+    }
+
+    #HotSwapWrapper .hotswap .avatar,
+    #HotSwapWrapper .hotswap .avatar img {
+        width: 40px !important;
+        height: 40px !important;
+        min-width: 40px !important;
+        max-width: 40px !important;
+    }
+}
