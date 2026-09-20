@@ -580,6 +580,9 @@ SCENE SUMMARY RULE:
 WORLD TIME / WEATHER RULES:
 - Track in-world time only from story evidence. Do not use the real user's current date/time.
 - Keep the last known RP time/date/weather when the newest reply does not change it.
+- time is CLOCK TIME only (for example 10:31, 23:40, around 6 PM). Never put weekday/month/year text into time.
+- day is a weekday/day label such as Friday or Day 12. date is the calendar date/month/year such as 25 December 2026 or October 2024.
+- If only "Friday, October 2024" is known, use day="Friday", date="October 2024", and leave time unchanged/blank.
 - dayPart should be a compact value such as dawn, morning, afternoon, evening, night, late night.
 - weather should be short and story-grounded: clear, rain, snow, storm, fog, etc.
 - season/year/holiday are optional and only set when established. Holiday may be values such as Christmas, New Year, Lunar New Year, festival names, or fictional holidays.
