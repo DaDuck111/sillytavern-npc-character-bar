@@ -349,9 +349,18 @@ function renderStatus(state) {
 
         ${renderAttributes(p)}
 
-        <div class="npcb-system-resource-grid">
-            <div><small>FUNDS</small><strong>${escapeHtml(p.money.toLocaleString?.() ?? p.money)} <em>${escapeHtml(p.currency)}</em></strong></div>
-            <div><small>LOCATION</small><strong>${escapeHtml(p.currentLocation || state.scene.location || 'Unknown')}</strong></div>
+        <div class="npcb-system-resource-grid npcb-fund-grid">
+            <div class="npcb-fund-card system-fund">
+                <small>SYSTEM FUND</small>
+                <strong>${escapeHtml((p.funds?.system?.amount ?? 0).toLocaleString?.() ?? p.funds?.system?.amount ?? 0)} <em>${escapeHtml(p.funds?.system?.currency || 'Gold')}</em></strong>
+                <button data-action="fund-edit" data-fund-kind="system">EDIT</button>
+            </div>
+            <div class="npcb-fund-card real-fund">
+                <small>REAL-WORLD FUND</small>
+                <strong>${escapeHtml((p.funds?.real?.amount ?? 0).toLocaleString?.() ?? p.funds?.real?.amount ?? 0)} <em>${escapeHtml(p.funds?.real?.currency || 'Currency unknown')}</em></strong>
+                <button data-action="fund-edit" data-fund-kind="real">EDIT</button>
+            </div>
+            <div class="npcb-location-card"><small>LOCATION</small><strong>${escapeHtml(p.currentLocation || state.scene.location || 'Unknown')}</strong></div>
         </div>
 
         ${renderWorldState(state)}
@@ -424,10 +433,17 @@ function renderInventory(state) {
             <button data-inventory-tab="stored" class="${inventoryTab === 'stored' ? 'active' : ''}">STORED</button>
         </div>
 
-        <div class="npcb-inventory-money">
-            <span>AVAILABLE FUNDS</span>
-            <strong>${escapeHtml(p.money.toLocaleString?.() ?? p.money)} ${escapeHtml(p.currency)}</strong>
-            <button data-action="money-edit">EDIT</button>
+        <div class="npcb-inventory-funds">
+            <div>
+                <span>SYSTEM FUND</span>
+                <strong>${escapeHtml((p.funds?.system?.amount ?? 0).toLocaleString?.() ?? p.funds?.system?.amount ?? 0)} ${escapeHtml(p.funds?.system?.currency || 'Gold')}</strong>
+                <button data-action="fund-edit" data-fund-kind="system">EDIT</button>
+            </div>
+            <div>
+                <span>REAL-WORLD FUND</span>
+                <strong>${escapeHtml((p.funds?.real?.amount ?? 0).toLocaleString?.() ?? p.funds?.real?.amount ?? 0)} ${escapeHtml(p.funds?.real?.currency || 'Currency unknown')}</strong>
+                <button data-action="fund-edit" data-fund-kind="real">EDIT</button>
+            </div>
         </div>
 
         ${inventoryTab === 'stored' ? `
