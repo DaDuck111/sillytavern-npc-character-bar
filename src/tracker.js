@@ -35,6 +35,19 @@ function mergeNpcVitals(character, update, trackVitals = true) {
         ));
     }
 
+    if (update.maxMana !== undefined && update.maxMana !== null && update.maxMana !== '') {
+        character.vitals.maxMana = Math.max(0, Number(update.maxMana) || 0);
+    }
+    if (update.mana !== undefined && update.mana !== null && update.mana !== '') {
+        character.vitals.mana = Math.max(0, character.vitals.maxMana > 0
+            ? Math.min(Number(update.mana) || 0, character.vitals.maxMana)
+            : Number(update.mana) || 0);
+    } else if (update.manaDelta !== undefined && update.manaDelta !== null && update.manaDelta !== '') {
+        character.vitals.mana = Math.max(0, character.vitals.maxMana > 0
+            ? Math.min((Number(character.vitals.mana) || 0) + (Number(update.manaDelta) || 0), character.vitals.maxMana)
+            : (Number(character.vitals.mana) || 0) + (Number(update.manaDelta) || 0));
+    }
+
     if (update.maxFatigue !== undefined && update.maxFatigue !== null && update.maxFatigue !== '') {
         character.vitals.maxFatigue = Math.max(1, Number(update.maxFatigue) || character.vitals.maxFatigue || 100);
     }
@@ -184,6 +197,46 @@ function findSkill(player, name) {
     return player.skills.find(skill => normalizeName(skill.name) === needle) || null;
 }
 
+function findEffect(player, name) {
+    const needle = normalizeName(name);
+    return (player.effects || []).find(effect => normalizeName(effect.name) === needle) || null;
+}
+
+function patchSkill(skill, raw = {}) {
+    if (raw.rank !== undefined || raw.level !== undefined) skill.rank = String(raw.rank ?? raw.level ?? '');
+    if (raw.type && ['active', 'passive', 'toggle'].includes(raw.type)) skill.type = raw.type;
+    if (raw.description !== undefined) skill.description = String(raw.description || '');
+    if (raw.source !== undefined) skill.source = String(raw.source || '');
+    if (raw.cooldown !== undefined) skill.cooldown = String(raw.cooldown || '');
+    if (raw.remainingCooldown !== undefined) skill.remainingCooldown = String(raw.remainingCooldown || '');
+    if (raw.cost && typeof raw.cost === 'object') {
+        skill.cost ||= { resource: '', amount: 0 };
+        if (raw.cost.resource !== undefined) skill.cost.resource = String(raw.cost.resource || '');
+        if (raw.cost.amount !== undefined && raw.cost.amount !== '') skill.cost.amount = Math.max(0, Number(raw.cost.amount) || 0);
+    }
+    if (raw.requirements && typeof raw.requirements === 'object') {
+        skill.requirements ||= { text: '', attributes: {} };
+        if (raw.requirements.text !== undefined) skill.requirements.text = String(raw.requirements.text || '');
+        if (raw.requirements.attributes && typeof raw.requirements.attributes === 'object') {
+            skill.requirements.attributes ||= {};
+            for (const key of CORE_ATTRIBUTES) {
+                if (raw.requirements.attributes[key] !== undefined && raw.requirements.attributes[key] !== '') {
+                    skill.requirements.attributes[key] = Math.max(0, Number(raw.requirements.attributes[key]) || 0);
+                }
+            }
+        }
+    }
+    if (raw.modifiers && typeof raw.modifiers === 'object') {
+        skill.modifiers ||= {};
+        for (const key of CORE_ATTRIBUTES) {
+            if (raw.modifiers[key] !== undefined && raw.modifiers[key] !== '') {
+                skill.modifiers[key] = Number(raw.modifiers[key]) || 0;
+            }
+        }
+    }
+    if (Array.isArray(raw.effects)) skill.effects = raw.effects.filter(Boolean).map(String);
+}
+
 function findStorage(player, nameOrId) {
     const needle = normalizeName(nameOrId);
     return player.storageLocations.find(storage =>
@@ -236,7 +289,7 @@ function applyPlayerUpdate(state, update = {}) {
     if (update.hasSystem === true) activatePlayerSystem(player, update);
     if (update.hasSystem === false) disablePlayerSystem(player);
 
-    for (const key of ['name', 'title', 'className', 'currency', 'currentLocation', 'homeLocation', 'homeDescription', 'condition']) {
+    for (const key of ['name', 'title', 'className', 'currentLocation', 'homeLocation', 'homeDescription', 'condition']) {
         if (update[key] !== undefined && update[key] !== null && String(update[key]).trim() !== '') {
             player[key] = String(update[key]);
         }
@@ -276,11 +329,32 @@ function applyPlayerUpdate(state, update = {}) {
     }
 
     if (tracker.trackMoney !== false) {
-        if (update.money !== undefined && update.money !== null && update.money !== '') {
-            player.money = Number(update.money) || 0;
-        } else if (update.moneyDelta !== undefined && update.moneyDelta !== null && update.moneyDelta !== '') {
-            player.money = (Number(player.money) || 0) + (Number(update.moneyDelta) || 0);
-        }
+        player.funds ||= {
+            system: { amount: 0, currency: 'Gold' },
+            real: { amount: 0, currency: '' },
+        };
+
+        const applyFund = (target, raw, legacyAmount, legacyDelta, legacyCurrency) => {
+            if (!raw && legacyAmount === undefined && legacyDelta === undefined && legacyCurrency === undefined) return;
+            if (raw?.currency !== undefined && String(raw.currency).trim()) target.currency = String(raw.currency).trim();
+            if (legacyCurrency !== undefined && String(legacyCurrency).trim()) target.currency = String(legacyCurrency).trim();
+
+            if (raw?.amount !== undefined && raw.amount !== '') target.amount = Number(raw.amount) || 0;
+            else if (raw?.delta !== undefined && raw.delta !== '') target.amount = (Number(target.amount) || 0) + (Number(raw.delta) || 0);
+            else if (legacyAmount !== undefined && legacyAmount !== '') target.amount = Number(legacyAmount) || 0;
+            else if (legacyDelta !== undefined && legacyDelta !== '') target.amount = (Number(target.amount) || 0) + (Number(legacyDelta) || 0);
+        };
+
+        applyFund(
+            player.funds.system,
+            update.systemFunds,
+            update.money,
+            update.moneyDelta,
+            update.currency,
+        );
+        applyFund(player.funds.real, update.realFunds);
+
+        if (!player.hasSystem) player.funds.system.amount = 0;
     }
 
     if (tracker.trackStats !== false && Array.isArray(update.statUpdates)) {
@@ -396,25 +470,72 @@ function applyPlayerUpdate(state, update = {}) {
                 skill = {
                     id: uid('skill'),
                     name: String(raw.name),
-                    rank: String(raw.rank || raw.level || ''),
-                    description: String(raw.description || ''),
-                    source: String(raw.source || ''),
+                    rank: '',
+                    type: 'active',
+                    description: '',
+                    source: '',
+                    cooldown: '',
+                    remainingCooldown: '',
+                    cost: { resource: '', amount: 0 },
+                    requirements: { text: '', attributes: {} },
+                    modifiers: {},
+                    effects: [],
                 };
                 player.skills.push(skill);
-            } else {
-                if (raw.rank || raw.level) skill.rank = String(raw.rank || raw.level);
-                if (raw.description) skill.description = String(raw.description);
-                if (raw.source) skill.source = String(raw.source);
             }
+            patchSkill(skill, raw);
         }
 
         for (const raw of update.skillsUpdate || []) {
             if (!raw?.name) continue;
             const skill = findSkill(player, raw.name);
             if (!skill) continue;
-            if (raw.rank !== undefined || raw.level !== undefined) skill.rank = String(raw.rank ?? raw.level ?? '');
-            if (raw.description !== undefined) skill.description = String(raw.description || '');
-            if (raw.source !== undefined) skill.source = String(raw.source || '');
+            patchSkill(skill, raw);
+        }
+
+        player.effects ||= [];
+        for (const raw of update.effectsAdd || []) {
+            if (!raw?.name) continue;
+            let effect = findEffect(player, raw.name);
+            if (!effect) {
+                effect = {
+                    id: uid('effect'),
+                    name: String(raw.name),
+                    description: '',
+                    duration: '',
+                    source: '',
+                    harmful: Boolean(raw.harmful),
+                    modifiers: {},
+                };
+                player.effects.push(effect);
+            }
+            if (raw.description !== undefined) effect.description = String(raw.description || '');
+            if (raw.duration !== undefined) effect.duration = String(raw.duration || '');
+            if (raw.source !== undefined) effect.source = String(raw.source || '');
+            if (raw.harmful !== undefined) effect.harmful = Boolean(raw.harmful);
+            if (raw.modifiers && typeof raw.modifiers === 'object') {
+                for (const key of CORE_ATTRIBUTES) {
+                    if (raw.modifiers[key] !== undefined && raw.modifiers[key] !== '') {
+                        effect.modifiers[key] = Number(raw.modifiers[key]) || 0;
+                    }
+                }
+            }
+        }
+
+        for (const raw of update.effectsUpdate || []) {
+            if (!raw?.name) continue;
+            const effect = findEffect(player, raw.name);
+            if (!effect) continue;
+            if (raw.description !== undefined) effect.description = String(raw.description || '');
+            if (raw.duration !== undefined) effect.duration = String(raw.duration || '');
+            if (raw.source !== undefined) effect.source = String(raw.source || '');
+            if (raw.harmful !== undefined) effect.harmful = Boolean(raw.harmful);
+        }
+
+        for (const name of update.effectsRemove || []) {
+            const needle = normalizeName(typeof name === 'string' ? name : name?.name);
+            if (!needle) continue;
+            player.effects = player.effects.filter(effect => normalizeName(effect.name) !== needle);
         }
 
         for (const title of update.titlesAdd || []) {
