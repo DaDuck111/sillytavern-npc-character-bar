@@ -67,28 +67,40 @@ function makeMessageKey(ctx, message, index) {
 }
 
 function summarizeRoster(state) {
-    return state.order.map(id => state.characters[id]).filter(Boolean).map(c => ({
-        name: c.name,
-        aliases: c.aliases || [],
-        role: c.role || '',
-        faction: c.faction || '',
-        status: c.status,
-        relationship: {
-            label: c.relationship?.label || '',
-            value: c.relationship?.value ?? 0,
-        },
-        vitals: c.vitals || {},
-        profileMissing: ['age','gender','appearance','personality','background','goals','secrets']
-            .filter(key => !String(c.profile?.[key] || '').trim()),
-        system: c.system?.hasSystem ? {
-            hasSystem: true,
-            level: c.system.level,
-            xp: c.system.xp,
-            xpToNext: c.system.xpToNext,
-            attributes: c.system.attributes,
-            stats: c.system.stats,
-        } : { hasSystem: false },
-    }));
+    return state.order.map(id => state.characters[id]).filter(Boolean).map(c => {
+        const profileMissing = ['age','gender','appearance','personality','background','goals','secrets']
+            .filter(key => !String(c.profile?.[key] || '').trim());
+        const active = ['present', 'nearby'].includes(c.status);
+
+        const row = {
+            name: c.name,
+            aliases: (c.aliases || []).slice(0, 5),
+            role: c.role || '',
+            faction: c.faction || '',
+            status: c.status,
+            rel: c.relationship?.value ?? 0,
+            profileMissing,
+        };
+
+        if (profileMissing.length && c.lore?.content) {
+            row.loreHint = String(c.lore.content).replace(/\s+/g, ' ').trim().slice(0, 320);
+        }
+
+        if (active) {
+            row.vitals = c.vitals || {};
+            row.system = c.system?.hasSystem ? {
+                hasSystem: true,
+                level: c.system.level,
+                xp: c.system.xp,
+                xpToNext: c.system.xpToNext,
+                attributes: c.system.attributes,
+            } : { hasSystem: false };
+        } else if (c.system?.hasSystem) {
+            row.system = { hasSystem: true, level: c.system.level };
+        }
+
+        return row;
+    });
 }
 
 function buildPrompt(ctx, state, latestIndex) {
