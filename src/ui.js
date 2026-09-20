@@ -111,6 +111,11 @@ function ensureRoot() {
         renderBar();
     });
     root.querySelector('.npcb-card-scroll').addEventListener('click', event => {
+        if (event.target.closest('.npcb-card-thought')) {
+            event.stopPropagation();
+            toggleThoughts(true);
+            return;
+        }
         const card = event.target.closest('.npcb-card');
         if (card?.dataset.id) openWorkshop(card.dataset.id);
     });
@@ -160,7 +165,7 @@ export function renderBar() {
                 </div>
                 <div class="npcb-card-state">${escapeHtml(character.scene?.action || character.scene?.mood || character.relationship?.label || '')}</div>
             </div>
-            ${String(character.scene?.thoughts || '').trim() ? '<span class="npcb-card-thought" title="Thoughts available">💭</span>' : ''}
+            ${String(character.scene?.thoughts || '').trim() ? '<button type="button" class="npcb-card-thought" title="Show NPC thoughts">💭</button>' : ''}
             ${character.relationship?.label && character.relationship.label !== 'Unknown'
                 ? `<span class="npcb-relation-badge">${escapeHtml(character.relationship.label)}</span>` : ''}
         </button>`).join('');
