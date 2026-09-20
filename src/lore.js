@@ -194,6 +194,17 @@ export function updateLorebookMeta(name, patch = {}) {
     return true;
 }
 
+export function deleteLorebookMeta(name) {
+    const clean = String(name || '').trim();
+    if (!clean) return false;
+    const meta = loreMetaRoot();
+    if (!meta.books?.[clean]) return false;
+    delete meta.books[clean];
+    saveLoreMeta();
+    window.dispatchEvent(new CustomEvent('npcb:lore-meta-changed'));
+    return true;
+}
+
 export function getLorebookGroups() {
     return [...new Set(getLorebookCatalog().map(book => book.group).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 }
