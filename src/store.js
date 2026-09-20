@@ -52,7 +52,7 @@ export const DEFAULT_PLAYER = Object.freeze({
 });
 
 export const DEFAULT_STATE = Object.freeze({
-    version: 8,
+    version: 9,
     characters: {},
     order: [],
     scene: {
@@ -441,7 +441,7 @@ export function getState() {
     const ctx = getContext();
     const raw = ctx.chatMetadata?.[META_KEY];
     const state = deepClone(raw || DEFAULT_STATE);
-    state.version = 8;
+    state.version = 9;
     state.characters ||= {};
     state.order ||= [];
     state.scene = { ...DEFAULT_STATE.scene, ...(state.scene || {}) };
