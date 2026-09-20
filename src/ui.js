@@ -9,7 +9,7 @@ import {
     saveState,
     updateCharacter,
 } from './store.js';
-import { applyLoreContentToCharacter, buildLoreContent, pullLore, pushLore } from './lore.js';
+import { applyLoreContentToCharacter, buildLoreContent, getLorebookNames, syncLore } from './lore.js';
 import {
     createArchiveGroup,
     getArchiveSeed,
@@ -18,6 +18,7 @@ import {
     setNpcGroups,
     unlinkArchiveFromChat,
 } from './globalArchive.js';
+import { mountThoughts, renderThoughts, toggleThoughts } from './thoughts.js';
 import {
     debounce,
     downloadJson,
@@ -78,6 +79,7 @@ function ensureRoot() {
                 <span class="npcb-count"></span>
             </div>
             <div class="npcb-spacer"></div>
+            <button class="npcb-icon-btn npcb-thoughts-toggle" title="Show/hide NPC thoughts">💭</button>
             <button class="npcb-icon-btn npcb-away-toggle" title="Show/hide absent characters">◌</button>
             <button class="npcb-icon-btn npcb-add-btn" title="Add NPC">＋</button>
         </div>
@@ -96,6 +98,7 @@ function ensureRoot() {
     });
     root.querySelector('.npcb-add-btn').addEventListener('click', addNpcFlow);
     root.querySelector('.npcb-archive-btn').addEventListener('click', openArchive);
+    root.querySelector('.npcb-thoughts-toggle').addEventListener('click', () => toggleThoughts());
     root.querySelector('.npcb-away-toggle').addEventListener('click', async () => {
         await mutateState(state => { state.ui.showAwayOnBar = !state.ui.showAwayOnBar; });
         renderBar();
@@ -132,6 +135,7 @@ export function renderBar() {
                 <small>Saved per chat. Click to create.</small>
             </button>`;
         scroller.querySelector('.npcb-empty').addEventListener('click', addNpcFlow);
+        renderThoughts();
         return;
     }
 
@@ -144,11 +148,16 @@ export function renderBar() {
             <div class="npcb-card-body">
                 <div class="npcb-card-name">${escapeHtml(character.name)}</div>
                 <div class="npcb-card-meta">${escapeHtml(character.role || character.faction || statusLabel(character.status))}</div>
+                <div class="npcb-card-hp" title="HP ${escapeHtml(character.vitals?.hp ?? 100)} / ${escapeHtml(character.vitals?.maxHp ?? 100)}">
+                    <i style="width:${Math.max(0, Math.min(100, ((Number(character.vitals?.hp) || 0) / Math.max(1, Number(character.vitals?.maxHp) || 100)) * 100))}%"></i>
+                </div>
                 <div class="npcb-card-state">${escapeHtml(character.scene?.action || character.scene?.mood || character.relationship?.label || '')}</div>
             </div>
+            ${String(character.scene?.thoughts || '').trim() ? '<span class="npcb-card-thought" title="Thoughts available">💭</span>' : ''}
             ${character.relationship?.label && character.relationship.label !== 'Unknown'
                 ? `<span class="npcb-relation-badge">${escapeHtml(character.relationship.label)}</span>` : ''}
         </button>`).join('');
+    renderThoughts();
 }
 
 async function addNpcFlow() {
@@ -278,7 +287,7 @@ export function openWorkshop(id, tab = 'overview') {
     const character = state.characters[id];
     if (!character) return;
 
-    const allowedTabs = ['overview', 'current', 'memory', 'system'];
+    const allowedTabs = ['overview', 'current', 'lore', 'system'];
     if (!allowedTabs.includes(tab)) tab = 'overview';
 
     currentCharacterId = id;
@@ -310,7 +319,7 @@ export function openWorkshop(id, tab = 'overview') {
             ${[
                 ['overview','Overview'],
                 ['current','Current'],
-                ['memory','Memory & Lore'],
+                ['lore','Lorebook'],
                 ['system','System'],
             ].map(([key,label]) => `<button type="button" data-tab="${key}" class="${key === tab ? 'active' : ''}">${label}</button>`).join('')}
         </nav>
@@ -370,35 +379,47 @@ export function openWorkshop(id, tab = 'overview') {
                 </div>
             </section>
 
-            <section data-pane="memory" class="${tab === 'memory' ? 'active' : ''}">
+            <section data-pane="lore" class="${tab === 'lore' ? 'active' : ''}">
                 <div class="npcb-section-heading">
-                    <div><small>CONTINUITY</small><strong>Memory & Lorebook</strong></div>
-                    <span>Lorebook sync is token-free; structured labels hydrate this profile directly.</span>
+                    <div><small>LOREBOOK</small><strong>NPC Lore Source</strong></div>
+                    <span>Choose a Lorebook. Sync reads an existing NPC entry into this profile, or creates one if none exists.</span>
                 </div>
 
-                <div class="npcb-memory-toolbar">
-                    <button class="npcb-primary-btn npcb-add-memory" type="button">＋ Add memory</button>
-                    <button class="npcb-soft-btn npcb-lore-pull" type="button">Pull Lore → Profile</button>
-                    <button class="npcb-soft-btn npcb-lore-push" type="button">Push Profile → Lore</button>
+                <div class="npcb-lore-picker">
+                    <label>
+                        <span>Lorebook</span>
+                        <select class="npcb-lorebook-select" data-field="lore.book">
+                            ${[
+                                { value: '', label: 'Current chat Lorebook' },
+                                ...getLorebookNames().map(name => ({ value: name, label: name })),
+                                ...(character.lore.book && !getLorebookNames().includes(character.lore.book)
+                                    ? [{ value: character.lore.book, label: character.lore.book }]
+                                    : []),
+                            ].map(option => `<option value="${escapeHtml(option.value)}" ${String(character.lore.book || '') === option.value ? 'selected' : ''}>${escapeHtml(option.label)}</option>`).join('')}
+                        </select>
+                    </label>
+                    <button class="npcb-primary-btn npcb-lore-sync" type="button">SYNC NPC</button>
                 </div>
-                <div class="npcb-memory-list">${renderMemories(character)}</div>
-                <div class="npcb-form-grid">
-                    ${field('Private notes', 'notes', character.notes, { type: 'textarea', rows: 5, wide: true })}
-                    ${field('Lorebook', 'lore.book', character.lore.book, { placeholder: 'Blank = current chat Lorebook' })}
-                    ${field('Entry UID', 'lore.uid', character.lore.uid, { placeholder: 'Created on first Push' })}
+
+                <div class="npcb-lore-status">
+                    <div><small>ENTRY UID</small><strong>${escapeHtml(character.lore.uid || 'Not linked yet')}</strong></div>
+                    <div><small>LAST SYNC</small><strong>${character.lore.lastSync ? escapeHtml(new Date(character.lore.lastSync).toLocaleString()) : 'Never'}</strong></div>
+                </div>
+
+                <div class="npcb-info-strip">
+                    <strong>SYNC NPC</strong> is the only button you normally need. If the entry already exists, Lorebook data refreshes the profile. If it does not exist, the extension creates the NPC entry from the current profile.
                 </div>
 
                 <details class="npcb-lore-details">
-                    <summary>Raw Lorebook content</summary>
+                    <summary>Advanced: raw Lorebook content</summary>
                     <div class="npcb-form-grid">
-                        <label class="npcb-check wide"><input data-field="lore.includeScene" type="checkbox" ${character.lore.includeScene ? 'checked' : ''}> Include current scene state when rebuilding Lore content</label>
+                        <label class="npcb-check wide"><input data-field="lore.includeScene" type="checkbox" ${character.lore.includeScene ? 'checked' : ''}> Include current scene state when rebuilding raw lore</label>
                         ${field('Lore content', 'lore.content', character.lore.content || buildLoreContent(character), { type: 'textarea', rows: 12, wide: true })}
                     </div>
                     <div class="npcb-lore-actions">
-                        <button class="npcb-soft-btn npcb-lore-rebuild" type="button">Rebuild from profile</button>
+                        <button class="npcb-soft-btn npcb-lore-rebuild" type="button">Rebuild raw content from profile</button>
                     </div>
                 </details>
-                <div class="npcb-sync-time">${character.lore.lastSync ? `Last sync: ${escapeHtml(character.lore.lastSync)}` : 'Not synced yet.'}</div>
             </section>
 
             <section data-pane="system" class="${tab === 'system' ? 'active' : ''}">
@@ -409,7 +430,7 @@ export function openWorkshop(id, tab = 'overview') {
 
                 <label class="npcb-check npcb-system-toggle-card">
                     <input class="npcb-npc-system-toggle" data-field="system.hasSystem" type="checkbox" ${character.system?.hasSystem ? 'checked' : ''}>
-                    <span>This NPC has a System / detailed status interface</span>
+                    <span>NPC has a System / detailed status interface <small>(AI can turn this on/off when the story establishes it)</small></span>
                 </label>
 
                 ${character.system?.hasSystem ? `
@@ -453,18 +474,6 @@ export function openWorkshop(id, tab = 'overview') {
     setTimeout(() => autoHydrateProfileFromLore(id, tab), 0);
 }
 
-function renderMemories(character) {
-    if (!character.memories.length) return `<div class="npcb-muted-box">No memories saved yet.</div>`;
-    return character.memories.map((memory, index) => {
-        const text = typeof memory === 'string' ? memory : memory.text || '';
-        const date = typeof memory === 'object' ? memory.date || '' : '';
-        return `<div class="npcb-memory-row" data-memory-index="${index}">
-            <input class="npcb-memory-date" value="${escapeHtml(date)}" placeholder="Day / date">
-            <textarea class="npcb-memory-text" rows="2" placeholder="What happened?">${escapeHtml(text)}</textarea>
-            <button class="npcb-icon-btn npcb-remove-memory" type="button">×</button>
-        </div>`;
-    }).join('');
-}
 
 function bindWorkshopEvents(character, activeTab = 'overview') {
     const root = ensureModalRoot();
@@ -507,7 +516,7 @@ function bindWorkshopEvents(character, activeTab = 'overview') {
                 c.system.stats = [];
             }
         });
-        openWorkshop(character.id, 'stats');
+        openWorkshop(character.id, 'system');
     });
 
     root.querySelector('.npcb-delete-character').addEventListener('click', async () => {
@@ -529,7 +538,7 @@ function bindWorkshopEvents(character, activeTab = 'overview') {
     });
     root.querySelector('.npcb-clear-portrait').addEventListener('click', async () => {
         await updateCharacter(character.id, c => { c.portrait = ''; });
-        openWorkshop(character.id, 'identity');
+        openWorkshop(character.id, 'overview');
         renderBar();
     });
 
@@ -539,68 +548,52 @@ function bindWorkshopEvents(character, activeTab = 'overview') {
             c.system.stats ||= [];
             c.system.stats.push({ id: `npcstat_${Date.now()}`, name: 'Custom Stat', value: 0, max: 100, unit: '', aiTrack: true });
         });
-        openWorkshop(character.id, 'stats');
+        openWorkshop(character.id, 'system');
     });
     root.querySelectorAll('.npcb-remove-npc-system-stat').forEach(button => {
         button.addEventListener('click', async () => {
             const index = Number(button.closest('[data-system-stat-index]')?.dataset.systemStatIndex);
             if (!Number.isFinite(index)) return;
             await updateCharacter(character.id, c => c.system.stats.splice(index, 1));
-            openWorkshop(character.id, 'stats');
+            openWorkshop(character.id, 'system');
         });
     });
 
-    root.querySelector('.npcb-add-memory').addEventListener('click', async () => {
-        await updateCharacter(character.id, c => c.memories.push({ date: '', text: '' }));
-        openWorkshop(character.id, 'memory');
-    });
-    root.querySelectorAll('.npcb-memory-row').forEach(row => {
-        const index = Number(row.dataset.memoryIndex);
-        row.querySelector('.npcb-remove-memory').addEventListener('click', async () => {
-            await updateCharacter(character.id, c => c.memories.splice(index, 1));
-            openWorkshop(character.id, 'memory');
+    root.querySelector('.npcb-lorebook-select')?.addEventListener('change', async event => {
+        loreAutoSynced.delete(character.id);
+        await updateCharacter(character.id, c => {
+            c.lore.book = event.target.value;
+            c.lore.uid = '';
+            c.lore.lastSync = '';
         });
-        const saveMemory = debounce(async () => {
+    });
+
+    root.querySelector('.npcb-lore-sync')?.addEventListener('click', async () => {
+        try {
+            await persistWorkshopNow(character.id);
+            const fresh = getState().characters[character.id];
+            const selectedBook = root.querySelector('.npcb-lorebook-select')?.value ?? fresh.lore.book ?? '';
+            const result = await syncLore(fresh, { book: selectedBook, createIfMissing: true });
             await updateCharacter(character.id, c => {
-                c.memories[index] = {
-                    date: row.querySelector('.npcb-memory-date').value,
-                    text: row.querySelector('.npcb-memory-text').value,
-                };
+                Object.assign(c.lore, result);
+                if (!result.created && result.content) {
+                    applyLoreContentToCharacter(c, result.content, { overwrite: true });
+                }
             });
-        }, 300);
-        row.querySelector('.npcb-memory-date').addEventListener('input', saveMemory);
-        row.querySelector('.npcb-memory-text').addEventListener('input', saveMemory);
+            loreAutoSynced.add(character.id);
+            toast('success', result.created ? 'Created and linked NPC Lorebook entry.' : 'Synced NPC from Lorebook.');
+            openWorkshop(character.id, 'lore');
+        } catch (error) {
+            console.error(error);
+            toast('error', error.message || 'Lorebook sync failed.');
+        }
     });
 
-    root.querySelector('.npcb-lore-rebuild').addEventListener('click', async () => {
+    root.querySelector('.npcb-lore-rebuild')?.addEventListener('click', async () => {
         await persistWorkshopNow(character.id);
         const fresh = getState().characters[character.id];
         await updateCharacter(character.id, c => { c.lore.content = buildLoreContent(fresh); });
-        openWorkshop(character.id, 'memory');
-    });
-    root.querySelector('.npcb-lore-push').addEventListener('click', async () => {
-        try {
-            await persistWorkshopNow(character.id);
-            const fresh = getState().characters[character.id];
-            const lore = await pushLore(fresh);
-            await updateCharacter(character.id, c => Object.assign(c.lore, lore));
-            toast('success', `Synced ${fresh.name} to Lorebook.`);
-            openWorkshop(character.id, 'lore');
-        } catch (error) { console.error(error); toast('error', error.message || 'Lorebook sync failed.'); }
-    });
-    root.querySelector('.npcb-lore-pull').addEventListener('click', async () => {
-        try {
-            await persistWorkshopNow(character.id);
-            const fresh = getState().characters[character.id];
-            const lore = await pullLore(fresh);
-            await updateCharacter(character.id, c => {
-                Object.assign(c.lore, lore);
-                applyLoreContentToCharacter(c, lore.content, { overwrite: true });
-            });
-            loreAutoSynced.add(character.id);
-            toast('success', `Loaded Lorebook and refreshed profile for ${fresh.name}.`);
-            openWorkshop(character.id, 'memory');
-        } catch (error) { console.error(error); toast('error', error.message || 'Lorebook pull failed.'); }
+        openWorkshop(character.id, 'lore');
     });
 }
 
@@ -855,5 +848,6 @@ function openContextMenu(id, x, y) {
 
 export function mountUI() {
     ensureRoot();
+    mountThoughts();
     renderBar();
 }
