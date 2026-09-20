@@ -479,13 +479,13 @@ export function openArchive() {
 
     const groups = Object.values(archive.groups || {}).sort((a, b) => a.name.localeCompare(b.name));
     const groupOptions = [
-        '<option value="all">All groups</option>',
-        '<option value="ungrouped">Ungrouped</option>',
+        `<option value="all" ${archiveGroupFilter === 'all' ? 'selected' : ''}>All groups</option>`,
+        `<option value="ungrouped" ${archiveGroupFilter === 'ungrouped' ? 'selected' : ''}>Ungrouped</option>`,
         ...groups.map(group => `<option value="${escapeHtml(group.id)}" ${archiveGroupFilter === group.id ? 'selected' : ''}>${escapeHtml(group.name)}</option>`),
     ].join('');
 
     const chatOptions = [
-        '<option value="all">All chats</option>',
+        `<option value="all" ${archiveChatFilter === 'all' ? 'selected' : ''}>All chats</option>`,
         `<option value="current" ${archiveChatFilter === 'current' ? 'selected' : ''}>Current chat</option>`,
         ...[...allChats.entries()]
             .filter(([id]) => id !== currentChat.id)
