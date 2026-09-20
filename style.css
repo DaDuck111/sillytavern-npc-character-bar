@@ -1985,3 +1985,281 @@
         grid-template-columns: 1fr 54px 8px 54px 44px 24px;
     }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   v0.5 — simplified NPC workshop + movable/resizable System HUD
+   ═══════════════════════════════════════════════════════════════ */
+
+/* NPC workshop: fixed shell, sticky controls, one scrollable content area */
+.npcb-workshop-v2 {
+    width: min(860px, calc(100vw - 24px));
+    height: min(820px, 90vh);
+    max-height: 90vh;
+    border-radius: 12px;
+    overflow: hidden;
+}
+.npcb-workshop-v2 .npcb-workshop-header {
+    flex: 0 0 auto;
+    min-height: 72px;
+    padding: 10px 12px;
+    background: rgba(10,14,23,.98);
+    border-bottom-color: rgba(75,220,255,.13);
+}
+.npcb-back-btn {
+    flex: 0 0 auto;
+    min-height: 34px;
+    padding: 0 10px;
+    border: 1px solid rgba(75,220,255,.16);
+    border-radius: 6px;
+    color: rgba(177,238,252,.78);
+    background: rgba(75,220,255,.045);
+    font: inherit;
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.npcb-back-btn:hover {
+    color: #e6fbff;
+    border-color: rgba(75,220,255,.42);
+    background: rgba(75,220,255,.09);
+}
+.npcb-workshop-title {
+    min-width: 0;
+}
+.npcb-workshop-title h2,
+.npcb-workshop-title p,
+.npcb-workshop-title small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.npcb-workshop-title small {
+    display: block;
+    margin-top: 3px;
+    color: rgba(118,213,236,.4);
+    font-size: 8px;
+}
+.npcb-workshop-v2 .npcb-workshop-tabs {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0,1fr));
+    gap: 0;
+    overflow: visible;
+    padding: 0;
+    background: rgba(5,10,17,.98);
+    border-bottom: 1px solid rgba(75,220,255,.1);
+}
+.npcb-workshop-v2 .npcb-workshop-tabs button {
+    min-width: 0;
+    min-height: 42px;
+    padding: 7px 5px;
+    border-radius: 0;
+    color: rgba(163,217,231,.48);
+    font-size: 10px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.npcb-workshop-v2 .npcb-workshop-tabs button.active {
+    color: #9decff;
+    background: linear-gradient(180deg, rgba(75,220,255,.07), rgba(75,220,255,.02));
+    box-shadow: inset 0 -2px 0 #4bdcff;
+}
+.npcb-workshop-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 16px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(75,220,255,.25) transparent;
+}
+.npcb-workshop-scroll > section {
+    display: none;
+    min-height: 100%;
+}
+.npcb-workshop-scroll > section.active {
+    display: block;
+}
+.npcb-section-heading {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(75,220,255,.11);
+}
+.npcb-section-heading > div small,
+.npcb-section-heading > div strong {
+    display: block;
+}
+.npcb-section-heading > div small {
+    color: rgba(75,220,255,.45);
+    font-size: 7px;
+    letter-spacing: .13em;
+}
+.npcb-section-heading > div strong {
+    margin-top: 3px;
+    color: rgba(231,249,255,.92);
+    font-size: 14px;
+}
+.npcb-section-heading > span {
+    max-width: 52%;
+    color: rgba(164,211,223,.4);
+    font-size: 8px;
+    line-height: 1.4;
+    text-align: right;
+}
+.npcb-workshop-v2 .npcb-memory-toolbar {
+    justify-content: flex-start;
+    gap: 7px;
+    flex-wrap: wrap;
+}
+.npcb-lore-details {
+    margin-top: 12px;
+    border: 1px solid rgba(75,220,255,.1);
+    border-radius: 7px;
+    background: rgba(0,0,0,.13);
+}
+.npcb-lore-details summary {
+    padding: 9px 11px;
+    color: rgba(145,226,245,.6);
+    font-size: 9px;
+    font-weight: 700;
+    cursor: pointer;
+    user-select: none;
+}
+.npcb-lore-details[open] summary {
+    border-bottom: 1px solid rgba(75,220,255,.08);
+}
+.npcb-lore-details > .npcb-form-grid,
+.npcb-lore-details > .npcb-lore-actions {
+    margin: 10px;
+}
+.npcb-system-toggle-card {
+    margin-bottom: 12px;
+    padding: 10px;
+    border: 1px solid rgba(75,220,255,.12);
+    border-radius: 6px;
+    background: rgba(75,220,255,.035);
+}
+.npcb-system-toggle-card > span {
+    color: rgba(219,247,255,.75);
+    font-weight: 700;
+}
+
+@media (max-width: 640px) {
+    .npcb-modal-root {
+        padding: 6px;
+        align-items: stretch;
+    }
+    .npcb-workshop-v2 {
+        width: 100%;
+        height: calc(100vh - 12px);
+        max-height: calc(100vh - 12px);
+        border-radius: 8px;
+    }
+    .npcb-workshop-v2 .npcb-workshop-header {
+        min-height: 62px;
+        gap: 7px;
+        padding: 8px;
+    }
+    .npcb-workshop-v2 .npcb-workshop-avatar {
+        display: none;
+    }
+    .npcb-back-btn {
+        padding: 0 8px;
+        font-size: 9px;
+    }
+    .npcb-workshop-v2 .npcb-workshop-tabs button {
+        min-height: 38px;
+        font-size: 8px;
+    }
+    .npcb-workshop-scroll {
+        padding: 11px;
+    }
+    .npcb-section-heading {
+        align-items: start;
+        flex-direction: column;
+        gap: 4px;
+    }
+    .npcb-section-heading > span {
+        max-width: 100%;
+        text-align: left;
+    }
+    .npcb-form-grid {
+        grid-template-columns: 1fr;
+    }
+    .npcb-field.wide,
+    .npcb-check.wide {
+        grid-column: auto;
+    }
+    .npcb-portrait-editor {
+        grid-template-columns: 82px 1fr;
+        gap: 10px;
+    }
+}
+
+/* System HUD positioning */
+#npcb-dashboard {
+    min-width: 320px;
+    min-height: 360px;
+    max-width: calc(100vw - 12px);
+    max-height: calc(100vh - 12px);
+    resize: both;
+}
+#npcb-dashboard[data-user-geometry="1"] {
+    right: auto;
+    bottom: auto;
+}
+.npcb-system-header {
+    cursor: move;
+    user-select: none;
+    touch-action: none;
+}
+.npcb-system-header button,
+.npcb-system-header .npcb-side-status {
+    cursor: default;
+}
+.npcb-drag-grip {
+    flex: 0 0 auto;
+    color: rgba(103,224,250,.32);
+    font-size: 11px;
+    letter-spacing: -2px;
+    cursor: move;
+}
+.npcb-system-tabs button[draggable="true"] {
+    cursor: grab;
+}
+.npcb-system-tabs button[draggable="true"]:active {
+    cursor: grabbing;
+}
+.npcb-system-tabs button.dragging {
+    opacity: .35;
+}
+.npcb-system-tabs button.drag-over {
+    background: rgba(75,220,255,.13);
+    box-shadow:
+        inset 2px 0 0 #4bdcff,
+        inset -2px 0 0 rgba(75,220,255,.35);
+}
+.npcb-system-tabs {
+    grid-template-columns: repeat(4, minmax(0,1fr));
+    grid-auto-rows: 34px;
+    grid-template-rows: none;
+    min-height: auto;
+}
+.npcb-side-body {
+    min-height: 0;
+}
+
+@media (max-width: 520px) {
+    #npcb-dashboard {
+        min-width: 280px;
+        min-height: 320px;
+    }
+    .npcb-system-tabs {
+        grid-template-columns: repeat(3, minmax(0,1fr));
+    }
+}
