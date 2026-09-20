@@ -83,7 +83,7 @@ async function boot() {
     refreshGameContext();
 
     window.NPCCharacterBar = {
-        version: '0.11.3',
+        version: '0.11.4',
         getState,
         addCharacter: async seed => { const c = await addCharacter(seed); renderBar(); renderDashboard(); return c; },
         updateCharacter: async (id, patch) => { const c = await updateCharacter(id, patch); renderBar(); renderDashboard(); return c; },
@@ -108,7 +108,7 @@ async function boot() {
     renderBar();
     renderDashboard();
     scheduleAutoTrack(1200);
-    console.info(`${TAG} v0.11.3 ready — cleaner scrollable character selector and themed native editor enabled.`);
+    console.info(`${TAG} v0.11.4 ready — responsive character grid, favorite hotbar styling and daily chat streaks enabled.`);
 }
 
 const timer = setInterval(() => {
