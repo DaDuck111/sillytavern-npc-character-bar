@@ -126,8 +126,10 @@ function buildPrompt(ctx, state, latestIndex) {
         xpToNext: p.xpToNext || 0,
         statPoints: p.statPoints || 0,
         attributes: p.attributes || {},
-        money: p.money || 0,
-        currency: p.currency || 'Gold',
+        funds: p.funds || {
+            system: { amount: 0, currency: 'Gold' },
+            real: { amount: 0, currency: '' },
+        },
         currentLocation: p.currentLocation || '',
         homeLocation: p.homeLocation || '',
         stats: (p.stats || []).map(stat => ({
@@ -156,6 +158,22 @@ function buildPrompt(ctx, state, latestIndex) {
         skills: (p.skills || []).map(skill => ({
             name: skill.name,
             rank: skill.rank,
+            type: skill.type,
+            description: skill.description,
+            cooldown: skill.cooldown,
+            remainingCooldown: skill.remainingCooldown,
+            cost: skill.cost,
+            requirements: skill.requirements,
+            modifiers: skill.modifiers,
+            effects: skill.effects,
+        })),
+        effects: (p.effects || []).map(effect => ({
+            name: effect.name,
+            description: effect.description,
+            duration: effect.duration,
+            source: effect.source,
+            harmful: effect.harmful,
+            modifiers: effect.modifiers,
         })),
         titles: p.titles || [],
     };
@@ -228,9 +246,16 @@ Schema:
       "STA": "",
       "SEN": ""
     },
-    "money": "",
-    "moneyDelta": "",
-    "currency": "",
+    "systemFunds": {
+      "amount": "",
+      "delta": "",
+      "currency": "Gold"
+    },
+    "realFunds": {
+      "amount": "",
+      "delta": "",
+      "currency": ""
+    },
     "currentLocation": "",
     "homeLocation": "",
     "homeDescription": "",
@@ -284,11 +309,50 @@ Schema:
     ],
 
     "skillsAdd": [
-      { "name": "", "rank": "", "description": "", "source": "" }
+      {
+        "name": "",
+        "rank": "",
+        "type": "active | passive | toggle",
+        "description": "",
+        "source": "",
+        "cooldown": "",
+        "remainingCooldown": "",
+        "cost": { "resource": "Mana | Stamina | Health | other", "amount": "" },
+        "requirements": {
+          "text": "",
+          "attributes": { "STR": "", "DEX": "", "INT": "", "STA": "", "SEN": "" }
+        },
+        "modifiers": { "STR": "", "DEX": "", "INT": "", "STA": "", "SEN": "" },
+        "effects": []
+      }
     ],
     "skillsUpdate": [
-      { "name": "", "rank": "", "description": "", "source": "" }
+      {
+        "name": "",
+        "rank": "",
+        "description": "",
+        "cooldown": "",
+        "remainingCooldown": "",
+        "cost": { "resource": "", "amount": "" },
+        "requirements": { "text": "", "attributes": {} },
+        "modifiers": {},
+        "effects": []
+      }
     ],
+    "effectsAdd": [
+      {
+        "name": "",
+        "description": "",
+        "duration": "",
+        "source": "",
+        "harmful": false,
+        "modifiers": { "STR": "", "DEX": "", "INT": "", "STA": "", "SEN": "" }
+      }
+    ],
+    "effectsUpdate": [
+      { "name": "", "description": "", "duration": "", "source": "", "harmful": "" }
+    ],
+    "effectsRemove": [],
     "titlesAdd": []
   },
 
@@ -403,6 +467,8 @@ Schema:
       "condition": "",
       "hp": "",
       "maxHp": "",
+      "mana": "",
+      "maxMana": "",
       "fatigue": "",
       "maxFatigue": "",
       "hasSystem": false,
@@ -447,6 +513,9 @@ Schema:
       "hp": "",
       "hpDelta": "",
       "maxHp": "",
+      "mana": "",
+      "manaDelta": "",
+      "maxMana": "",
       "fatigue": "",
       "fatigueDelta": "",
       "maxFatigue": "",
@@ -472,10 +541,20 @@ Schema:
 
 GENERAL PLAYER RULES:
 - Track the user's persona separately. Never create the user as an NPC.
-- Only change player level, XP, money, items, skills, titles, System status, attributes, or stats when the newest roleplay clearly establishes a change.
+- Only change player level, XP, funds, items, skills, titles, System status, attributes, effects, or stats when the newest roleplay clearly establishes a change.
 - Prefer delta fields when only a gain/loss is known.
-- Never invent loot, XP, money, skills, stat increases, or quest rewards merely because combat happened.
+- systemFunds are System-only currency (normally Gold unless the story says otherwise) and must stay at 0 while the player has no System.
+- realFunds are ordinary in-world money. Infer the currency ONLY when the story/setting clearly establishes it (for example KRW in modern Korea, USD when explicitly used, etc.). Do not guess from the user's real location.
+- Never invent loot, XP, funds, skills, stat increases, or quest rewards merely because combat happened.
+- When a skill is used, update its remainingCooldown and explicit resource cost consequences when established.
+- Track temporary status effects/buffs/debuffs in effectsAdd/effectsUpdate/effectsRemove. Keep descriptions compact and gameplay-relevant.
 - Existing inventory quantities and storage locations are authoritative unless the roleplay changes them.
+
+SKILL / STATUS RULES:
+- Skills are gameplay state, not decorative labels. Keep description, cost, cooldown, requirements and effects when the story establishes them.
+- If the newest reply shows a skill being used, update remainingCooldown and affected resources/statuses.
+- Passive skill modifiers belong in modifiers; temporary buffs/debuffs belong in player effects.
+- Do not invent exact numeric costs/cooldowns/stat requirements unless the RP/System states them. Text requirements are allowed when clear.
 
 INVENTORY LOCATION RULES:
 - locationType="person": item is carried on the user's person/bag/pockets.
@@ -503,14 +582,18 @@ QUEST RULES:
 - Update objective completion/status only when the newest reply establishes progress, completion, or failure.
 
 EVENT RULES:
-- Record meaningful developments useful for continuity: combat outcome, discovery, arrival/departure, major social development, acquisition, System event, quest turning point.
-- Skip trivial conversational beats.
+- Treat the event log as compact continuity memory. After EVERY assistant RP reply, add 0–2 short durable events when anything materially changes.
+- Good events include: combat starts/ends or a meaningful hit/injury, arrival/departure, discovery, item/fund/skill acquisition, relationship turning point, promise/agreement, quest progress, System notification, important decision, weather/time-triggered development, or a new threat.
+- Event title should be 2–6 words. Description should be ONE short sentence, ideally under 18 words.
+- Do not log filler such as breathing, looking around, greetings, or repeated combat motions unless they change the situation.
 - Avoid duplicating an event already present in recent events.
 - If a pending event already exists and the newest story makes it occur or cancel, use eventsUpdate instead of adding a duplicate.
 
 NPC RULES:
-- All recurring/distinct NPCs may track HP, fatigue, relationship, condition, location, mood, and action.
-- HP/Fatigue values should only change when narration makes a change clear. If exact numbers are not available, use delta only when magnitude is clearly implied; otherwise leave blank.
+- All recurring/distinct NPCs may track HP, Mana, fatigue, relationship, condition, location, mood, action, and a CURRENT inner thought.
+- HP/Mana/Fatigue values should only change when narration makes a change clear. If exact numbers are not available, use delta only when magnitude is clearly implied; otherwise leave blank.
+- For each present/nearby named NPC, thoughts may contain ONE brief in-character inner thought about the CURRENT situation, inferred conservatively from established personality, goals, relationship, and what they know. This is ephemeral UI flavor, not canon memory.
+- Never use thoughts to reveal secrets the NPC could not reasonably think about in this moment, omniscient facts, or information they do not know.
 - relationshipValue is -100 to 100 and should change conservatively.
 - You MAY set an NPC's hasSystem=true automatically when the newest roleplay clearly establishes that NPC has/awakens/uses a System, status window, RPG stat interface, or equivalent mechanic. This is not limited to manual user toggles.
 - You MAY set hasSystem=false only when the story clearly removes/disables that mechanic.
