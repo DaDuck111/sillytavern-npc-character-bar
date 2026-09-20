@@ -1,5 +1,5 @@
 import { deepClone, getContext, normalizeName, uid } from './utils.js';
-import { syncArchiveFromState } from './globalArchive.js';
+import { getCurrentChatRef, syncArchiveFromState, unlinkArchiveFromChat } from './globalArchive.js';
 
 export const META_KEY = 'npc_character_bar_v1';
 
@@ -235,6 +235,7 @@ export async function addCharacter(seed = {}) {
     await mutateState(state => {
         const existing = seed.name ? findByNameOrAlias(state, seed.name) : null;
         if (existing) {
+            if (seed.archiveId && !existing.archiveId) existing.archiveId = seed.archiveId;
             created = existing;
             return;
         }
@@ -259,6 +260,8 @@ export async function updateCharacter(id, patchOrUpdater) {
 }
 
 export async function deleteCharacter(id) {
+    const current = getState().characters[id];
+    if (current?.archiveId) unlinkArchiveFromChat(current.archiveId, getCurrentChatRef().id);
     return mutateState(state => {
         delete state.characters[id];
         state.order = state.order.filter(x => x !== id);
