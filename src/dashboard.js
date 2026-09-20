@@ -281,6 +281,28 @@ function renderAttributes(player) {
     `;
 }
 
+function worldConditionChips(values = {}) {
+    const labels = [
+        ['date', 'DATE'], ['day', 'DAY'], ['time', 'TIME'], ['dayPart', 'DAYPART'],
+        ['weather', 'WEATHER'], ['season', 'SEASON'], ['year', 'YEAR'], ['holiday', 'HOLIDAY'],
+    ];
+    return labels
+        .filter(([key]) => String(values?.[key] || '').trim())
+        .map(([key, label]) => `<span><small>${label}</small><strong>${escapeHtml(values[key])}</strong></span>`)
+        .join('');
+}
+
+function renderWorldState(state) {
+    const scene = state.scene || {};
+    const chips = worldConditionChips(scene);
+    return `
+        <div class="npcb-system-section-head"><span>RP WORLD STATE</span><b>STORY TIME</b></div>
+        <div class="npcb-world-state">
+            ${chips || '<div class="npcb-side-empty">Time / date / weather not established yet.</div>'}
+        </div>
+    `;
+}
+
 function renderStatus(state) {
     const p = state.player;
     const xpPct = p.hasSystem ? pct(p.xp, p.xpToNext) : 0;
@@ -327,6 +349,8 @@ function renderStatus(state) {
             <div><small>FUNDS</small><strong>${escapeHtml(p.money.toLocaleString?.() ?? p.money)} <em>${escapeHtml(p.currency)}</em></strong></div>
             <div><small>LOCATION</small><strong>${escapeHtml(p.currentLocation || state.scene.location || 'Unknown')}</strong></div>
         </div>
+
+        ${renderWorldState(state)}
 
         <div class="npcb-system-section-head"><span>VITAL / CUSTOM STATS</span><button data-action="stat-add">＋ ADD STAT</button></div>
         <div class="npcb-system-stats">${stats || '<div class="npcb-side-empty">No custom stats configured.</div>'}</div>
@@ -502,6 +526,12 @@ function renderQuestCard(quest) {
                     </label>
                 `).join('') : '<em>No objectives recorded.</em>'}
             </div>
+            ${worldConditionChips(quest.conditions) ? `
+                <div class="npcb-condition-block ${quest.conditionsMet ? 'met' : ''}">
+                    <div class="npcb-condition-title">${quest.conditionsMet ? 'CONDITIONS MET' : 'CONDITIONS'} </div>
+                    <div class="npcb-condition-chips">${worldConditionChips(quest.conditions)}</div>
+                </div>
+            ` : ''}
             ${quest.reward ? `<div class="npcb-quest-reward"><span>REWARD</span><strong>${escapeHtml(quest.reward)}</strong></div>` : ''}
             ${quest.source ? `<div class="npcb-quest-source">SOURCE // ${escapeHtml(quest.source)}</div>` : ''}
             <div class="npcb-quest-actions"><button data-action="quest-edit">EDIT</button><button data-action="quest-delete">DELETE</button></div>
@@ -592,6 +622,8 @@ function renderEvents(state) {
                         <small>${escapeHtml(event.type.toUpperCase())}${event.location ? ` // ${escapeHtml(event.location)}` : ''}</small>
                         <strong>${escapeHtml(event.title)}</strong>
                         <span>${escapeHtml(event.description)}</span>
+                        ${event.status === 'pending' ? `<b class="npcb-event-status ${event.triggerMet ? 'ready' : ''}">${event.triggerMet ? 'TRIGGER CONDITIONS MET' : 'PENDING TRIGGER'}</b>` : ''}
+                        ${worldConditionChips(event.trigger) ? `<div class="npcb-condition-chips compact">${worldConditionChips(event.trigger)}</div>` : ''}
                         ${event.participants?.length ? `<em>${escapeHtml(event.participants.join(' · '))}</em>` : ''}
                     </div>
                     <button data-action="event-delete">×</button>
