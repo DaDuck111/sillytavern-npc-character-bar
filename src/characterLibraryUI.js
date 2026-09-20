@@ -2,6 +2,8 @@ import { escapeHtml, getContext } from './utils.js';
 
 const SHELL_ID = 'npcb-character-library-shell';
 const DETAIL_ID = 'npcb-character-library-detail';
+const MODAL_ID = 'npcb-character-chat-modal';
+const MODAL_CONTENT_ID = 'npcb-character-chat-modal-content';
 const ACTIVITY_KEY = 'npc_character_bar_daily_activity_v1';
 let installed = false;
 let selectedChid = '';
@@ -368,6 +370,49 @@ function renderEmptyDetail() {
     detail.innerHTML = '';
 }
 
+function ensureChatModal() {
+    let modal = document.getElementById(MODAL_ID);
+    if (modal) return modal;
+
+    modal = document.createElement('div');
+    modal.id = MODAL_ID;
+    modal.setAttribute('aria-hidden', 'true');
+    modal.innerHTML = `
+        <div class="npcb-character-chat-modal-backdrop" data-npcb-modal-close></div>
+        <section class="npcb-character-chat-modal-panel" role="dialog" aria-modal="true" aria-label="Character chats">
+            <div id="${MODAL_CONTENT_ID}"></div>
+        </section>
+    `;
+
+    document.body.appendChild(modal);
+
+    modal.addEventListener('click', event => {
+        if (event.target.closest?.('[data-npcb-modal-close]')) closeChatModal();
+    });
+
+    return modal;
+}
+
+function chatDetailHost() {
+    ensureChatModal();
+    return document.getElementById(MODAL_CONTENT_ID);
+}
+
+function openChatModal() {
+    const modal = ensureChatModal();
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+}
+
+function closeChatModal() {
+    const modal = document.getElementById(MODAL_ID);
+    if (!modal) return;
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+    selectedChid = '';
+    markSelectedCard();
+}
+
 function markSelectedCard() {
     document.querySelectorAll('#rm_print_characters_block .character_select').forEach(card => {
         card.classList.toggle('npcb-library-selected', String(card.dataset.chid) === String(selectedChid));
@@ -422,35 +467,6 @@ function enhanceCards() {
         }
         hint.setAttribute('aria-label', `View chats for ${card.querySelector('.ch_name')?.textContent || 'character'}`);
 
-        // Bind directly to each rendered card. SillyTavern frequently rebuilds
-        // this list, so delegated document handlers can be lost/interfered with
-        // by other extensions. A per-card capture handler is much harder to break.
-        if (card.dataset.npcbClickBound !== '1') {
-            card.dataset.npcbClickBound = '1';
-
-            card.addEventListener('click', event => {
-                if (isBulkMode()) return;
-
-                const control = event.target.closest?.('input, label, button, a, .tag, .bulk_select_checkbox, .ch_fav_icon');
-                if (control && !control.classList?.contains('npcb-character-openhint')) return;
-
-                if (!beginPreviewFromCard(card)) return;
-
-                event.preventDefault();
-                event.stopPropagation();
-                event.stopImmediatePropagation?.();
-            }, true);
-
-            card.addEventListener('keydown', event => {
-                if (!['Enter', ' '].includes(event.key) || isBulkMode()) return;
-                if (event.target !== card) return;
-                if (!beginPreviewFromCard(card)) return;
-
-                event.preventDefault();
-                event.stopPropagation();
-                event.stopImmediatePropagation?.();
-            }, true);
-        }
     });
     markSelectedCard();
     decorateHotswap();
@@ -494,14 +510,14 @@ async function fetchCharacterChats(chid, { force = false, character: suppliedCha
 }
 
 function backToCharacterList() {
-    selectedChid = '';
-    markSelectedCard();
-    renderEmptyDetail();
+    closeChatModal();
 }
 
 function renderLoading(character, card) {
-    const detail = document.getElementById(DETAIL_ID);
+    const detail = chatDetailHost();
     if (!detail) return;
+
+    openChatModal();
 
     const avatar = avatarUrl(character, card);
     detail.innerHTML = `
@@ -531,7 +547,7 @@ function cardTags(card) {
 }
 
 function renderCharacterDetail(chid, chats, card, suppliedCharacter = null) {
-    const detail = document.getElementById(DETAIL_ID);
+    const detail = chatDetailHost();
     const character = suppliedCharacter || characterById(chid, card);
     if (!detail || !character) return;
 
@@ -689,7 +705,6 @@ async function selectCharacterPreview(chid, card = null, { force = false, charac
     }
 
     selectedChid = String(chid);
-    document.getElementById(SHELL_ID)?.classList.add('has-selection');
     markSelectedCard();
     renderLoading(character, card);
 
@@ -705,7 +720,7 @@ async function selectCharacterPreview(chid, card = null, { force = false, charac
         );
     } catch (error) {
         if (serial !== requestSerial) return;
-        const detail = document.getElementById(DETAIL_ID);
+        const detail = chatDetailHost();
         if (detail) {
             detail.innerHTML = `
                 <div class="npcb-char-library-detail-scroll">
@@ -725,27 +740,60 @@ async function selectCharacterPreview(chid, card = null, { force = false, charac
 }
 
 function beginPreviewFromCard(card, { force = false } = {}) {
-    if (!card || isBulkMode()) return false;
+    if (!card) return false;
 
     const chid = cardChid(card);
     if (!chid) return false;
 
     const character = characterById(chid, card);
     if (!character) {
-        console.warn('[NPC Character Bar] Character card could not be matched. Falling back to SillyTavern native click.', { chid, card });
+        console.warn('[NPC Character Bar] Character card could not be matched.', { chid, card });
         return false;
     }
 
-    // ensureShell can repair the wrapper if SillyTavern rebuilt the list.
-    const shell = ensureShell();
-    const detail = document.getElementById(DETAIL_ID);
-    if (!shell || !detail) {
-        console.warn('[NPC Character Bar] Character library shell is unavailable. Falling back to SillyTavern native click.');
-        return false;
-    }
-
+    ensureChatModal();
     void selectCharacterPreview(chid, card, { force, character });
     return true;
+}
+
+function cardFromEvent(event) {
+    const path = typeof event.composedPath === 'function' ? event.composedPath() : [];
+    for (const node of path) {
+        if (node instanceof Element && node.matches?.('#rm_print_characters_block .character_select')) {
+            return node;
+        }
+    }
+    return event.target?.closest?.('#rm_print_characters_block .character_select') || null;
+}
+
+function handleWindowCharacterClick(event) {
+    const card = cardFromEvent(event);
+    if (!card) return;
+
+    const ownButton = event.target?.closest?.('.npcb-character-openhint');
+    const nativeControl = event.target?.closest?.('input, label, button, a, .tag, .bulk_select_checkbox, .ch_fav_icon');
+
+    // Explicit VIEW CHATS always wins. Whole-card click is disabled only while
+    // SillyTavern is in one of its bulk-selection modes.
+    if (!ownButton && nativeControl) return;
+    if (!ownButton && isBulkMode()) return;
+
+    if (!beginPreviewFromCard(card)) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation?.();
+}
+
+function handleWindowCharacterKeydown(event) {
+    if (!['Enter', ' '].includes(event.key)) return;
+    const card = cardFromEvent(event);
+    if (!card || event.target !== card || isBulkMode()) return;
+    if (!beginPreviewFromCard(card)) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation?.();
 }
 
 export function refreshCharacterLibrary() {
@@ -777,6 +825,11 @@ export function mountCharacterLibrary() {
     }, 250);
     if (installed) return;
     installed = true;
+
+    // Capture at window level so the character browser still receives the
+    // click before SillyTavern or another extension can swallow it on document.
+    window.addEventListener('click', handleWindowCharacterClick, true);
+    window.addEventListener('keydown', handleWindowCharacterKeydown, true);
 
     const ctx = currentContext();
     const events = ctx?.eventTypes || {};
