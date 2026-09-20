@@ -2299,7 +2299,8 @@
     background: rgba(2,11,19,.86);
     font-size: 10px;
     box-shadow: 0 0 8px rgba(75,220,255,.13);
-    pointer-events: none;
+    cursor: pointer;
+    pointer-events: auto;
 }
 .npcb-thoughts-toggle {
     font-size: 11px !important;
