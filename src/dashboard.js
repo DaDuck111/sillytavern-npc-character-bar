@@ -150,7 +150,7 @@ function bindEvents(root) {
         row.addEventListener('click', () => openWorkshop(row.dataset.id));
     });
 
-    root.querySelector('.npcb-side-archive')?.addEventListener('click', openArchive);
+    root.querySelectorAll('.npcb-side-archive').forEach(button => button.addEventListener('click', openArchive));
     root.querySelectorAll('.npcb-side-scan').forEach(button => {
         button.addEventListener('click', async () => {
             button.disabled = true;
