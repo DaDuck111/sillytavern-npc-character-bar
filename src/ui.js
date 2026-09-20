@@ -475,6 +475,8 @@ export function openWorkshop(id, tab = 'overview') {
                     ${field('Internal thoughts', 'scene.thoughts', character.scene.thoughts, { type: 'textarea', rows: 4, wide: true })}
                     ${field('HP', 'vitals.hp', character.vitals?.hp ?? 100, { type: 'number' })}
                     ${field('Max HP', 'vitals.maxHp', character.vitals?.maxHp ?? 100, { type: 'number' })}
+                    ${field('Mana', 'vitals.mana', character.vitals?.mana ?? 0, { type: 'number' })}
+                    ${field('Max Mana', 'vitals.maxMana', character.vitals?.maxMana ?? 0, { type: 'number' })}
                     ${field('Fatigue', 'vitals.fatigue', character.vitals?.fatigue ?? 0, { type: 'number' })}
                     ${field('Max Fatigue', 'vitals.maxFatigue', character.vitals?.maxFatigue ?? 100, { type: 'number' })}
                     ${field('Relationship value (-100 to 100)', 'relationship.value', character.relationship?.value ?? 0, { type: 'number', wide: true })}
