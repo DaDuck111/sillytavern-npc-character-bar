@@ -2948,3 +2948,754 @@
         padding-left: 0;
     }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   v0.7 — readability, overlay safety, Lorebook library, RPG logic
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Always keep extension dialogs above SillyTavern drawers/panels. */
+.npcb-modal-root {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    z-index: 2147483000 !important;
+    isolation: isolate;
+    overflow: hidden !important;
+    padding: 8px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transform: translateZ(0);
+}
+.npcb-modal-root.open {
+    display: flex !important;
+}
+.npcb-modal-root .npcb-dialog {
+    position: relative;
+    z-index: 1;
+    max-width: calc(100vw - 16px) !important;
+    max-height: calc(100dvh - 16px) !important;
+}
+.npcb-workshop-v2 {
+    width: min(860px, calc(100vw - 16px)) !important;
+    height: min(820px, calc(100dvh - 16px)) !important;
+    max-height: calc(100dvh - 16px) !important;
+    margin: 0 !important;
+}
+.npcb-workshop-v2 .npcb-workshop-scroll {
+    min-height: 0;
+    width: 100%;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
+@media (max-width: 760px) {
+    .npcb-workshop-v2 {
+        width: calc(100vw - 12px) !important;
+        height: calc(100dvh - 12px) !important;
+    }
+    .npcb-workshop-v2 .npcb-workshop-header {
+        display: grid !important;
+        grid-template-columns: auto minmax(0,1fr) auto !important;
+        gap: 7px !important;
+        min-height: 0 !important;
+        padding: 8px !important;
+    }
+    .npcb-workshop-v2 .npcb-workshop-avatar {
+        display: none !important;
+    }
+    .npcb-workshop-v2 .npcb-workshop-title {
+        min-width: 0;
+        grid-column: 2;
+    }
+    .npcb-workshop-v2 .npcb-back-btn {
+        grid-column: 1;
+        grid-row: 1;
+    }
+    .npcb-workshop-v2 .npcb-close-btn {
+        grid-column: 3;
+        grid-row: 1;
+    }
+    .npcb-workshop-v2 .npcb-danger-btn {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        justify-self: start;
+    }
+    .npcb-workshop-v2 .npcb-workshop-tabs {
+        grid-template-columns: repeat(2, minmax(0,1fr)) !important;
+    }
+    .npcb-workshop-v2 .npcb-workshop-tabs button {
+        min-height: 40px !important;
+        font-size: 10px !important;
+    }
+    .npcb-workshop-scroll {
+        padding: 10px !important;
+    }
+}
+@media (max-width: 420px) {
+    .npcb-workshop-v2 .npcb-workshop-title p,
+    .npcb-workshop-v2 .npcb-workshop-title small {
+        display: none;
+    }
+}
+
+/* Kill accidental horizontal overflow in the System HUD. */
+#npcb-dashboard {
+    box-sizing: border-box;
+    overflow: hidden !important;
+}
+.npcb-side-body {
+    min-width: 0 !important;
+    width: 100%;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box;
+    font-size: 11px;
+}
+.npcb-side-body *,
+.npcb-side-body *::before,
+.npcb-side-body *::after {
+    box-sizing: border-box;
+    min-width: 0;
+}
+.npcb-side-body input,
+.npcb-side-body select,
+.npcb-side-body textarea,
+.npcb-side-body button {
+    max-width: 100%;
+}
+.npcb-system-list-row,
+.npcb-quest-card,
+.npcb-event-row,
+.npcb-side-character,
+.npcb-skill-card {
+    max-width: 100%;
+}
+.npcb-system-list-main span,
+.npcb-event-row span,
+.npcb-side-character-text > span,
+.npcb-skill-card p {
+    overflow-wrap: anywhere;
+}
+
+/* Readable tracker/world text. */
+.npcb-system-section-head > span,
+.npcb-side-section-title > span {
+    font-size: 10px !important;
+    letter-spacing: .08em !important;
+}
+.npcb-system-section-head button,
+.npcb-system-section-head b {
+    font-size: 8px !important;
+}
+.npcb-world-state {
+    gap: 7px !important;
+}
+.npcb-world-state > span,
+.npcb-condition-chips > span {
+    min-width: 88px !important;
+    padding: 7px 8px !important;
+}
+.npcb-world-state small,
+.npcb-condition-chips small {
+    font-size: 8px !important;
+    line-height: 1.2 !important;
+}
+.npcb-world-state strong,
+.npcb-condition-chips strong {
+    margin-top: 3px !important;
+    font-size: 10px !important;
+    line-height: 1.3 !important;
+}
+.npcb-event-row small {
+    font-size: 8px !important;
+}
+.npcb-event-row strong {
+    font-size: 11px !important;
+    line-height: 1.35 !important;
+}
+.npcb-event-row span {
+    font-size: 10px !important;
+    line-height: 1.5 !important;
+}
+.npcb-event-row em,
+.npcb-event-status {
+    font-size: 8px !important;
+}
+.npcb-system-stat-top strong,
+.npcb-system-stat-top span,
+.npcb-system-condition,
+.npcb-side-empty {
+    font-size: 10px !important;
+}
+.npcb-system-stat-actions,
+.npcb-system-stat-actions button,
+.npcb-system-stat-actions label {
+    font-size: 8px !important;
+}
+
+/* Nicer slim scrollbars. */
+#npcb-dashboard *,
+.npcb-modal-root *,
+#npcb-thoughts-panel * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(75,220,255,.48) rgba(0,0,0,.08);
+}
+#npcb-dashboard *::-webkit-scrollbar,
+.npcb-modal-root *::-webkit-scrollbar,
+#npcb-thoughts-panel *::-webkit-scrollbar {
+    width: 7px;
+    height: 7px;
+}
+#npcb-dashboard *::-webkit-scrollbar-track,
+.npcb-modal-root *::-webkit-scrollbar-track,
+#npcb-thoughts-panel *::-webkit-scrollbar-track {
+    background: rgba(0,0,0,.08);
+}
+#npcb-dashboard *::-webkit-scrollbar-thumb,
+.npcb-modal-root *::-webkit-scrollbar-thumb,
+#npcb-thoughts-panel *::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 99px;
+    background: rgba(75,220,255,.5);
+    background-clip: padding-box;
+}
+#npcb-dashboard *::-webkit-scrollbar-thumb:hover,
+.npcb-modal-root *::-webkit-scrollbar-thumb:hover,
+#npcb-thoughts-panel *::-webkit-scrollbar-thumb:hover {
+    background: rgba(100,231,255,.72);
+    background-clip: padding-box;
+}
+
+/* Split funds. */
+.npcb-fund-grid {
+    grid-template-columns: 1fr 1fr !important;
+}
+.npcb-fund-card,
+.npcb-location-card {
+    position: relative;
+}
+.npcb-fund-card button {
+    position: absolute;
+    right: 5px;
+    top: 5px;
+    border: 1px solid rgba(75,220,255,.11);
+    color: rgba(147,230,249,.55);
+    background: rgba(75,220,255,.025);
+    font: inherit;
+    font-size: 7px;
+    cursor: pointer;
+}
+.npcb-location-card {
+    grid-column: 1 / -1;
+}
+.npcb-fund-card.system-fund strong {
+    color: #f1d16e;
+}
+.npcb-fund-card.real-fund strong {
+    color: #b9effb;
+}
+.npcb-inventory-funds {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin: 6px 0 10px;
+}
+.npcb-inventory-funds > div {
+    position: relative;
+    padding: 8px;
+    border: 1px solid rgba(75,220,255,.1);
+    background: rgba(75,220,255,.025);
+}
+.npcb-inventory-funds span,
+.npcb-inventory-funds strong {
+    display: block;
+}
+.npcb-inventory-funds span {
+    color: rgba(118,215,237,.5);
+    font-size: 8px;
+}
+.npcb-inventory-funds strong {
+    margin-top: 4px;
+    padding-right: 36px;
+    color: rgba(222,248,255,.82);
+    font-size: 11px;
+}
+.npcb-inventory-funds button {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    border: 0;
+    color: rgba(120,222,244,.55);
+    background: transparent;
+    font-size: 7px;
+    cursor: pointer;
+}
+
+/* Effective attribute modifier label. */
+.npcb-attribute-card em {
+    display: block;
+    min-height: 10px;
+    margin: -1px 0 4px;
+    color: rgba(116,219,241,.42);
+    font-size: 6px;
+    font-style: normal;
+    letter-spacing: .03em;
+}
+
+/* Quest category navigation. */
+.npcb-quest-category-tabs {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0,1fr));
+    gap: 3px;
+    margin-bottom: 9px;
+}
+.npcb-quest-category-tabs button {
+    min-height: 30px;
+    border: 1px solid rgba(75,220,255,.08);
+    color: rgba(161,217,230,.44);
+    background: rgba(0,0,0,.12);
+    font: inherit;
+    font-size: 7px;
+    font-weight: 800;
+    cursor: pointer;
+}
+.npcb-quest-category-tabs button.active {
+    color: #a7efff;
+    border-color: rgba(75,220,255,.28);
+    background: rgba(75,220,255,.07);
+    box-shadow: inset 0 -2px 0 rgba(75,220,255,.65);
+}
+.npcb-quest-group + .npcb-quest-group {
+    margin-top: 12px;
+}
+.npcb-quest-group-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 5px;
+    padding: 4px 2px;
+    color: rgba(132,226,247,.62);
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: .08em;
+}
+.npcb-quest-group-head b {
+    color: rgba(197,241,251,.45);
+}
+.npcb-quest-group.type-main .npcb-quest-group-head { color: #8beaff; }
+.npcb-quest-group.type-side .npcb-quest-group-head { color: #b8afff; }
+.npcb-quest-group.type-system .npcb-quest-group-head { color: #74f0c1; }
+.npcb-quest-group.type-story .npcb-quest-group-head { color: #e0cf91; }
+
+/* Rich skill cards and active effects. */
+.npcb-skill-grid {
+    display: flex !important;
+    flex-direction: column;
+    gap: 7px;
+}
+.npcb-skill-card-v2 {
+    display: block !important;
+    padding: 9px !important;
+}
+.npcb-skill-card-head {
+    display: grid;
+    grid-template-columns: 35px minmax(0,1fr) auto;
+    gap: 7px;
+    align-items: center;
+}
+.npcb-skill-card-head > div:nth-child(2) strong,
+.npcb-skill-card-head > div:nth-child(2) small {
+    display: block;
+}
+.npcb-skill-card-head > div:nth-child(2) strong {
+    color: #dff8ff;
+    font-size: 11px;
+}
+.npcb-skill-card-head > div:nth-child(2) small {
+    margin-top: 2px;
+    color: rgba(117,211,233,.42);
+    font-size: 7px;
+}
+.npcb-skill-card-v2 > p {
+    margin: 7px 0;
+    color: rgba(192,229,238,.62);
+    font-size: 9px;
+    line-height: 1.5;
+}
+.npcb-skill-availability {
+    padding: 3px 5px;
+    border-radius: 99px;
+    font-size: 6px;
+    font-weight: 900;
+}
+.npcb-skill-availability.ready {
+    color: #8be9b4;
+    border: 1px solid rgba(86,215,142,.18);
+    background: rgba(71,200,125,.05);
+}
+.npcb-skill-availability.blocked {
+    color: #ff9aaa;
+    border: 1px solid rgba(255,93,120,.16);
+    background: rgba(255,70,102,.045);
+}
+.npcb-skill-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+.npcb-skill-meta span {
+    padding: 4px 5px;
+    border: 1px solid rgba(75,220,255,.08);
+    color: rgba(201,237,246,.58);
+    background: rgba(75,220,255,.025);
+    font-size: 7px;
+}
+.npcb-skill-meta b {
+    margin-right: 4px;
+    color: rgba(93,216,244,.48);
+    font-size: 6px;
+}
+.npcb-skill-effects,
+.npcb-effect-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+}
+.npcb-skill-effects i,
+.npcb-effect-tags i {
+    padding: 3px 5px;
+    border: 1px solid rgba(128,107,255,.12);
+    border-radius: 99px;
+    color: rgba(200,190,255,.67);
+    background: rgba(111,85,255,.04);
+    font-size: 7px;
+    font-style: normal;
+}
+.npcb-skill-block-reason {
+    margin-top: 6px;
+    padding: 5px 6px;
+    border-left: 2px solid rgba(255,89,118,.55);
+    color: rgba(255,159,174,.68);
+    background: rgba(255,72,103,.035);
+    font-size: 8px;
+}
+.npcb-skill-actions {
+    margin-top: 7px;
+    text-align: right;
+}
+.npcb-skill-actions button {
+    margin-left: 5px;
+    border: 0;
+    color: rgba(131,222,243,.48);
+    background: transparent;
+    font-size: 7px;
+    cursor: pointer;
+}
+.npcb-effect-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.npcb-effect-row {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) auto;
+    gap: 7px;
+    padding: 7px;
+    border-left: 2px solid rgba(87,217,142,.6);
+    background: rgba(77,201,128,.035);
+}
+.npcb-effect-row.harmful {
+    border-left-color: rgba(255,87,117,.65);
+    background: rgba(255,69,100,.035);
+}
+.npcb-effect-row strong,
+.npcb-effect-row span {
+    display: block;
+}
+.npcb-effect-row strong { font-size: 9px; }
+.npcb-effect-row span {
+    margin-top: 2px;
+    color: rgba(190,228,237,.5);
+    font-size: 8px;
+}
+
+/* NPC scene/group controls + Mana bar. */
+.npcb-npc-view-tools {
+    display: grid;
+    grid-template-columns: auto minmax(0,1fr) auto;
+    gap: 5px;
+    align-items: center;
+    margin: 7px 0;
+}
+.npcb-npc-view-tools label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: rgba(174,229,241,.58);
+    font-size: 7px;
+    white-space: nowrap;
+}
+.npcb-npc-view-tools input {
+    accent-color: #4bdcff;
+}
+.npcb-npc-view-tools select,
+.npcb-npc-view-tools button {
+    min-height: 28px;
+    border: 1px solid rgba(75,220,255,.1);
+    color: rgba(182,233,245,.6);
+    background: rgba(0,0,0,.16);
+    font: inherit;
+    font-size: 7px;
+}
+.npcb-npc-view-tools button { cursor: pointer; }
+.npcb-npc-card-side {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 5px;
+}
+.npcb-npc-card-side button {
+    border: 1px solid rgba(75,220,255,.09);
+    color: rgba(132,220,240,.46);
+    background: transparent;
+    font-size: 6px;
+    cursor: pointer;
+}
+.npcb-npc-mini-bars-v2 {
+    grid-template-columns: repeat(4, 1fr) !important;
+}
+.npcb-npc-mini-bars-v2 > div {
+    position: relative;
+    height: 6px !important;
+}
+.npcb-npc-mini-bars-v2 b {
+    position: absolute;
+    left: 2px;
+    top: -11px;
+    color: rgba(176,222,233,.28);
+    font-size: 5px;
+    font-weight: 700;
+}
+.npcb-npc-mini-bars i.mana {
+    background: #52aef6;
+}
+.npcb-npc-group-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    margin-top: 5px;
+}
+.npcb-npc-group-chips i {
+    padding: 2px 4px;
+    border: 1px solid rgba(128,108,255,.1);
+    border-radius: 99px;
+    color: rgba(194,184,255,.52);
+    background: rgba(110,87,255,.035);
+    font-size: 6px;
+    font-style: normal;
+}
+.npcb-npc-legend span.mana {
+    color: rgba(82,174,246,.72);
+}
+
+/* Lorebook library manager. */
+.npcb-lore-link-card {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px;
+    border: 1px solid rgba(75,220,255,.14);
+    border-left: 3px solid #4bdcff;
+    background: rgba(75,220,255,.035);
+}
+.npcb-lore-link-card small,
+.npcb-lore-link-card strong,
+.npcb-lore-link-card span {
+    display: block;
+}
+.npcb-lore-link-card small {
+    color: rgba(100,217,244,.5);
+    font-size: 8px;
+}
+.npcb-lore-link-card strong {
+    margin-top: 3px;
+    color: #ddf8ff;
+    font-size: 12px;
+}
+.npcb-lore-link-card span {
+    margin-top: 2px;
+    color: rgba(174,221,232,.5);
+    font-size: 9px;
+}
+.npcb-lore-help {
+    margin: 8px 0 10px;
+    padding: 8px;
+    border: 1px solid rgba(255,255,255,.06);
+    background: rgba(0,0,0,.12);
+}
+.npcb-lore-help strong,
+.npcb-lore-help span {
+    display: block;
+}
+.npcb-lore-help strong {
+    color: rgba(219,246,252,.76);
+    font-size: 9px;
+}
+.npcb-lore-help span {
+    margin-top: 3px;
+    color: rgba(176,218,229,.5);
+    font-size: 9px;
+    line-height: 1.5;
+}
+.npcb-lore-library-tools {
+    display: grid;
+    grid-template-columns: minmax(140px,1fr) repeat(3, minmax(100px, .55fr));
+    gap: 6px;
+    margin-bottom: 8px;
+}
+.npcb-lore-library-tools input,
+.npcb-lore-library-tools select {
+    width: 100%;
+    min-height: 34px;
+    border: 1px solid rgba(75,220,255,.11);
+    border-radius: 5px;
+    color: rgba(225,247,253,.75);
+    background: rgba(0,0,0,.2);
+    padding: 6px 8px;
+    font: inherit;
+    font-size: 9px;
+}
+.npcb-lore-library {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    max-height: 430px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+.npcb-lore-book-card {
+    display: grid;
+    grid-template-columns: minmax(160px,1.3fr) minmax(100px,.8fr) auto auto;
+    gap: 7px;
+    align-items: center;
+    padding: 7px;
+    border: 1px solid rgba(75,220,255,.07);
+    border-radius: 6px;
+    background: rgba(0,0,0,.12);
+}
+.npcb-lore-book-card.selected {
+    border-color: rgba(75,220,255,.34);
+    background: rgba(75,220,255,.055);
+}
+.npcb-lore-use {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 20px minmax(0,1fr);
+    gap: 6px;
+    align-items: center;
+    border: 0;
+    color: inherit;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+}
+.npcb-lore-radio {
+    color: #69e2ff;
+    font-size: 13px;
+}
+.npcb-lore-use strong,
+.npcb-lore-use small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.npcb-lore-use strong {
+    color: rgba(229,249,255,.82);
+    font-size: 10px;
+}
+.npcb-lore-use small {
+    margin-top: 2px;
+    color: rgba(154,211,224,.4);
+    font-size: 7px;
+}
+.npcb-lore-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+}
+.npcb-lore-tags i {
+    padding: 2px 4px;
+    border-radius: 99px;
+    color: rgba(196,185,255,.65);
+    background: rgba(111,88,255,.05);
+    font-size: 7px;
+    font-style: normal;
+}
+.npcb-lore-tags em {
+    color: rgba(165,206,216,.28);
+    font-size: 7px;
+}
+.npcb-lore-active-switch {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: rgba(173,225,238,.48);
+    font-size: 7px;
+    white-space: nowrap;
+}
+.npcb-lore-active-switch input {
+    accent-color: #4bdcff;
+}
+.npcb-lore-organize {
+    border: 1px solid rgba(75,220,255,.1);
+    color: rgba(151,226,243,.55);
+    background: rgba(75,220,255,.025);
+    padding: 6px;
+    font: inherit;
+    font-size: 7px;
+    cursor: pointer;
+}
+@media (max-width: 700px) {
+    .npcb-lore-library-tools {
+        grid-template-columns: 1fr 1fr;
+    }
+    .npcb-lore-library-tools .npcb-lore-search {
+        grid-column: 1 / -1;
+    }
+    .npcb-lore-book-card {
+        grid-template-columns: minmax(0,1fr) auto;
+    }
+    .npcb-lore-tags {
+        grid-column: 1 / -1;
+        order: 3;
+    }
+}
+@media (max-width: 480px) {
+    .npcb-lore-library-tools {
+        grid-template-columns: 1fr;
+    }
+    .npcb-lore-library-tools .npcb-lore-search {
+        grid-column: auto;
+    }
+    .npcb-inventory-funds,
+    .npcb-fund-grid {
+        grid-template-columns: 1fr !important;
+    }
+    .npcb-location-card {
+        grid-column: auto;
+    }
+    .npcb-quest-category-tabs {
+        grid-template-columns: repeat(3, minmax(0,1fr));
+    }
+    .npcb-npc-view-tools {
+        grid-template-columns: 1fr 1fr;
+    }
+    .npcb-npc-view-tools select {
+        grid-column: 1 / -1;
+        grid-row: 2;
+    }
+}
