@@ -558,9 +558,11 @@ GENERAL PLAYER RULES:
 
 SKILL / STATUS RULES:
 - Skills are gameplay state, not decorative labels. Keep description, cost, cooldown, requirements and effects when the story establishes them.
-- If the newest reply shows a skill being used, update remainingCooldown and affected resources/statuses.
+- If the newest reply shows a known tracked skill being used, apply its ALREADY-KNOWN cost and base cooldown even if the narration does not repeat those numbers. Do not charge twice.
+- When a known cooldown is turn-based, reduce remainingCooldown as relevant RP turns/actions pass; for time-based cooldowns, update only when enough in-story time clearly passes.
+- If a known skill produces a tracked buff/debuff/status effect, reflect it with effectsAdd/effectsUpdate when the use actually applies that effect.
 - Passive skill modifiers belong in modifiers; temporary buffs/debuffs belong in player effects.
-- Do not invent exact numeric costs/cooldowns/stat requirements unless the RP/System states them. Text requirements are allowed when clear.
+- Do not invent exact numeric costs/cooldowns/stat requirements when the tracked skill and RP do not establish them. Text requirements are allowed when clear.
 
 INVENTORY LOCATION RULES:
 - locationType="person": item is carried on the user's person/bag/pockets.
