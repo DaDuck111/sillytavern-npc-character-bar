@@ -10,6 +10,14 @@ import {
 } from './store.js';
 import { buildLoreContent, pullLore, pushLore } from './lore.js';
 import {
+    createArchiveGroup,
+    getArchiveSeed,
+    getCurrentChatRef,
+    getGlobalArchive,
+    setNpcGroups,
+    unlinkArchiveFromChat,
+} from './globalArchive.js';
+import {
     debounce,
     downloadJson,
     escapeHtml,
@@ -21,6 +29,8 @@ const ROOT_ID = 'npcb-root';
 const MODAL_ID = 'npcb-modal-root';
 let currentCharacterId = null;
 let archiveSearch = '';
+let archiveGroupFilter = 'all';
+let archiveChatFilter = 'all';
 
 function statusIcon(status) {
     return {
@@ -453,67 +463,196 @@ async function persistWorkshopNow(id) {
 }
 
 export function openArchive() {
-    const state = getState();
+    const localState = getState();
+    const archive = getGlobalArchive();
+    const currentChat = getCurrentChatRef();
     const root = ensureModalRoot();
     currentCharacterId = null;
     root.classList.add('open');
+
+    const allChats = new Map();
+    for (const entry of Object.values(archive.npcs || {})) {
+        for (const link of entry.chatLinks || []) {
+            allChats.set(link.chatId, link.label || link.chatId);
+        }
+    }
+
+    const groups = Object.values(archive.groups || {}).sort((a, b) => a.name.localeCompare(b.name));
+    const groupOptions = [
+        '<option value="all">All groups</option>',
+        '<option value="ungrouped">Ungrouped</option>',
+        ...groups.map(group => `<option value="${escapeHtml(group.id)}" ${archiveGroupFilter === group.id ? 'selected' : ''}>${escapeHtml(group.name)}</option>`),
+    ].join('');
+
+    const chatOptions = [
+        '<option value="all">All chats</option>',
+        `<option value="current" ${archiveChatFilter === 'current' ? 'selected' : ''}>Current chat</option>`,
+        ...[...allChats.entries()]
+            .filter(([id]) => id !== currentChat.id)
+            .sort((a, b) => String(a[1]).localeCompare(String(b[1])))
+            .map(([id, label]) => `<option value="${escapeHtml(id)}" ${archiveChatFilter === id ? 'selected' : ''}>${escapeHtml(label)}</option>`),
+    ].join('');
+
     root.innerHTML = `
-      <div class="npcb-dialog npcb-archive">
+      <div class="npcb-dialog npcb-archive npcb-global-archive">
         <header class="npcb-dialog-header">
             <div>
-                <h2>Character Archive</h2>
-                <p>${state.order.length} persistent NPC${state.order.length === 1 ? '' : 's'} in this chat</p>
+                <h2>Global Character Archive</h2>
+                <p>${Object.keys(archive.npcs || {}).length} NPCs across linked chats · current: ${escapeHtml(currentChat.label)}</p>
             </div>
             <div class="npcb-spacer"></div>
+            <button class="npcb-soft-btn npcb-create-group">＋ Group</button>
             <button class="npcb-primary-btn npcb-archive-add">＋ Add NPC</button>
             <button class="npcb-close-btn">×</button>
         </header>
-        <div class="npcb-archive-tools">
+        <div class="npcb-archive-tools npcb-global-tools">
             <input class="npcb-search" placeholder="Search name, alias, role, faction…" value="${escapeHtml(archiveSearch)}">
-            <button class="npcb-soft-btn npcb-export">Export JSON</button>
-            <label class="npcb-file-btn">Import JSON<input type="file" accept="application/json,.json" class="npcb-import-file"></label>
-            <button class="npcb-soft-btn npcb-compact-toggle">${state.ui.compact ? 'Normal cards' : 'Compact cards'}</button>
+            <select class="npcb-archive-group-filter">${groupOptions}</select>
+            <select class="npcb-archive-chat-filter">${chatOptions}</select>
+            <button class="npcb-soft-btn npcb-export">Export current chat</button>
+            <label class="npcb-file-btn">Import<input type="file" accept="application/json,.json" class="npcb-import-file"></label>
         </div>
         <div class="npcb-archive-list"></div>
       </div>`;
 
     const renderList = () => {
-        const latest = getState();
+        const latestLocal = getState();
+        const latestArchive = getGlobalArchive();
+        const chat = getCurrentChatRef();
         const needle = archiveSearch.trim().toLowerCase();
-        const chars = latest.order.map(id => latest.characters[id]).filter(Boolean).filter(c => {
-            if (!needle) return true;
-            return [c.name, c.role, c.faction, ...(c.aliases || [])].join(' ').toLowerCase().includes(needle);
+
+        const entries = Object.values(latestArchive.npcs || {}).filter(entry => {
+            if (needle && ![
+                entry.name, entry.role, entry.faction,
+                ...(entry.aliases || []),
+                ...(entry.chatLinks || []).map(x => x.label),
+                ...(entry.groupIds || []).map(id => latestArchive.groups?.[id]?.name || ''),
+            ].join(' ').toLowerCase().includes(needle)) return false;
+
+            if (archiveGroupFilter === 'ungrouped' && (entry.groupIds || []).length) return false;
+            if (archiveGroupFilter !== 'all' && archiveGroupFilter !== 'ungrouped' && !(entry.groupIds || []).includes(archiveGroupFilter)) return false;
+
+            if (archiveChatFilter === 'current' && !(entry.chatLinks || []).some(link => link.chatId === chat.id)) return false;
+            if (archiveChatFilter !== 'all' && archiveChatFilter !== 'current' && !(entry.chatLinks || []).some(link => link.chatId === archiveChatFilter)) return false;
+            return true;
+        }).sort((a, b) => a.name.localeCompare(b.name));
+
+        const list = root.querySelector('.npcb-archive-list');
+        list.innerHTML = entries.length ? entries.map(entry => {
+            const local = Object.values(latestLocal.characters).find(c => c.archiveId === entry.id);
+            const linkedHere = Boolean(local || (entry.chatLinks || []).some(link => link.chatId === chat.id));
+            const groupNames = (entry.groupIds || []).map(id => latestArchive.groups?.[id]?.name).filter(Boolean);
+            const chatLabels = (entry.chatLinks || []).map(link => link.label || link.chatId).filter(Boolean);
+            return `
+                <div class="npcb-archive-row npcb-global-row" data-archive-id="${escapeHtml(entry.id)}" data-local-id="${escapeHtml(local?.id || '')}">
+                    ${avatarHtml(entry)}
+                    <div class="npcb-archive-main">
+                        <strong>${escapeHtml(entry.name)}</strong>
+                        <span>${escapeHtml(entry.role || entry.faction || 'NPC')}</span>
+                        <div class="npcb-archive-chips">
+                            ${groupNames.map(name => `<i class="group">${escapeHtml(name)}</i>`).join('')}
+                            ${chatLabels.slice(0, 3).map(name => `<i class="chat">${escapeHtml(name)}</i>`).join('')}
+                            ${chatLabels.length > 3 ? `<i>+${chatLabels.length - 3}</i>` : ''}
+                        </div>
+                    </div>
+                    <div class="npcb-global-row-actions">
+                        <button data-action="groups">GROUPS</button>
+                        <button data-action="link">${linkedHere ? 'UNLINK CHAT' : 'LINK CHAT'}</button>
+                        <button data-action="open" ${local ? '' : 'disabled'}>OPEN</button>
+                    </div>
+                </div>`;
+        }).join('') : '<div class="npcb-muted-box">No archived characters match these filters.</div>';
+
+        list.querySelectorAll('.npcb-global-row').forEach(row => {
+            const archiveId = row.dataset.archiveId;
+            const localId = row.dataset.localId;
+
+            row.querySelector('[data-action="open"]')?.addEventListener('click', event => {
+                event.stopPropagation();
+                if (localId) openWorkshop(localId);
+            });
+
+            row.querySelector('[data-action="link"]')?.addEventListener('click', async event => {
+                event.stopPropagation();
+                const latest = getGlobalArchive().npcs[archiveId];
+                if (!latest) return;
+                const isLinked = (latest.chatLinks || []).some(link => link.chatId === getCurrentChatRef().id);
+
+                if (isLinked) {
+                    if (localId && confirm('Unlink this NPC from the current chat? The global archive entry will remain.')) {
+                        await deleteCharacter(localId);
+                    }
+                    unlinkArchiveFromChat(archiveId, getCurrentChatRef().id);
+                    renderBar();
+                    openArchive();
+                    return;
+                }
+
+                const seed = getArchiveSeed(archiveId);
+                if (!seed) return;
+                const character = await addCharacter(seed);
+                toast('success', `${character.name} linked to the current chat.`);
+                renderBar();
+                openArchive();
+            });
+
+            row.querySelector('[data-action="groups"]')?.addEventListener('click', event => {
+                event.stopPropagation();
+                const latest = getGlobalArchive();
+                const entry = latest.npcs[archiveId];
+                if (!entry) return;
+                const currentNames = (entry.groupIds || []).map(id => latest.groups?.[id]?.name).filter(Boolean);
+                const available = Object.values(latest.groups || {}).map(g => g.name).sort();
+                const answer = prompt(
+                    `Group names for ${entry.name}, comma-separated.\nAvailable: ${available.join(', ') || '(none — type a new name)'}`,
+                    currentNames.join(', '),
+                );
+                if (answer === null) return;
+                const wantedNames = [...new Set(answer.split(',').map(x => x.trim()).filter(Boolean))];
+                const fresh = getGlobalArchive();
+                const ids = [];
+                for (const name of wantedNames) {
+                    let group = Object.values(fresh.groups || {}).find(g => g.name.toLowerCase() === name.toLowerCase());
+                    if (!group) group = createArchiveGroup(name);
+                    if (group?.id) ids.push(group.id);
+                }
+                setNpcGroups(archiveId, ids);
+                openArchive();
+            });
         });
-        root.querySelector('.npcb-archive-list').innerHTML = chars.length ? chars.map(c => `
-            <button class="npcb-archive-row" data-id="${escapeHtml(c.id)}">
-                ${avatarHtml(c)}
-                <div class="npcb-archive-main">
-                    <strong>${escapeHtml(c.name)}</strong>
-                    <span>${escapeHtml(c.role || c.faction || 'NPC')}</span>
-                    <small>${escapeHtml(c.aliases?.length ? `Aliases: ${c.aliases.join(', ')}` : c.scene?.location || '')}</small>
-                </div>
-                <div class="npcb-archive-status status-${escapeHtml(c.status)}">${statusIcon(c.status)} ${escapeHtml(statusLabel(c.status))}</div>
-            </button>`).join('') : `<div class="npcb-muted-box">No characters match this search.</div>`;
-        root.querySelectorAll('.npcb-archive-row').forEach(row => row.addEventListener('click', () => openWorkshop(row.dataset.id)));
     };
+
     renderList();
 
     root.querySelector('.npcb-close-btn').addEventListener('click', closeModal);
     root.querySelector('.npcb-archive-add').addEventListener('click', async () => { closeModal(); await addNpcFlow(); });
-    root.querySelector('.npcb-search').addEventListener('input', event => { archiveSearch = event.target.value; renderList(); });
-    root.querySelector('.npcb-export').addEventListener('click', () => downloadJson('npc-character-bar-roster.json', getState()));
-    root.querySelector('.npcb-compact-toggle').addEventListener('click', async () => {
-        await mutateState(s => { s.ui.compact = !s.ui.compact; });
-        renderBar();
+    root.querySelector('.npcb-create-group').addEventListener('click', () => {
+        const name = prompt('New NPC group name');
+        if (!name?.trim()) return;
+        const group = createArchiveGroup(name.trim());
+        if (group) archiveGroupFilter = group.id;
         openArchive();
     });
+    root.querySelector('.npcb-search').addEventListener('input', event => {
+        archiveSearch = event.target.value;
+        renderList();
+    });
+    root.querySelector('.npcb-archive-group-filter').addEventListener('change', event => {
+        archiveGroupFilter = event.target.value;
+        openArchive();
+    });
+    root.querySelector('.npcb-archive-chat-filter').addEventListener('change', event => {
+        archiveChatFilter = event.target.value;
+        openArchive();
+    });
+    root.querySelector('.npcb-export').addEventListener('click', () => downloadJson('npc-character-bar-current-chat.json', getState()));
     root.querySelector('.npcb-import-file').addEventListener('change', async event => {
         try {
             const file = event.target.files?.[0];
             if (!file) return;
             const parsed = JSON.parse(await file.text());
             await importRoster(parsed);
-            toast('success', 'Character roster imported.');
+            toast('success', 'Character roster imported into current chat and global archive.');
             renderBar();
             openArchive();
         } catch (error) { toast('error', `Import failed: ${error.message}`); }
