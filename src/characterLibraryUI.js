@@ -210,18 +210,28 @@ function cardChid(card) {
     );
 }
 
+function characterFromCard(card) {
+    if (!card) return null;
+
+    const name = String(card.querySelector?.('.ch_name')?.textContent || '').trim() || 'Unknown';
+    const avatarTitle = String(card.querySelector?.('.avatar')?.getAttribute?.('title') || '');
+    const fileMatch = /(?:^|\n)File:\s*(.+)$/m.exec(avatarTitle);
+    const avatar = String(fileMatch?.[1] || '').trim();
+
+    if (!avatar) return null;
+    return { name, avatar, data: {} };
+}
+
 function characterById(chid, card = null) {
     const chars = characterList();
-    if (!chars.length) return null;
-
     const numericId = Number(chid);
+
     if (Number.isInteger(numericId) && numericId >= 0 && chars[numericId]) {
         return chars[numericId];
     }
 
-    // Fallback for SillyTavern builds/themes that rewrite or omit data-chid.
-    // Match the visible card back to the live character list instead of making
-    // the whole card silently stop working.
+    // SillyTavern normally gives us a numeric data-chid, but themes/extensions
+    // can rebuild the card. Resolve by avatar/name before giving up.
     const visibleName = String(card?.querySelector?.('.ch_name')?.textContent || '').trim();
     const avatarTitle = String(card?.querySelector?.('.avatar')?.getAttribute?.('title') || '');
     const fileMatch = /(?:^|\n)File:\s*(.+)$/m.exec(avatarTitle);
@@ -237,15 +247,21 @@ function characterById(chid, card = null) {
         if (byName) return byName;
     }
 
-    return null;
+    // Last-resort descriptor made entirely from the DOM. This is enough to
+    // query /api/characters/chats even if getContext().characters is stale.
+    return characterFromCard(card);
 }
 
 function characterIndex(character, fallbackChid = '') {
     const chars = characterList();
     const numericId = Number(fallbackChid);
-    if (Number.isInteger(numericId) && numericId >= 0 && chars[numericId] === character) {
+
+    // The DOM's data-chid is SillyTavern's canonical index. Prefer it even
+    // when character came from the DOM fallback above.
+    if (Number.isInteger(numericId) && numericId >= 0 && numericId < chars.length) {
         return numericId;
     }
+
     return chars.indexOf(character);
 }
 
@@ -405,6 +421,36 @@ function enhanceCards() {
             hint = button;
         }
         hint.setAttribute('aria-label', `View chats for ${card.querySelector('.ch_name')?.textContent || 'character'}`);
+
+        // Bind directly to each rendered card. SillyTavern frequently rebuilds
+        // this list, so delegated document handlers can be lost/interfered with
+        // by other extensions. A per-card capture handler is much harder to break.
+        if (card.dataset.npcbClickBound !== '1') {
+            card.dataset.npcbClickBound = '1';
+
+            card.addEventListener('click', event => {
+                if (isBulkMode()) return;
+
+                const control = event.target.closest?.('input, label, button, a, .tag, .bulk_select_checkbox, .ch_fav_icon');
+                if (control && !control.classList?.contains('npcb-character-openhint')) return;
+
+                if (!beginPreviewFromCard(card)) return;
+
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation?.();
+            }, true);
+
+            card.addEventListener('keydown', event => {
+                if (!['Enter', ' '].includes(event.key) || isBulkMode()) return;
+                if (event.target !== card) return;
+                if (!beginPreviewFromCard(card)) return;
+
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation?.();
+            }, true);
+        }
     });
     markSelectedCard();
     decorateHotswap();
@@ -702,35 +748,6 @@ function beginPreviewFromCard(card, { force = false } = {}) {
     return true;
 }
 
-function handleCharacterClick(event) {
-    const card = event.target.closest?.('#rm_print_characters_block .character_select');
-    if (!card) return;
-    if (isBulkMode()) return;
-
-    // Leave native controls/tags/context affordances alone, except our own
-    // explicit VIEW CHATS button.
-    const nativeControl = event.target.closest?.('input, label, button, a, .tag, .bulk_select_checkbox, .ch_fav_icon');
-    if (nativeControl && !nativeControl.classList?.contains('npcb-character-openhint')) return;
-
-    // Only suppress SillyTavern's native character click after we know the
-    // preview can actually open. This prevents "click does nothing" failures.
-    if (!beginPreviewFromCard(card)) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-    event.stopImmediatePropagation?.();
-}
-
-function handleKeyboard(event) {
-    if (!['Enter', ' '].includes(event.key)) return;
-    const card = event.target.closest?.('#rm_print_characters_block .character_select');
-    if (!card || isBulkMode()) return;
-    if (!beginPreviewFromCard(card)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    event.stopImmediatePropagation?.();
-}
-
 export function refreshCharacterLibrary() {
     const shell = ensureShell();
     enhanceNativeCharacterEditor();
@@ -760,9 +777,6 @@ export function mountCharacterLibrary() {
     }, 250);
     if (installed) return;
     installed = true;
-
-    document.addEventListener('click', handleCharacterClick, true);
-    document.addEventListener('keydown', handleKeyboard, true);
 
     const ctx = currentContext();
     const events = ctx?.eventTypes || {};
