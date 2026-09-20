@@ -406,7 +406,7 @@ Schema:
   "questsAdd": [
     {
       "title": "",
-      "type": "story | main | side | system",
+      "type": "main | side | system",
       "status": "active",
       "description": "",
       "objectives": [
@@ -651,8 +651,9 @@ WORLD TIME / WEATHER RULES:
 
 QUEST RULES:
 - Automatically create/update quests from the RP when a durable goal is established: mission, contract, rescue, investigation, promise, survival objective, hunt, delivery, training goal, major personal objective, or explicit System quest.
-- Classify central plot-driving objectives as main, optional/parallel objectives as side, System-issued objectives as system, and uncategorized durable goals as story.
-- Story/main/side quests are allowed without a System. System quests require an actually acquired System.
+- Classify central plot-driving objectives as main, optional/parallel/personal objectives as side, and System-issued objectives as system.
+- Main and Side quests are allowed without a System. System quests require an actually acquired System.
+- Do not output a "story" quest category. If an objective is durable enough to track but is not central, classify it as side.
 - Do not create a quest for every casual action, ordinary conversation, or momentary combat move.
 - Merge with an existing matching quest instead of creating duplicates.
 - Update objectives, rewards, conditions, completion and failure automatically when the newest RP establishes progress.
