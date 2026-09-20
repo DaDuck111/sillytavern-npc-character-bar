@@ -137,10 +137,16 @@ function installResizePersistence(root) {
         if (!ready || root.dataset.dragging === '1') return;
         clearTimeout(timer);
         timer = setTimeout(() => {
+            const rect = root.getBoundingClientRect();
+            const safe = clampPanelRect(rect);
             root.dataset.userGeometry = '1';
+            root.style.left = `${safe.left}px`;
+            root.style.top = `${safe.top}px`;
+            root.style.width = `${safe.width}px`;
+            root.style.height = `${safe.height}px`;
             root.style.right = 'auto';
             root.style.bottom = 'auto';
-            persistCurrentGeometry(root);
+            saveDashboardPrefs({ rect: safe });
         }, 250);
     });
     observer.observe(root);
