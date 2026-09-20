@@ -680,13 +680,12 @@ function npcMeter(label, value, max, cls = '') {
     `;
 }
 
-function characterRows(state) {
-    const chars = state.order.map(id => state.characters[id]).filter(Boolean);
+function characterRows(state, chars, archive) {
     const rank = { present: 0, nearby: 1, away: 2, unknown: 3, missing: 4, inactive: 5, dead: 6 };
     chars.sort((a, b) => (rank[a.status] ?? 9) - (rank[b.status] ?? 9) || a.name.localeCompare(b.name));
 
     if (!chars.length) {
-        return '<div class="npcb-side-empty">No NPCs saved yet.<br>The tracker will register named characters from RP.</div>';
+        return '<div class="npcb-side-empty">No NPCs match this view.</div>';
     }
 
     return chars.map(c => {
@@ -694,33 +693,71 @@ function characterRows(state) {
             ? `<img src="${escapeHtml(c.portrait)}" alt="">`
             : `<div class="npcb-side-avatar-fallback">${escapeHtml(c.name.trim().slice(0, 2).toUpperCase() || '?')}</div>`;
         const rel = clampRelationship(c.relationship?.value || 0);
+        const archiveEntry = c.archiveId ? archive.npcs?.[c.archiveId] : null;
+        const groups = (archiveEntry?.groupIds || []).map(id => archive.groups?.[id]).filter(Boolean);
+        const manaKnown = Number(c.vitals?.maxMana) > 0;
+
         return `
-            <button class="npcb-side-character npcb-npc-vital-card status-${escapeHtml(c.status)}" data-id="${escapeHtml(c.id)}">
+            <div class="npcb-side-character npcb-npc-vital-card status-${escapeHtml(c.status)}" data-id="${escapeHtml(c.id)}">
                 <div class="npcb-side-avatar">${portrait}<span class="npcb-side-presence"></span></div>
                 <div class="npcb-side-character-text">
-                    <div class="npcb-npc-name-line"><strong>${escapeHtml(c.name)}</strong>${c.system?.hasSystem ? `<i>SYS · LV${escapeHtml(c.system.level)}</i>` : ''}</div>
-                    <span>${escapeHtml(c.role || c.scene?.action || c.faction || 'NPC')}</span>
-                    <div class="npcb-npc-mini-bars">
-                        <div title="HP"><i class="hp" style="width:${pct(c.vitals?.hp, c.vitals?.maxHp)}%"></i></div>
-                        <div title="Fatigue"><i class="fatigue" style="width:${pct(c.vitals?.fatigue, c.vitals?.maxFatigue)}%"></i></div>
-                        <div title="Relationship"><i class="relationship" style="width:${relationshipPct(rel)}%"></i></div>
+                    <div class="npcb-npc-name-line">
+                        <strong>${escapeHtml(c.name)}</strong>
+                        ${c.system?.hasSystem ? `<i>SYS · LV${escapeHtml(c.system.level)}</i>` : ''}
                     </div>
+                    <span>${escapeHtml(c.role || c.scene?.action || c.faction || 'NPC')}</span>
+                    <div class="npcb-npc-mini-bars npcb-npc-mini-bars-v2">
+                        <div title="HP ${escapeHtml(c.vitals?.hp ?? 0)} / ${escapeHtml(c.vitals?.maxHp ?? 100)}"><i class="hp" style="width:${pct(c.vitals?.hp, c.vitals?.maxHp)}%"></i><b>HP</b></div>
+                        <div title="${manaKnown ? `Mana ${c.vitals.mana} / ${c.vitals.maxMana}` : 'Mana not established'}"><i class="mana" style="width:${manaKnown ? pct(c.vitals?.mana, c.vitals?.maxMana) : 0}%"></i><b>MP</b></div>
+                        <div title="Fatigue"><i class="fatigue" style="width:${pct(c.vitals?.fatigue, c.vitals?.maxFatigue)}%"></i><b>FAT</b></div>
+                        <div title="Relationship"><i class="relationship" style="width:${relationshipPct(rel)}%"></i><b>REL</b></div>
+                    </div>
+                    ${groups.length ? `<div class="npcb-npc-group-chips">${groups.map(group => `<i>${escapeHtml(group.name)}</i>`).join('')}</div>` : ''}
                 </div>
-                <small>${escapeHtml(c.status)}</small>
-            </button>`;
+                <div class="npcb-npc-card-side">
+                    <small>${escapeHtml(c.status)}</small>
+                    <button type="button" data-action="npc-group-assign" title="Assign folders/groups">GROUP</button>
+                </div>
+            </div>`;
     }).join('');
 }
 
 function renderCharacters(state) {
-    const present = state.order.map(id => state.characters[id]).filter(c => c && ['present', 'nearby'].includes(c.status)).length;
+    const archive = getGlobalArchive();
+    const groups = Object.values(archive.groups || {}).sort((a, b) => a.name.localeCompare(b.name));
+    const allChars = state.order.map(id => state.characters[id]).filter(Boolean);
+    const present = allChars.filter(c => ['present', 'nearby'].includes(c.status)).length;
+
+    let chars = allChars;
+    if (npcSceneOnly) chars = chars.filter(c => ['present', 'nearby'].includes(c.status));
+    if (npcGroupFilter !== 'all') {
+        chars = chars.filter(c => {
+            const entry = c.archiveId ? archive.npcs?.[c.archiveId] : null;
+            return (entry?.groupIds || []).includes(npcGroupFilter);
+        });
+    }
+
     return `
         <div class="npcb-side-actions">
             <button class="npcb-side-scan"><span>↻</span> Scan latest RP</button>
             <button class="npcb-side-archive">Global Archive</button>
         </div>
-        <div class="npcb-side-section-title"><span>NPC VITAL TRACKER</span><small>${present} active · ${state.order.length} linked</small></div>
-        <div class="npcb-side-character-list">${characterRows(state)}</div>
-        <div class="npcb-npc-legend"><span>HP</span><span>FATIGUE</span><span>RELATIONSHIP</span><em>Detailed STR/DEX/INT/STA/SEN only appears on NPCs with a System.</em></div>
+
+        <div class="npcb-npc-view-tools">
+            <label><input type="checkbox" class="npcb-npc-scene-only" ${npcSceneOnly ? 'checked' : ''}> SCENE ONLY</label>
+            <select class="npcb-npc-group-filter">
+                <option value="all">All groups</option>
+                ${groups.map(group => `<option value="${escapeHtml(group.id)}" ${npcGroupFilter === group.id ? 'selected' : ''}>${escapeHtml(group.name)}</option>`).join('')}
+            </select>
+            <button data-action="npc-group-create">＋ GROUP</button>
+        </div>
+
+        <div class="npcb-side-section-title"><span>NPC VITAL TRACKER</span><small>${present} in scene · ${allChars.length} linked</small></div>
+        <div class="npcb-side-character-list">${characterRows(state, chars, archive)}</div>
+        <div class="npcb-npc-legend">
+            <span>HP</span><span class="mana">MANA</span><span>FATIGUE</span><span>RELATIONSHIP</span>
+            <em>Scene Only hides NPCs who are not currently present/nearby. Detailed STR/DEX/INT/STA/SEN remains System-only.</em>
+        </div>
     `;
 }
 
