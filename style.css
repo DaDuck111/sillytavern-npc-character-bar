@@ -5011,3 +5011,342 @@
         grid-row: 4;
     }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   v0.10 — Lorebook folders + customizable extension theme
+   ═══════════════════════════════════════════════════════════════ */
+:root {
+    --npcb-accent: #4bdcff;
+    --npcb-accent-rgb: 75, 220, 255;
+    --npcb-panel: #050b12;
+    --npcb-panel-rgb: 5, 11, 18;
+}
+
+/* ── Shared theme variables ───────────────────────────────────── */
+#npcb-dashboard,
+#npcb-root,
+#npcb-thoughts-panel,
+.npcb-dialog,
+#npcb-native-lore-library {
+    --npcb-local-accent: var(--npcb-accent);
+    --npcb-local-accent-rgb: var(--npcb-accent-rgb);
+}
+#npcb-dashboard,
+#npcb-thoughts-panel,
+.npcb-dialog {
+    background:
+        radial-gradient(circle at 15% 0%, rgba(var(--npcb-accent-rgb), .065), transparent 32%),
+        rgba(var(--npcb-panel-rgb), .985) !important;
+}
+#npcb-root {
+    background:
+        linear-gradient(180deg, rgba(var(--npcb-accent-rgb), .025), transparent),
+        rgba(var(--npcb-panel-rgb), .96) !important;
+}
+#WorldInfo {
+    background:
+        radial-gradient(circle at 8% 0%, rgba(var(--npcb-accent-rgb), .08), transparent 28%),
+        linear-gradient(180deg, rgba(var(--npcb-accent-rgb), .025), transparent 18%),
+        rgba(var(--npcb-panel-rgb), .985) !important;
+    border-color: rgba(var(--npcb-accent-rgb), .24) !important;
+}
+#npcb-native-lore-library {
+    border-color: rgba(var(--npcb-accent-rgb), .18) !important;
+    background: rgba(var(--npcb-panel-rgb), .78) !important;
+}
+.npcb-side-brand,
+.npcb-system-section-head,
+.npcb-folder-head,
+.npcb-lore-folder-sidebar-head,
+.npcb-native-lore-head strong,
+.npcb-section-heading strong,
+.npcb-lore-library-group-head,
+.npcb-archive-detail-title {
+    color: var(--npcb-accent) !important;
+}
+.npcb-side-tabs button.active,
+.npcb-system-tabs button.active,
+.npcb-workshop-tabs button.active,
+.npcb-quest-category-tabs button.active {
+    color: var(--npcb-accent) !important;
+    border-color: rgba(var(--npcb-accent-rgb), .42) !important;
+    box-shadow: inset 0 -2px 0 var(--npcb-accent);
+}
+.npcb-system-bar i,
+.npcb-card-mana i,
+.npcb-npc-meter.mana i,
+.npcb-resistance-bar i,
+.npcb-archive-hp i,
+.npcb-card-hp i {
+    background-color: var(--npcb-accent);
+}
+.npcb-primary-btn,
+.npcb-side-scan,
+.npcb-lore-sync {
+    border-color: rgba(var(--npcb-accent-rgb), .35) !important;
+    color: var(--npcb-accent) !important;
+    background: rgba(var(--npcb-accent-rgb), .075) !important;
+}
+.npcb-icon-btn:hover,
+.npcb-soft-btn:hover,
+.npcb-native-lore-head button:hover,
+.npcb-native-lore-bulk button:hover,
+.npcb-archive-bulk button:hover,
+.npcb-lore-folder-item:hover,
+.npcb-lore-folder-item.active {
+    border-color: rgba(var(--npcb-accent-rgb), .32) !important;
+    color: var(--npcb-accent) !important;
+    background: rgba(var(--npcb-accent-rgb), .075) !important;
+}
+#npcb-root input,
+#npcb-root select,
+#npcb-dashboard input,
+#npcb-dashboard select,
+.npcb-dialog input,
+.npcb-dialog select,
+.npcb-dialog textarea,
+#npcb-native-lore-library input,
+#npcb-native-lore-library select {
+    accent-color: var(--npcb-accent);
+}
+
+/* ── Theme controls ───────────────────────────────────────────── */
+.npcb-theme-settings {
+    margin: 12px 0;
+    padding: 9px;
+    border: 1px solid rgba(var(--npcb-accent-rgb), .11);
+    background: rgba(var(--npcb-accent-rgb), .02);
+}
+.npcb-theme-color {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) 54px;
+    gap: 9px;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(var(--npcb-accent-rgb), .07);
+}
+.npcb-theme-color strong,
+.npcb-theme-color span {
+    display: block;
+}
+.npcb-theme-color strong {
+    color: rgba(225,247,252,.82);
+    font-size: 10px;
+}
+.npcb-theme-color span {
+    margin-top: 2px;
+    color: rgba(173,219,230,.45);
+    font-size: 8px;
+    line-height: 1.4;
+}
+.npcb-theme-color input[type="color"] {
+    width: 52px;
+    height: 34px;
+    padding: 2px;
+    border: 1px solid rgba(var(--npcb-accent-rgb), .18);
+    border-radius: 5px;
+    background: rgba(0,0,0,.18);
+    cursor: pointer;
+}
+.npcb-theme-presets {
+    display: flex;
+    gap: 7px;
+    flex-wrap: wrap;
+    padding-top: 9px;
+}
+.npcb-theme-presets button {
+    width: 28px;
+    height: 28px;
+    border: 2px solid rgba(255,255,255,.16);
+    border-radius: 50%;
+    background: var(--swatch);
+    box-shadow: 0 0 8px rgba(0,0,0,.25);
+    cursor: pointer;
+}
+.npcb-theme-presets button:hover {
+    transform: scale(1.08);
+    border-color: rgba(255,255,255,.6);
+}
+
+/* ── Lorebook real folders ───────────────────────────────────── */
+.npcb-native-lore-tools {
+    grid-template-columns: minmax(260px,1.6fr) minmax(150px,.65fr) minmax(150px,.65fr) !important;
+}
+.npcb-lore-folder-layout {
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 225px minmax(0,1fr);
+    gap: 10px;
+}
+.npcb-lore-folder-sidebar {
+    min-width: 0;
+    padding: 9px;
+    border: 1px solid rgba(var(--npcb-accent-rgb), .1);
+    border-radius: 8px;
+    background: rgba(var(--npcb-panel-rgb), .58);
+}
+.npcb-lore-folder-sidebar-head {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) auto;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 8px;
+    padding-bottom: 7px;
+    border-bottom: 1px solid rgba(var(--npcb-accent-rgb), .09);
+    font-size: 14px;
+    font-weight: 900;
+    letter-spacing: .06em;
+}
+.npcb-lore-create-folder {
+    min-height: 34px;
+    border: 1px solid rgba(var(--npcb-accent-rgb), .16);
+    border-radius: 5px;
+    color: var(--npcb-accent);
+    background: rgba(var(--npcb-accent-rgb), .04);
+    padding: 5px 8px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+}
+.npcb-lore-folder-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.npcb-lore-folder-wrap {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) 34px;
+    gap: 4px;
+}
+.npcb-lore-folder-item {
+    width: 100%;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 24px minmax(0,1fr) auto;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 4px;
+    padding: 9px 8px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: rgba(207,239,247,.68);
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+}
+.npcb-lore-folder-item strong {
+    overflow: hidden;
+    font-size: 15px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.npcb-lore-folder-item b {
+    color: rgba(174,221,232,.44);
+    font-size: 13px;
+}
+.npcb-lore-folder-item.drag-over {
+    color: var(--npcb-accent);
+    border-color: rgba(var(--npcb-accent-rgb), .65) !important;
+    background: rgba(var(--npcb-accent-rgb), .14) !important;
+    box-shadow: inset 0 0 20px rgba(var(--npcb-accent-rgb), .08);
+}
+.npcb-lore-folder-more {
+    min-height: 38px;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    color: rgba(198,232,240,.5);
+    background: transparent;
+    font-size: 20px;
+    cursor: pointer;
+}
+.npcb-lore-folder-more:hover {
+    color: var(--npcb-accent);
+    border-color: rgba(var(--npcb-accent-rgb), .16);
+    background: rgba(var(--npcb-accent-rgb), .05);
+}
+.npcb-lore-folder-tip {
+    margin-top: 10px;
+    padding: 8px;
+    color: rgba(188,225,234,.52);
+    font-size: 13px;
+    line-height: 1.5;
+}
+.npcb-lore-folder-main {
+    min-width: 0;
+}
+.npcb-native-lore-card.dragging {
+    opacity: .44;
+}
+.npcb-lore-context-menu {
+    position: fixed;
+    z-index: 2147483647;
+    min-width: 235px;
+    max-height: min(420px, calc(100dvh - 20px));
+    overflow-y: auto;
+    padding: 7px;
+    border: 1px solid rgba(var(--npcb-accent-rgb), .28);
+    border-radius: 8px;
+    background: rgba(var(--npcb-panel-rgb), .985);
+    box-shadow: 0 18px 50px rgba(0,0,0,.58);
+}
+.npcb-lore-context-title {
+    padding: 7px 8px;
+    color: var(--npcb-accent);
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: .04em;
+}
+.npcb-lore-context-menu button {
+    width: 100%;
+    display: block;
+    padding: 9px 10px;
+    border: 0;
+    border-radius: 5px;
+    color: rgba(225,246,251,.78);
+    background: transparent;
+    text-align: left;
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+}
+.npcb-lore-context-menu button:hover {
+    color: var(--npcb-accent);
+    background: rgba(var(--npcb-accent-rgb), .08);
+}
+.npcb-lore-context-menu button.danger {
+    color: rgba(255,130,148,.86);
+}
+.npcb-lore-context-sep {
+    height: 1px;
+    margin: 5px 2px;
+    background: rgba(var(--npcb-accent-rgb), .1);
+}
+
+/* NPC Lorebook view now reads folder metadata but does not edit folders there. */
+.npcb-lore-library-tools .npcb-lore-group-filter option {
+    font-size: inherit;
+}
+
+@media (max-width: 820px) {
+    .npcb-lore-folder-layout {
+        grid-template-columns: 1fr;
+    }
+    .npcb-lore-folder-sidebar {
+        max-height: 235px;
+        overflow-y: auto;
+    }
+    .npcb-lore-folder-list {
+        display: grid;
+        grid-template-columns: repeat(2,minmax(0,1fr));
+    }
+}
+@media (max-width: 560px) {
+    .npcb-native-lore-tools {
+        grid-template-columns: 1fr !important;
+    }
+    .npcb-lore-folder-list {
+        grid-template-columns: 1fr;
+    }
+}
