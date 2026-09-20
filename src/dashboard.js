@@ -18,6 +18,10 @@ let trackerStatus = { status: 'idle', message: 'Waiting for roleplay.' };
 let listenersInstalled = false;
 
 const DASH_PREF_KEY = 'npc_character_bar_dashboard_v2';
+const DEFAULT_THEME = Object.freeze({
+    accentColor: '#4bdcff',
+    panelColor: '#050b12',
+});
 const TAB_DEFS = Object.freeze({
     status: 'STATUS',
     inventory: 'ITEMS',
@@ -39,6 +43,8 @@ function getDashboardPrefs() {
     return {
         tabOrder,
         rect: raw.rect && typeof raw.rect === 'object' ? raw.rect : null,
+        accentColor: /^#[0-9a-f]{6}$/i.test(raw.accentColor || '') ? raw.accentColor : DEFAULT_THEME.accentColor,
+        panelColor: /^#[0-9a-f]{6}$/i.test(raw.panelColor || '') ? raw.panelColor : DEFAULT_THEME.panelColor,
     };
 }
 
@@ -48,6 +54,27 @@ function saveDashboardPrefs(patch) {
     const current = getDashboardPrefs();
     ctx.extensionSettings[DASH_PREF_KEY] = { ...current, ...patch };
     ctx.saveSettingsDebounced?.();
+}
+
+function hexToRgb(hex) {
+    const clean = String(hex || '').replace('#', '');
+    if (!/^[0-9a-f]{6}$/i.test(clean)) return [75, 220, 255];
+    return [
+        parseInt(clean.slice(0, 2), 16),
+        parseInt(clean.slice(2, 4), 16),
+        parseInt(clean.slice(4, 6), 16),
+    ];
+}
+
+function applyThemePrefs() {
+    const prefs = getDashboardPrefs();
+    const [ar, ag, ab] = hexToRgb(prefs.accentColor);
+    const [pr, pg, pb] = hexToRgb(prefs.panelColor);
+    const style = document.documentElement.style;
+    style.setProperty('--npcb-accent', prefs.accentColor);
+    style.setProperty('--npcb-accent-rgb', `${ar}, ${ag}, ${ab}`);
+    style.setProperty('--npcb-panel', prefs.panelColor);
+    style.setProperty('--npcb-panel-rgb', `${pr}, ${pg}, ${pb}`);
 }
 
 function clampPanelRect(rect) {
@@ -714,8 +741,8 @@ function renderQuestCard(quest) {
 }
 
 function renderQuests(state) {
-    const typeOrder = ['main', 'side', 'system', 'story'];
-    const typeLabels = { main: 'MAIN', side: 'SIDE', system: 'SYSTEM', story: 'STORY' };
+    const typeOrder = ['main', 'side', 'system'];
+    const typeLabels = { main: 'MAIN', side: 'SIDE', system: 'SYSTEM' };
     let quests = [...(state.quests || [])].sort((a, b) => {
         const statusRank = { active: 0, completed: 1, failed: 2, hidden: 3 };
         const typeRank = Object.fromEntries(typeOrder.map((type, index) => [type, index]));
@@ -905,7 +932,7 @@ function renderTrackerSettings(state) {
         ${toggle('tracker.trackInventory', t.trackInventory !== false, 'Track inventory + storage', 'Track carried, clothing and stored items.')}
         ${toggle('tracker.trackSkills', t.trackSkills !== false, 'Track skills, cooldowns & effects', 'Record skill details, cooldown state, titles and buffs/debuffs.')}
         ${toggle('tracker.trackMoney', t.trackMoney !== false, 'Track both funds', 'Track System Gold separately from ordinary setting/story currency.')}
-        ${toggle('tracker.trackQuests', t.trackQuests !== false, 'Track quests', 'Create/update story and System quests from clear objectives.')}
+        ${toggle('tracker.trackQuests', t.trackQuests !== false, 'Track quests', 'Create/update Main, Side and System quests from clear objectives.')}
         ${toggle('tracker.trackEvents', t.trackEvents !== false, 'Track events', 'Record compact story developments for continuity after RP replies.')}
         ${toggle('tracker.injectGameState', t.injectGameState !== false, 'Respect RPG constraints in RP', 'Inject a compact live state so the roleplay model considers injuries, resources, cooldowns, requirements and status effects.')}
         ${toggle('tracker.trackNpcVitals', t.trackNpcVitals !== false, 'Track NPC HP/Mana/Fatigue', 'Maintain lightweight vitals for recurring NPCs.')}
@@ -917,6 +944,21 @@ function renderTrackerSettings(state) {
             <div><strong>System context depth</strong><span>Recent messages sent to extractor (2–20).</span></div>
             <input type="number" min="2" max="20" step="1" data-setting="tracker.contextDepth" value="${Number(t.contextDepth || 6)}">
         </label>
+
+        <div class="npcb-theme-settings">
+            <div class="npcb-system-section-head"><span>UI THEME</span><button type="button" data-action="theme-reset">RESET</button></div>
+            <label class="npcb-theme-color">
+                <div><strong>Accent color</strong><span>Highlights, borders, bars and glow.</span></div>
+                <input type="color" data-theme-color="accentColor" value="${escapeHtml(getDashboardPrefs().accentColor)}">
+            </label>
+            <label class="npcb-theme-color">
+                <div><strong>Panel background</strong><span>Main dark background tint.</span></div>
+                <input type="color" data-theme-color="panelColor" value="${escapeHtml(getDashboardPrefs().panelColor)}">
+            </label>
+            <div class="npcb-theme-presets">
+                ${['#4bdcff','#8d7cff','#55db91','#ffb347','#ff6685','#f2f2f2'].map(color => `<button type="button" data-theme-preset="${color}" style="--swatch:${color}" title="${color}"></button>`).join('')}
+            </div>
+        </div>
 
         <button class="npcb-side-scan npcb-side-scan-large">↻ RUN SYSTEM SCAN</button>
     `;
@@ -1224,7 +1266,7 @@ async function addQuest() {
     const title = prompt('Quest title');
     if (!title?.trim()) return;
     const description = prompt('Quest description', '') ?? '';
-    const type = prompt('Type: story / main / side / system', 'story') ?? 'story';
+    const type = prompt('Type: main / side / system', 'side') ?? 'side';
     if (type.trim().toLowerCase() === 'system' && !getState().player.hasSystem) {
         alert('A System quest cannot exist before the player acquires a System.');
         return;
@@ -1233,7 +1275,7 @@ async function addQuest() {
     await mutateState(s => s.quests.push({
         id: uid('quest'),
         title: title.trim(),
-        type: ['story','main','side','system'].includes(type.trim().toLowerCase()) ? type.trim().toLowerCase() : 'story',
+        type: ['main','side','system'].includes(type.trim().toLowerCase()) ? type.trim().toLowerCase() : 'side',
         status: 'active',
         description: description.trim(),
         objectives: objectivesRaw.split('\n').map(x => x.trim()).filter(Boolean).map(text => ({ id: uid('objective'), text, complete: false })),
@@ -1379,6 +1421,22 @@ function bindEvents(root) {
         });
     });
 
+    root.querySelectorAll('[data-theme-color]').forEach(input => {
+        input.addEventListener('input', () => {
+            saveDashboardPrefs({ [input.dataset.themeColor]: input.value });
+            applyThemePrefs();
+        });
+        input.addEventListener('change', () => renderDashboard());
+    });
+
+    root.querySelectorAll('[data-theme-preset]').forEach(button => {
+        button.addEventListener('click', () => {
+            saveDashboardPrefs({ accentColor: button.dataset.themePreset });
+            applyThemePrefs();
+            renderDashboard();
+        });
+    });
+
     root.querySelectorAll('[data-setting]').forEach(input => {
         input.addEventListener('change', async () => {
             const path = input.dataset.setting;
@@ -1451,6 +1509,11 @@ function bindEvents(root) {
             event.stopPropagation();
             const action = button.dataset.action;
 
+            if (action === 'theme-reset') {
+                saveDashboardPrefs(DEFAULT_THEME);
+                applyThemePrefs();
+                return renderDashboard();
+            }
             if (action === 'open-events') {
                 activeTab = 'events';
                 return renderDashboard();
@@ -1682,6 +1745,7 @@ function bindEvents(root) {
 }
 
 export function mountDashboard() {
+    applyThemePrefs();
     let root = document.getElementById(ID);
     if (!root) {
         root = document.createElement('aside');
@@ -1733,6 +1797,7 @@ export function mountDashboard() {
 }
 
 export function renderDashboard() {
+    applyThemePrefs();
     const root = document.getElementById(ID);
     if (!root) return;
     const state = getState();
