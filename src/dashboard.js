@@ -808,8 +808,9 @@ function renderTrackerSettings(state) {
         ${toggle('tracker.trackSkills', t.trackSkills !== false, 'Track skills & titles', 'Record acquired skills/ranks/titles.')}
         ${toggle('tracker.trackMoney', t.trackMoney !== false, 'Track money', 'Update funds when explicit spending/rewards occur.')}
         ${toggle('tracker.trackQuests', t.trackQuests !== false, 'Track quests', 'Create/update story and System quests from clear objectives.')}
-        ${toggle('tracker.trackEvents', t.trackEvents !== false, 'Track events', 'Record meaningful story developments for continuity.')}
-        ${toggle('tracker.trackNpcVitals', t.trackNpcVitals !== false, 'Track NPC HP/Fatigue', 'Maintain lightweight vitals for recurring NPCs.')}
+        ${toggle('tracker.trackEvents', t.trackEvents !== false, 'Track events', 'Record compact story developments for continuity after RP replies.')}
+        ${toggle('tracker.injectGameState', t.injectGameState !== false, 'Respect RPG constraints in RP', 'Inject a compact live state so the roleplay model considers injuries, resources, cooldowns, requirements and status effects.')}
+        ${toggle('tracker.trackNpcVitals', t.trackNpcVitals !== false, 'Track NPC HP/Mana/Fatigue', 'Maintain lightweight vitals for recurring NPCs.')}
         ${toggle('ui.autoRegisterTrackerNPCs', state.ui.autoRegisterTrackerNPCs !== false, 'Auto-register NPCs', 'Save newly detected named NPCs.')}
         ${toggle('ui.showAwayOnBar', Boolean(state.ui.showAwayOnBar), 'Show away NPC covers', 'Keep absent NPCs on portrait shelf.')}
         ${toggle('ui.compact', Boolean(state.ui.compact), 'Compact NPC covers', 'Use smaller portrait covers.')}
