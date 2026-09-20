@@ -78,6 +78,8 @@ function summarizeRoster(state) {
             value: c.relationship?.value ?? 0,
         },
         vitals: c.vitals || {},
+        profileMissing: ['age','gender','appearance','personality','background','goals','secrets']
+            .filter(key => !String(c.profile?.[key] || '').trim()),
         system: c.system?.hasSystem ? {
             hasSystem: true,
             level: c.system.level,
@@ -357,6 +359,15 @@ Schema:
       "clothing": "",
       "thoughts": "",
       "memory": "",
+      "profile": {
+        "age": "",
+        "gender": "",
+        "appearance": "",
+        "personality": "",
+        "background": "",
+        "goals": "",
+        "secrets": ""
+      },
 
       "hp": "",
       "hpDelta": "",
@@ -421,6 +432,9 @@ NPC RULES:
 - presentCharacters means NPCs present NOW in the newest assistant reply, not merely mentioned.
 - Do not create entries for anonymous crowds/generic guards unless the story treats one as a distinct recurring character.
 - Match aliases/titles/translations to existing NPC identities.
+- For NPC profile fields, fill ONLY facts supported by the RP and only when profileMissing says that field is missing, or the newest reply clearly corrects it.
+- Keep profile patches tiny: age/gender as short values; appearance/personality/background/goals/secrets each at most one compact sentence. Do not write prose biographies.
+- Do not repeat already-known profile text in every response.
 - Use empty strings/arrays for unchanged or unknown data. Never guess.`;
 
     return [
