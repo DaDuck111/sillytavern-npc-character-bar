@@ -477,20 +477,95 @@ function renderInventory(state) {
     `;
 }
 
+function getPlayerResource(player, resourceName) {
+    const needle = String(resourceName || '').trim().toLowerCase();
+    if (!needle) return null;
+    return (player.stats || []).find(stat => String(stat.name || '').trim().toLowerCase() === needle) || null;
+}
+
+function skillUsability(player, skill) {
+    const reasons = [];
+    const remaining = String(skill.remainingCooldown || '').trim().toLowerCase();
+    if (remaining && !['0', 'ready', 'none', 'off'].includes(remaining)) reasons.push(`Cooldown: ${skill.remainingCooldown}`);
+
+    for (const [key, minimum] of Object.entries(skill.requirements?.attributes || {})) {
+        if (Number(minimum) > 0 && Number(player.attributes?.[key] || 0) < Number(minimum)) {
+            reasons.push(`${key} ${player.attributes?.[key] || 0}/${minimum}`);
+        }
+    }
+
+    if (skill.cost?.resource && Number(skill.cost.amount) > 0) {
+        const stat = getPlayerResource(player, skill.cost.resource);
+        if (stat && Number(stat.value) < Number(skill.cost.amount)) {
+            reasons.push(`${skill.cost.resource} ${stat.value}/${skill.cost.amount}`);
+        }
+    }
+
+    if (skill.requirements?.text) reasons.push(`Req: ${skill.requirements.text}`);
+    return { usable: reasons.length === 0, reasons };
+}
+
 function renderSkills(state) {
     const p = state.player;
+    const cards = (p.skills || []).map(skill => {
+        const check = skillUsability(p, skill);
+        const modifiers = Object.entries(skill.modifiers || {})
+            .filter(([, value]) => Number(value) !== 0)
+            .map(([key, value]) => `${key} ${Number(value) > 0 ? '+' : ''}${value}`);
+        return `
+            <div class="npcb-skill-card npcb-skill-card-v2" data-skill-id="${escapeHtml(skill.id)}">
+                <div class="npcb-skill-card-head">
+                    <div class="npcb-skill-rank">${escapeHtml(skill.rank || '—')}</div>
+                    <div>
+                        <strong>${escapeHtml(skill.name)}</strong>
+                        <small>${escapeHtml((skill.type || 'active').toUpperCase())}</small>
+                    </div>
+                    <span class="npcb-skill-availability ${check.usable ? 'ready' : 'blocked'}">${check.usable ? 'READY' : 'LIMITED'}</span>
+                </div>
+                <p>${escapeHtml(skill.description || 'No explanation recorded yet.')}</p>
+                <div class="npcb-skill-meta">
+                    ${skill.cost?.resource && Number(skill.cost.amount) > 0 ? `<span><b>COST</b>${escapeHtml(skill.cost.amount)} ${escapeHtml(skill.cost.resource)}</span>` : ''}
+                    ${skill.cooldown ? `<span><b>COOLDOWN</b>${escapeHtml(skill.cooldown)}</span>` : ''}
+                    ${skill.remainingCooldown ? `<span><b>REMAINING</b>${escapeHtml(skill.remainingCooldown)}</span>` : ''}
+                    ${skill.requirements?.text ? `<span><b>REQUIRES</b>${escapeHtml(skill.requirements.text)}</span>` : ''}
+                </div>
+                ${modifiers.length || skill.effects?.length ? `
+                    <div class="npcb-skill-effects">
+                        ${modifiers.map(text => `<i>${escapeHtml(text)}</i>`).join('')}
+                        ${(skill.effects || []).map(text => `<i>${escapeHtml(text)}</i>`).join('')}
+                    </div>
+                ` : ''}
+                ${!check.usable ? `<div class="npcb-skill-block-reason">${escapeHtml(check.reasons.join(' · '))}</div>` : ''}
+                <div class="npcb-skill-actions"><button data-action="skill-edit">EDIT</button><button data-action="skill-delete">×</button></div>
+            </div>
+        `;
+    }).join('');
+
+    const effects = (p.effects || []).map(effect => {
+        const mods = Object.entries(effect.modifiers || {})
+            .filter(([, value]) => Number(value) !== 0)
+            .map(([key, value]) => `${key} ${Number(value) > 0 ? '+' : ''}${value}`);
+        return `
+            <div class="npcb-effect-row ${effect.harmful ? 'harmful' : 'beneficial'}" data-effect-id="${escapeHtml(effect.id)}">
+                <div>
+                    <strong>${escapeHtml(effect.name)}</strong>
+                    <span>${escapeHtml(effect.description || effect.source || 'Status effect')}</span>
+                </div>
+                <div class="npcb-effect-tags">
+                    ${effect.duration ? `<i>${escapeHtml(effect.duration)}</i>` : ''}
+                    ${mods.map(text => `<i>${escapeHtml(text)}</i>`).join('')}
+                </div>
+            </div>
+        `;
+    }).join('');
+
     return `
         <div class="npcb-system-section-head"><span>ACQUIRED SKILLS</span><button data-action="skill-add">＋ ADD SKILL</button></div>
-        <div class="npcb-skill-grid">
-            ${p.skills?.length ? p.skills.map(skill => `
-                <div class="npcb-skill-card" data-skill-id="${escapeHtml(skill.id)}">
-                    <div class="npcb-skill-rank">${escapeHtml(skill.rank || '—')}</div>
-                    <strong>${escapeHtml(skill.name)}</strong>
-                    <span>${escapeHtml(skill.description || skill.source || 'Acquired skill')}</span>
-                    <div><button data-action="skill-edit">EDIT</button><button data-action="skill-delete">×</button></div>
-                </div>
-            `).join('') : '<div class="npcb-side-empty">No skills acquired yet.</div>'}
-        </div>
+        <div class="npcb-skill-grid">${cards || '<div class="npcb-side-empty">No skills acquired yet.</div>'}</div>
+
+        <div class="npcb-system-section-head"><span>ACTIVE STATUS EFFECTS</span></div>
+        <div class="npcb-effect-list">${effects || '<div class="npcb-side-empty">No active buffs/debuffs.</div>'}</div>
+
         <div class="npcb-system-section-head"><span>TITLES</span></div>
         <div class="npcb-system-tags">
             ${p.titles?.length ? p.titles.map(title => `<span>${escapeHtml(title)}</span>`).join('') : '<em>No titles yet</em>'}
