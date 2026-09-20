@@ -386,8 +386,19 @@ function ensureChatModal() {
 
     document.body.appendChild(modal);
 
+    // Keep all modal pointer/click events from bubbling into SillyTavern's
+    // drawer handlers. Without this, closing the modal can also close the
+    // Character Management drawer behind it.
+    for (const type of ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'touchstart', 'touchend']) {
+        modal.addEventListener(type, event => {
+            event.stopPropagation();
+        });
+    }
+
     modal.addEventListener('click', event => {
         if (event.target.closest?.('[data-npcb-modal-close]')) closeChatModal();
+        event.stopPropagation();
+        event.stopImmediatePropagation?.();
     });
 
     return modal;
@@ -400,8 +411,24 @@ function chatDetailHost() {
 
 function openChatModal() {
     const modal = ensureChatModal();
+    const rightPanel = document.getElementById('right-nav-panel');
+
+    // Remember whether Character Management was open before previewing.
+    modal.dataset.npcbKeepRightDrawerOpen = rightPanel?.classList.contains('openDrawer') ? '1' : '0';
+
     modal.classList.add('open');
     modal.setAttribute('aria-hidden', 'false');
+}
+
+function restoreCharacterDrawerIfNeeded(modal) {
+    if (modal?.dataset?.npcbKeepRightDrawerOpen !== '1') return;
+
+    const rightPanel = document.getElementById('right-nav-panel');
+    if (!rightPanel || rightPanel.classList.contains('openDrawer')) return;
+
+    // SillyTavern's own toggle is #unimportantYes. Use it instead of forcing
+    // CSS classes so its internal drawer state stays in sync.
+    document.getElementById('unimportantYes')?.click();
 }
 
 function closeChatModal() {
@@ -411,6 +438,11 @@ function closeChatModal() {
     modal.setAttribute('aria-hidden', 'true');
     selectedChid = '';
     markSelectedCard();
+
+    // Fail-safe: if another extension/SillyTavern closed the drawer anyway,
+    // reopen it on the next turn using SillyTavern's native toggle.
+    setTimeout(() => restoreCharacterDrawerIfNeeded(modal), 0);
+    setTimeout(() => restoreCharacterDrawerIfNeeded(modal), 180);
 }
 
 function markSelectedCard() {
