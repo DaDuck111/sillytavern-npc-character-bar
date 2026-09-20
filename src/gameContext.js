@@ -48,6 +48,7 @@ function buildPrompt(state) {
         state.scene?.holiday && `Holiday=${state.scene.holiday}`,
     ].filter(Boolean);
     if (world.length) lines.push(`World: ${world.join(' | ')}`);
+    if (state.scene?.summary) lines.push(`Current situation: ${state.scene.summary}`);
 
     const playerBits = [];
     if (p.hasSystem) {
