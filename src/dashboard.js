@@ -1754,8 +1754,8 @@ export function renderDashboard() {
     root.innerHTML = `
         <div class="npcb-side-header npcb-system-header" title="Drag here to move the System panel">
             <div class="npcb-drag-grip" aria-hidden="true">⋮⋮</div>
-            <div class="npcb-side-brand"><span>◇</span><strong>THE SYSTEM</strong></div>
-            <div class="npcb-side-status ${statusClass()}">${escapeHtml(statusLabel())}</div>
+            <div class="npcb-side-brand"><span>◇</span><strong>${state.player.hasSystem ? 'THE SYSTEM' : 'RPG TRACKER'}</strong></div>
+            <div class="npcb-side-status ${statusClass()}">${state.player.hasSystem ? 'SYSTEM ACQUIRED' : escapeHtml(statusLabel())}</div>
             <button class="npcb-side-close" title="Hide System">×</button>
         </div>
         <div class="npcb-side-tabs npcb-system-tabs" title="Drag tabs to reorder">
@@ -1763,7 +1763,7 @@ export function renderDashboard() {
         </div>
         <div class="npcb-side-body">${body}</div>
         <div class="npcb-side-footer npcb-system-footer">
-            <span>${escapeHtml(state.scene.summary || 'Awaiting System data')}</span>
+            <span>${escapeHtml(state.scene.summary || 'Awaiting tracker data')}</span>
             <b>v0.7.0</b>
         </div>
     `;
