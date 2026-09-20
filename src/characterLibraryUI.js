@@ -114,32 +114,43 @@ function ensureShell() {
 
 function ensureHeading() {
     const pagination = document.getElementById('rm_print_characters_pagination');
-    if (!pagination || document.getElementById('npcb-character-library-heading')) return;
+    if (!pagination) return;
 
-    const heading = document.createElement('div');
-    heading.id = 'npcb-character-library-heading';
-    heading.innerHTML = `
+    let heading = document.getElementById('npcb-character-library-heading');
+    if (!heading) {
+        heading = document.createElement('div');
+        heading.id = 'npcb-character-library-heading';
+        pagination.parentNode?.insertBefore(heading, pagination);
+    }
+    updateHeading();
+}
+
+function updateHeading() {
+    const heading = document.getElementById('npcb-character-library-heading');
+    if (!heading) return;
+    const selected = Boolean(selectedChid);
+    heading.innerHTML = selected ? `
         <div>
-            <small>CHARACTER LIBRARY</small>
-            <strong>Choose a character, then choose a chat</strong>
-            <span>Single-click previews. Your chats stay exactly where SillyTavern stores them.</span>
+            <small>STEP 2</small>
+            <strong>Choose a Chat</strong>
+            <span>Select one of this character's saved chats to continue.</span>
+        </div>
+    ` : `
+        <div>
+            <small>STEP 1</small>
+            <strong>Choose a Character</strong>
+            <span>Click a character below to see all chats with them.</span>
         </div>
     `;
-    pagination.parentNode?.insertBefore(heading, pagination);
 }
 
 function renderEmptyDetail() {
     const detail = document.getElementById(DETAIL_ID);
     const shell = document.getElementById(SHELL_ID);
     shell?.classList.remove('has-selection');
+    updateHeading();
     if (!detail) return;
-    detail.innerHTML = `
-        <div class="npcb-char-library-empty">
-            <div class="npcb-char-library-empty-icon">◇</div>
-            <strong>Select a character</strong>
-            <span>Its profile and chat history will appear here. Nothing opens until you choose a chat.</span>
-        </div>
-    `;
+    detail.innerHTML = '';
 }
 
 function markSelectedCard() {
@@ -154,7 +165,13 @@ function enhanceCards() {
         if (chid === null || chid === undefined) return;
         card.dataset.npcbLibraryReady = '1';
         card.setAttribute('aria-label', `${card.querySelector('.ch_name')?.textContent || 'Character'} — click to view chats`);
-        card.setAttribute('title', 'Click to view character and chats');
+        card.setAttribute('title', 'Click to view chats');
+        if (!card.querySelector('.npcb-character-openhint')) {
+            const hint = document.createElement('span');
+            hint.className = 'npcb-character-openhint';
+            hint.textContent = 'VIEW CHATS ›';
+            card.appendChild(hint);
+        }
     });
     markSelectedCard();
 }
@@ -195,6 +212,7 @@ function backToCharacterList() {
     selectedChid = '';
     markSelectedCard();
     renderEmptyDetail();
+    updateHeading();
 }
 
 function renderLoading(character, card) {
@@ -204,7 +222,7 @@ function renderLoading(character, card) {
     const avatar = avatarUrl(character, card);
     detail.innerHTML = `
         <div class="npcb-char-library-detail-scroll">
-        <button type="button" class="npcb-char-library-back">← CHARACTERS</button>
+        <button type="button" class="npcb-char-library-back">← BACK TO CHARACTERS</button>
         <div class="npcb-char-library-hero">
             <div class="npcb-char-library-avatar">${avatar ? `<img src="${escapeHtml(avatar)}" alt="">` : '<span>?</span>'}</div>
             <div class="npcb-char-library-identity">
@@ -243,7 +261,7 @@ function renderCharacterDetail(chid, chats, card) {
 
     detail.innerHTML = `
         <div class="npcb-char-library-detail-scroll">
-            <button type="button" class="npcb-char-library-back">← CHARACTERS</button>
+            <button type="button" class="npcb-char-library-back">← BACK TO CHARACTERS</button>
             <div class="npcb-char-library-hero">
                 <div class="npcb-char-library-avatar">${avatar ? `<img src="${escapeHtml(avatar)}" alt="${escapeHtml(character.name || '')}">` : '<span>?</span>'}</div>
                 <div class="npcb-char-library-identity">
@@ -368,6 +386,7 @@ async function selectCharacterPreview(chid, card = null, { force = false } = {})
 
     selectedChid = String(chid);
     document.getElementById(SHELL_ID)?.classList.add('has-selection');
+    updateHeading();
     markSelectedCard();
     renderLoading(character, card);
 
@@ -382,7 +401,7 @@ async function selectCharacterPreview(chid, card = null, { force = false } = {})
         if (detail) {
             detail.innerHTML = `
                 <div class="npcb-char-library-detail-scroll">
-                    <button type="button" class="npcb-char-library-back">← CHARACTERS</button>
+                    <button type="button" class="npcb-char-library-back">← BACK TO CHARACTERS</button>
                     <div class="npcb-char-library-error">
                         <strong>Could not load chats</strong>
                         <span>${escapeHtml(error.message || String(error))}</span>
