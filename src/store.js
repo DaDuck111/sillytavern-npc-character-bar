@@ -170,6 +170,7 @@ function normalizeQuest(raw = {}) {
         reward: String(raw.reward || ''),
         source: String(raw.source || ''),
         conditions: normalizeWorldConditions(raw.conditions || raw.trigger || {}),
+        conditionsMet: Boolean(raw.conditionsMet),
         createdAt: raw.createdAt || new Date().toISOString(),
         updatedAt: raw.updatedAt || new Date().toISOString(),
     };
@@ -186,6 +187,7 @@ function normalizeEvent(raw = {}) {
         importance: ['minor', 'normal', 'major', 'critical'].includes(raw.importance) ? raw.importance : 'normal',
         trigger: normalizeWorldConditions(raw.trigger || {}),
         status: ['pending', 'occurred', 'cancelled'].includes(raw.status) ? raw.status : 'occurred',
+        triggerMet: Boolean(raw.triggerMet),
         createdAt: raw.createdAt || new Date().toISOString(),
     };
 }
