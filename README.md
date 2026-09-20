@@ -1,10 +1,43 @@
 # NPC Character Bar for SillyTavern
 
+## v0.3.0 — System HUD
+
+This release expands the extension from an NPC tracker into a lightweight RPG HUD.
+
+- **Global Character Archive**
+  - NPCs persist across chats in an account-wide archive.
+  - Create custom NPC groups.
+  - Filter by group or linked chat.
+  - Link an archived NPC into the current chat, or unlink them without deleting the global archive entry.
+  - Existing per-chat NPCs are migrated into the global archive when a chat loads.
+
+- **Tall portrait covers**
+  - The character shelf above the input now uses tall portrait-cover cards instead of horizontal rows.
+  - Present/nearby status remains visible and away cards can be optionally shown.
+
+- **Player RPG state**
+  - Level, XP and XP-to-next.
+  - Money + custom currency.
+  - Current location and persistent home/base.
+  - Custom stats with per-stat AI tracking toggle.
+  - Inventory with quantity and equipped state.
+  - Skills, ranks and titles.
+  - Current condition.
+
+- **Automatic RP tracking**
+  - Separate-generation tracker can update player stats, money, inventory, skills, titles, level/XP, location and NPC state.
+  - The prompt is conservative: rewards/items/stat changes are only applied when the roleplay clearly establishes them.
+  - Tracker categories can be enabled/disabled independently in the SYSTEM tab.
+
+- **System UI**
+  - The right dashboard now uses a dark glass / cyan-neon RPG-System aesthetic.
+  - Tabs: STATUS / ITEMS / SKILLS / HOME / NPC / SYSTEM.
+
 A persistent NPC roster + portrait bar for long-form roleplay.
 
 ## What this build does
 
-### v0.2.0
+### v0.2.0 (previous)
 - RPG-style fixed dashboard on the right side of SillyTavern.
 - Characters / Scene / Tracker tabs.
 - Automatic post-response RP scanning using SillyTavern's own `getContext().generateRaw()`.
