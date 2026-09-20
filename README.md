@@ -1,5 +1,37 @@
 # NPC Character Bar for SillyTavern
 
+## v0.9.0 — Archive Bulk Tools, Chat Ownership & Large Lorebook UI
+
+- **Character Archive checkbox selection**
+  - Every archived NPC now has a visible tick box.
+  - **Select all shown** works with the current search/filter result.
+  - Bulk actions include **Add Tags**, **Replace Tags**, **Merge Selected**, and **Delete Selected**.
+  - Individual archived NPCs also have an explicit **Delete** button.
+  - Deleted archive records are tombstoned so per-chat copies do not silently recreate them on the next save.
+
+- **Duplicate-safe archive identity**
+  - Archive chat links now remember the owning SillyTavern character/group, not only the chat filename.
+  - The same NPC appearing in a new chat under the same SillyTavern character/group reuses the existing archive identity automatically.
+  - Legacy single-match archive records are reused when no conflicting source identity exists.
+  - Existing duplicate records can be cleaned with **Merge Selected**; chat links, folders, aliases and tags are combined and old archive IDs redirect to the canonical record.
+
+- **Character → chats browser**
+  - Clicking an archive card opens a detail pane instead of immediately throwing the user into an editor.
+  - The detail pane shows the NPC's portrait, role/faction, folders/tags, relationship summary and every recorded chat where they appeared.
+  - Chat rows show the owning SillyTavern character/group and chat name.
+  - **Open Chat** jumps directly to that individual or group chat when source ownership is known.
+  - Older links without source metadata explain that opening the old chat once will teach the archive its owner.
+
+- **Lorebook bulk selection**
+  - Lorebook cards now have tick boxes plus **Select all shown**.
+  - Bulk actions support **Add Tags**, **Replace Tags**, **Set Group**, and **Delete**.
+  - Bulk delete removes the actual SillyTavern Lorebook files after confirmation and cleans extension grouping/tag metadata.
+
+- **Large Lorebook typography**
+  - Native SillyTavern Lorebook entry titles are approximately 20px and entry controls/content are approximately 15–17px.
+  - Organizer book names are approximately 20px, filters are 16px, tags/status text are about 14px, and controls are larger.
+  - Organizer cards are now full-width rows instead of cramped two-column cards.
+
 ## v0.8.0 — Native Lorebooks, Character Detail Tracking & RPG Resources
 
 - **Native SillyTavern Lorebook overhaul**
