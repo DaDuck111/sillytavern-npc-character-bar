@@ -6083,3 +6083,252 @@
         width: 100%;
     }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   v0.11.3 — cleaner character list + themed native editor
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Remove the instructional step banner entirely. */
+#npcb-character-library-heading {
+    display: none !important;
+}
+
+/* Make the character selector itself a proper scrollable panel. */
+#rm_characters_block {
+    min-height: 0 !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+#rm_characters_block #charListFixedTop,
+#rm_characters_block #rm_print_characters_pagination {
+    flex: 0 0 auto !important;
+}
+#npcb-character-library-shell {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+    overflow: hidden !important;
+}
+#npcb-character-library-shell > #rm_print_characters_block {
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding: 10px 9px 18px !important;
+    overscroll-behavior: contain;
+}
+
+/* Cards remain obvious without needing an explanation box. */
+#npcb-character-library-shell #rm_print_characters_block .character_select {
+    min-height: 92px !important;
+}
+.npcb-character-openhint {
+    min-width: 92px;
+    text-align: center;
+}
+
+/* ── Native SillyTavern character editor ─────────────────────── */
+#rm_ch_create_block.npcb-native-character-editor {
+    min-height: 0 !important;
+    height: 100% !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding: 10px 10px 22px !important;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(var(--npcb-accent-rgb), .48) rgba(0,0,0,.08);
+    background:
+        radial-gradient(circle at 65% 0%, rgba(var(--npcb-accent-rgb), .055), transparent 32%),
+        rgba(var(--npcb-panel-rgb), .28);
+}
+#rm_ch_create_block.npcb-native-character-editor::-webkit-scrollbar {
+    width: 7px;
+}
+#rm_ch_create_block.npcb-native-character-editor::-webkit-scrollbar-track {
+    background: rgba(0,0,0,.08);
+}
+#rm_ch_create_block.npcb-native-character-editor::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 99px;
+    background: rgba(var(--npcb-accent-rgb), .5);
+    background-clip: padding-box;
+}
+#rm_ch_create_block.npcb-native-character-editor #form_create {
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+}
+
+/* Character name / avatar header. */
+#rm_ch_create_block.npcb-native-character-editor #avatar-and-name-block {
+    padding: 11px;
+    border: 1px solid rgba(var(--npcb-accent-rgb), .1);
+    border-radius: 10px;
+    background:
+        linear-gradient(90deg, rgba(var(--npcb-accent-rgb), .04), transparent 45%),
+        rgba(var(--npcb-panel-rgb), .34);
+}
+#rm_ch_create_block.npcb-native-character-editor #character_name_pole {
+    min-height: 42px !important;
+    border-color: rgba(var(--npcb-accent-rgb), .13) !important;
+    border-radius: 7px !important;
+    background: rgba(var(--npcb-panel-rgb), .56) !important;
+    color: rgba(235,250,254,.92) !important;
+    font-size: 18px !important;
+    font-weight: 800;
+}
+#rm_ch_create_block.npcb-native-character-editor #avatar_div {
+    gap: 12px;
+    align-items: flex-start !important;
+}
+#rm_ch_create_block.npcb-native-character-editor #avatar_div_div,
+#rm_ch_create_block.npcb-native-character-editor #avatar_load_preview {
+    width: 78px !important;
+    height: 78px !important;
+    min-width: 78px !important;
+    border-radius: 11px !important;
+}
+#rm_ch_create_block.npcb-native-character-editor #avatar_load_preview {
+    object-fit: cover;
+    border: 1px solid rgba(var(--npcb-accent-rgb), .18);
+}
+
+/* Keep native icon buttons familiar, just cleaner and themed. */
+#rm_ch_create_block.npcb-native-character-editor .form_create_bottom_buttons_block {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 6px !important;
+}
+#rm_ch_create_block.npcb-native-character-editor .form_create_bottom_buttons_block .menu_button {
+    width: 35px !important;
+    height: 35px !important;
+    min-width: 35px !important;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    margin: 0 !important;
+    border: 1px solid rgba(var(--npcb-accent-rgb), .11) !important;
+    border-radius: 7px !important;
+    color: rgba(209,239,246,.7) !important;
+    background: rgba(var(--npcb-accent-rgb), .025) !important;
+    box-shadow: none !important;
+}
+#rm_ch_create_block.npcb-native-character-editor .form_create_bottom_buttons_block .menu_button:hover {
+    color: var(--npcb-accent) !important;
+    border-color: rgba(var(--npcb-accent-rgb), .32) !important;
+    background: rgba(var(--npcb-accent-rgb), .075) !important;
+}
+#rm_ch_create_block.npcb-native-character-editor #delete_button {
+    color: rgba(255,132,150,.82) !important;
+    border-color: rgba(255,83,110,.15) !important;
+    background: rgba(255,69,96,.035) !important;
+}
+
+/* Make Back unmistakable while retaining the native arrow icon. */
+#rm_ch_create_block.npcb-native-character-editor #rm_button_back {
+    width: auto !important;
+    min-width: 158px !important;
+    padding: 0 12px !important;
+    justify-content: flex-start !important;
+    gap: 8px;
+    color: var(--npcb-accent) !important;
+    border-color: rgba(var(--npcb-accent-rgb), .35) !important;
+    background: rgba(var(--npcb-accent-rgb), .08) !important;
+    font-size: 14px !important;
+    font-weight: 900 !important;
+}
+#rm_ch_create_block.npcb-native-character-editor #rm_button_back::after {
+    content: "BACK TO CHARACTERS";
+    font-family: var(--mainFontFamily, Arial, sans-serif);
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: .035em;
+    white-space: nowrap;
+}
+#rm_ch_create_block.npcb-native-character-editor #rm_button_back:hover {
+    border-color: rgba(var(--npcb-accent-rgb), .6) !important;
+    background: rgba(var(--npcb-accent-rgb), .14) !important;
+    box-shadow: 0 0 16px rgba(var(--npcb-accent-rgb), .08) !important;
+}
+
+#rm_ch_create_block.npcb-native-character-editor #char-management-dropdown,
+#rm_ch_create_block.npcb-native-character-editor #tagInput {
+    min-height: 38px !important;
+    border-color: rgba(var(--npcb-accent-rgb), .11) !important;
+    border-radius: 6px !important;
+    background: rgba(var(--npcb-panel-rgb), .52) !important;
+    font-size: 12px !important;
+}
+
+/* Section cards: Creator Notes, Description, First Message, etc. */
+#rm_ch_create_block.npcb-native-character-editor #spoiler_free_desc,
+#rm_ch_create_block.npcb-native-character-editor #descriptionWrapper,
+#rm_ch_create_block.npcb-native-character-editor #firstMessageWrapper {
+    padding: 10px !important;
+    border: 1px solid rgba(var(--npcb-accent-rgb), .08);
+    border-radius: 9px;
+    background: rgba(var(--npcb-panel-rgb), .3);
+}
+#rm_ch_create_block.npcb-native-character-editor .standoutHeader,
+#rm_ch_create_block.npcb-native-character-editor #description_div,
+#rm_ch_create_block.npcb-native-character-editor #first_message_div {
+    min-height: 34px;
+    color: rgba(226,247,252,.84);
+    font-size: 14px !important;
+    font-weight: 800;
+}
+#rm_ch_create_block.npcb-native-character-editor .standoutHeader {
+    padding: 4px 2px !important;
+}
+#rm_ch_create_block.npcb-native-character-editor #description_textarea,
+#rm_ch_create_block.npcb-native-character-editor #firstmessage_textarea {
+    min-height: 180px !important;
+    border: 1px solid rgba(var(--npcb-accent-rgb), .1) !important;
+    border-radius: 7px !important;
+    background: rgba(0,0,0,.22) !important;
+    color: rgba(233,248,252,.88) !important;
+    padding: 10px !important;
+    font-size: 13px !important;
+    line-height: 1.55 !important;
+}
+#rm_ch_create_block.npcb-native-character-editor #creator_notes_spoiler,
+#rm_ch_create_block.npcb-native-character-editor #creator_notes_empty {
+    color: rgba(194,229,238,.66);
+    font-size: 12px;
+    line-height: 1.55;
+}
+#rm_ch_create_block.npcb-native-character-editor .extension_token_counter {
+    color: rgba(161,211,223,.45);
+    font-size: 9px;
+}
+
+/* Match the native editor's small action buttons to the theme. */
+#rm_ch_create_block.npcb-native-character-editor .menu_button:not(#rm_button_back),
+#rm_ch_create_block.npcb-native-character-editor .right_menu_button,
+#rm_ch_create_block.npcb-native-character-editor .open_media_overrides {
+    border-radius: 6px !important;
+}
+#rm_ch_create_block.npcb-native-character-editor .open_media_overrides,
+#rm_ch_create_block.npcb-native-character-editor .open_alternate_greetings {
+    border: 1px solid rgba(var(--npcb-accent-rgb), .1) !important;
+    color: rgba(190,232,241,.66) !important;
+    background: rgba(var(--npcb-accent-rgb), .025) !important;
+}
+
+/* Keep the editor comfortable on narrow drawers. */
+@media (max-width: 560px) {
+    #rm_ch_create_block.npcb-native-character-editor #avatar_div {
+        flex-direction: column !important;
+    }
+    #rm_ch_create_block.npcb-native-character-editor #avatar_controls {
+        width: 100%;
+    }
+    #rm_ch_create_block.npcb-native-character-editor #rm_button_back {
+        min-width: 150px !important;
+    }
+    #npcb-character-library-shell > #rm_print_characters_block {
+        padding-bottom: 24px !important;
+    }
+}
