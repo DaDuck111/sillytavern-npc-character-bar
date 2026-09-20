@@ -4,6 +4,21 @@ A persistent NPC roster + portrait bar for long-form roleplay.
 
 ## What this build does
 
+### v0.2.0
+- RPG-style fixed dashboard on the right side of SillyTavern.
+- Characters / Scene / Tracker tabs.
+- Automatic post-response RP scanning using SillyTavern's own `getContext().generateRaw()`.
+- New named characters can be registered automatically into the persistent per-chat roster.
+- Present/away state, role, faction, relationship, location, mood, action, condition, aliases and durable memories can update from roleplay.
+- Current scene location/time/summary are extracted and shown in the dashboard.
+- Manual **Scan latest RP** button for re-reading the newest assistant reply.
+- Tracker settings inside the dashboard: auto-read toggle, auto-register toggle, context depth, away-card visibility and compact mode.
+- The latest existing RP is scanned once after extension startup.
+
+> **Important:** Auto-read uses one additional model/API generation after each assistant RP response. Disable **Auto-read roleplay** in the Tracker tab if you do not want the extra request/token usage.
+
+### Existing character system
+
 - Horizontal character bar directly above the chat input.
 - Persistent per-chat NPC registry stored in SillyTavern `chatMetadata`.
 - Present / Nearby / Away / Unknown / Missing / Dead / Inactive states.
