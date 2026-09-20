@@ -165,7 +165,7 @@ export function renderBar() {
                 </div>
                 <div class="npcb-card-state">${escapeHtml(character.scene?.action || character.scene?.mood || character.relationship?.label || '')}</div>
             </div>
-            ${String(character.scene?.thoughts || '').trim() ? '<button type="button" class="npcb-card-thought" title="Show NPC thoughts">💭</button>' : ''}
+            ${String(character.scene?.thoughts || '').trim() ? '<span class="npcb-card-thought" role="button" tabindex="0" title="Show NPC thoughts">💭</span>' : ''}
             ${character.relationship?.label && character.relationship.label !== 'Unknown'
                 ? `<span class="npcb-relation-badge">${escapeHtml(character.relationship.label)}</span>` : ''}
         </button>`).join('');
