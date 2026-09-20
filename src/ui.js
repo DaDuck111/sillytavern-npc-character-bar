@@ -9,7 +9,7 @@ import {
     saveState,
     updateCharacter,
 } from './store.js';
-import { buildLoreContent, pullLore, pushLore } from './lore.js';
+import { applyLoreContentToCharacter, buildLoreContent, pullLore, pushLore } from './lore.js';
 import {
     createArchiveGroup,
     getArchiveSeed,
@@ -32,6 +32,7 @@ let currentCharacterId = null;
 let archiveSearch = '';
 let archiveGroupFilter = 'all';
 let archiveChatFilter = 'all';
+const loreAutoSynced = new Set();
 
 function statusIcon(status) {
     return {
@@ -241,33 +242,86 @@ const persistWorkshop = debounce(async () => {
     renderBar();
 }, 350);
 
-export function openWorkshop(id, tab = 'identity') {
+async function autoHydrateProfileFromLore(id, tab) {
+    if (loreAutoSynced.has(id)) return;
+    const character = getState().characters[id];
+    if (!character) return;
+
+    const hasLocalLore = Boolean(character.lore?.content?.trim());
+    const canPull = Boolean(character.lore?.uid?.trim());
+    if (!hasLocalLore && !canPull) return;
+
+    loreAutoSynced.add(id);
+    try {
+        if (canPull) {
+            const lore = await pullLore(character);
+            await updateCharacter(id, c => {
+                Object.assign(c.lore, lore);
+                applyLoreContentToCharacter(c, lore.content, { overwrite: true });
+            });
+        } else {
+            await updateCharacter(id, c => {
+                applyLoreContentToCharacter(c, c.lore?.content || '', { overwrite: true });
+            });
+        }
+
+        if (currentCharacterId === id && ensureModalRoot().classList.contains('open')) {
+            openWorkshop(id, tab);
+        }
+    } catch (error) {
+        console.warn('[NPC Character Bar] Lore profile auto-sync skipped:', error);
+    }
+}
+
+export function openWorkshop(id, tab = 'overview') {
     const state = getState();
     const character = state.characters[id];
     if (!character) return;
+
+    const allowedTabs = ['overview', 'current', 'memory', 'system'];
+    if (!allowedTabs.includes(tab)) tab = 'overview';
+
     currentCharacterId = id;
     const root = ensureModalRoot();
     root.classList.add('open');
+
+    const loreStatus = character.lore?.uid
+        ? (character.lore?.lastSync ? `Lore synced ${escapeHtml(new Date(character.lore.lastSync).toLocaleString())}` : 'Lorebook linked')
+        : character.lore?.content
+            ? 'Local Lore content'
+            : 'No Lorebook link';
+
     root.innerHTML = `
-      <div class="npcb-dialog npcb-workshop">
-        <header class="npcb-dialog-header">
+      <div class="npcb-dialog npcb-workshop npcb-workshop-v2">
+        <header class="npcb-dialog-header npcb-workshop-header">
+            <button class="npcb-back-btn" type="button" title="Back to Character Archive">← Back</button>
             <div class="npcb-workshop-avatar">${avatarHtml(character, 'large')}</div>
-            <div>
+            <div class="npcb-workshop-title">
                 <h2>${escapeHtml(character.name)}</h2>
                 <p>${escapeHtml(character.role || 'NPC')} · ${escapeHtml(statusLabel(character.status))}</p>
+                <small>${loreStatus}</small>
             </div>
             <div class="npcb-spacer"></div>
-            <button class="npcb-danger-btn npcb-delete-character" title="Delete NPC">Delete</button>
-            <button class="npcb-close-btn" title="Close">×</button>
+            <button class="npcb-danger-btn npcb-delete-character" type="button" title="Delete NPC from current chat">Delete</button>
+            <button class="npcb-close-btn" type="button" title="Close">×</button>
         </header>
 
-        <nav class="npcb-tabs">
-            ${[['identity','Identity'],['profile','Profile'],['state','Scene'],['stats','Vitals / Stats'],['relations','Relations'],['memory','Memory'],['lore','Lorebook']]
-                .map(([key,label]) => `<button data-tab="${key}" class="${key === tab ? 'active' : ''}">${label}</button>`).join('')}
+        <nav class="npcb-tabs npcb-workshop-tabs">
+            ${[
+                ['overview','Overview'],
+                ['current','Current'],
+                ['memory','Memory & Lore'],
+                ['system','System'],
+            ].map(([key,label]) => `<button type="button" data-tab="${key}" class="${key === tab ? 'active' : ''}">${label}</button>`).join('')}
         </nav>
 
-        <div class="npcb-tab-content">
-            <section data-pane="identity" class="${tab === 'identity' ? 'active' : ''}">
+        <div class="npcb-workshop-scroll">
+            <section data-pane="overview" class="${tab === 'overview' ? 'active' : ''}">
+                <div class="npcb-section-heading">
+                    <div><small>IDENTITY</small><strong>Character Profile</strong></div>
+                    <span>AI fills missing facts from RP; structured Lorebook fields override when synced.</span>
+                </div>
+
                 <div class="npcb-portrait-editor">
                     <div class="npcb-portrait-preview">${avatarHtml(character, 'preview')}</div>
                     <div class="npcb-portrait-actions">
@@ -276,49 +330,88 @@ export function openWorkshop(id, tab = 'identity') {
                         <button type="button" class="npcb-soft-btn npcb-clear-portrait">Clear portrait</button>
                     </div>
                 </div>
+
                 <div class="npcb-form-grid">
                     ${field('Name', 'name', character.name)}
                     ${field('Aliases', 'aliases', character.aliases.join(', '), { placeholder: 'nickname, title, alternate name' })}
                     ${field('Role', 'role', character.role)}
                     ${field('Faction', 'faction', character.faction)}
                     ${field('Roster status', 'status', character.status, { type: 'select', items: STATUS })}
-                </div>
-            </section>
-
-            <section data-pane="profile" class="${tab === 'profile' ? 'active' : ''}">
-                <div class="npcb-form-grid">
                     ${field('Age', 'profile.age', character.profile.age)}
                     ${field('Gender', 'profile.gender', character.profile.gender)}
-                    ${field('Appearance', 'profile.appearance', character.profile.appearance, { type: 'textarea', rows: 5, wide: true })}
-                    ${field('Personality', 'profile.personality', character.profile.personality, { type: 'textarea', rows: 5, wide: true })}
-                    ${field('Background', 'profile.background', character.profile.background, { type: 'textarea', rows: 6, wide: true })}
-                    ${field('Goals', 'profile.goals', character.profile.goals, { type: 'textarea', rows: 4, wide: true })}
-                    ${field('Secrets', 'profile.secrets', character.profile.secrets, { type: 'textarea', rows: 4, wide: true })}
+                    ${field('Appearance', 'profile.appearance', character.profile.appearance, { type: 'textarea', rows: 3, wide: true })}
+                    ${field('Personality', 'profile.personality', character.profile.personality, { type: 'textarea', rows: 3, wide: true })}
+                    ${field('Background', 'profile.background', character.profile.background, { type: 'textarea', rows: 4, wide: true })}
+                    ${field('Goals', 'profile.goals', character.profile.goals, { type: 'textarea', rows: 3, wide: true })}
+                    ${field('Secrets', 'profile.secrets', character.profile.secrets, { type: 'textarea', rows: 3, wide: true })}
+                    ${field('Relationship', 'relationship.label', character.relationship.label, { placeholder: 'Friend / Rival / Neutral…' })}
+                    ${field('Relationship details', 'relationship.detail', character.relationship.detail, { type: 'textarea', rows: 3, wide: true })}
+                    ${field('Knowledge / secrets known', 'knowledge', character.knowledge.join('\n'), { type: 'textarea', rows: 5, wide: true, hint: 'One fact per line.' })}
                 </div>
             </section>
 
-            <section data-pane="state" class="${tab === 'state' ? 'active' : ''}">
-                <div class="npcb-info-strip">Scene fields are temporary state. They are excluded from Lorebook sync unless you explicitly enable it.</div>
+            <section data-pane="current" class="${tab === 'current' ? 'active' : ''}">
+                <div class="npcb-section-heading">
+                    <div><small>LIVE STATE</small><strong>Current Scene & Vitals</strong></div>
+                    <span>Temporary state updates automatically from roleplay.</span>
+                </div>
                 <div class="npcb-form-grid">
                     ${field('Location', 'scene.location', character.scene.location)}
                     ${field('Mood', 'scene.mood', character.scene.mood)}
                     ${field('Condition', 'scene.condition', character.scene.condition)}
                     ${field('Current action', 'scene.action', character.scene.action)}
                     ${field('Clothing', 'scene.clothing', character.scene.clothing, { type: 'textarea', rows: 3, wide: true })}
-                    ${field('Internal thoughts', 'scene.thoughts', character.scene.thoughts, { type: 'textarea', rows: 5, wide: true })}
-                </div>
-            </section>
-
-            <section data-pane="stats" class="${tab === 'stats' ? 'active' : ''}">
-                <div class="npcb-info-strip">All recurring NPCs can track HP, Fatigue and Relationship. Detailed RPG attributes are only available when this NPC has a System.</div>
-                <div class="npcb-form-grid">
+                    ${field('Internal thoughts', 'scene.thoughts', character.scene.thoughts, { type: 'textarea', rows: 4, wide: true })}
                     ${field('HP', 'vitals.hp', character.vitals?.hp ?? 100, { type: 'number' })}
                     ${field('Max HP', 'vitals.maxHp', character.vitals?.maxHp ?? 100, { type: 'number' })}
                     ${field('Fatigue', 'vitals.fatigue', character.vitals?.fatigue ?? 0, { type: 'number' })}
                     ${field('Max Fatigue', 'vitals.maxFatigue', character.vitals?.maxFatigue ?? 100, { type: 'number' })}
                     ${field('Relationship value (-100 to 100)', 'relationship.value', character.relationship?.value ?? 0, { type: 'number', wide: true })}
-                    <label class="npcb-check wide"><input class="npcb-npc-system-toggle" data-field="system.hasSystem" type="checkbox" ${character.system?.hasSystem ? 'checked' : ''}> This NPC has a System / detailed RPG status interface</label>
                 </div>
+            </section>
+
+            <section data-pane="memory" class="${tab === 'memory' ? 'active' : ''}">
+                <div class="npcb-section-heading">
+                    <div><small>CONTINUITY</small><strong>Memory & Lorebook</strong></div>
+                    <span>Lorebook sync is token-free; structured labels hydrate this profile directly.</span>
+                </div>
+
+                <div class="npcb-memory-toolbar">
+                    <button class="npcb-primary-btn npcb-add-memory" type="button">＋ Add memory</button>
+                    <button class="npcb-soft-btn npcb-lore-pull" type="button">Pull Lore → Profile</button>
+                    <button class="npcb-soft-btn npcb-lore-push" type="button">Push Profile → Lore</button>
+                </div>
+                <div class="npcb-memory-list">${renderMemories(character)}</div>
+                <div class="npcb-form-grid">
+                    ${field('Private notes', 'notes', character.notes, { type: 'textarea', rows: 5, wide: true })}
+                    ${field('Lorebook', 'lore.book', character.lore.book, { placeholder: 'Blank = current chat Lorebook' })}
+                    ${field('Entry UID', 'lore.uid', character.lore.uid, { placeholder: 'Created on first Push' })}
+                </div>
+
+                <details class="npcb-lore-details">
+                    <summary>Raw Lorebook content</summary>
+                    <div class="npcb-form-grid">
+                        <label class="npcb-check wide"><input data-field="lore.includeScene" type="checkbox" ${character.lore.includeScene ? 'checked' : ''}> Include current scene state when rebuilding Lore content</label>
+                        ${field('Lore content', 'lore.content', character.lore.content || buildLoreContent(character), { type: 'textarea', rows: 12, wide: true })}
+                    </div>
+                    <div class="npcb-lore-actions">
+                        <button class="npcb-soft-btn npcb-lore-rebuild" type="button">Rebuild from profile</button>
+                    </div>
+                </details>
+                <div class="npcb-sync-time">${character.lore.lastSync ? `Last sync: ${escapeHtml(character.lore.lastSync)}` : 'Not synced yet.'}</div>
+            </section>
+
+            <section data-pane="system" class="${tab === 'system' ? 'active' : ''}">
+                <div class="npcb-section-heading">
+                    <div><small>RPG INTERFACE</small><strong>NPC System Status</strong></div>
+                    <span>Detailed RPG stats only exist when the story establishes this NPC has a System.</span>
+                </div>
+
+                <label class="npcb-check npcb-system-toggle-card">
+                    <input class="npcb-npc-system-toggle" data-field="system.hasSystem" type="checkbox" ${character.system?.hasSystem ? 'checked' : ''}>
+                    <span>This NPC has a System / detailed status interface</span>
+                </label>
+
                 ${character.system?.hasSystem ? `
                     <div class="npcb-system-npc-sheet">
                         <div class="npcb-form-grid">
@@ -348,51 +441,16 @@ export function openWorkshop(id, tab = 'identity') {
                                     <input data-field="system.stats.${index}.unit" value="${escapeHtml(stat.unit || '')}" placeholder="Unit">
                                     <button class="npcb-remove-npc-system-stat" type="button">×</button>
                                 </div>
-                            `).join('') : '<div class="npcb-muted-box">No custom System stats yet. AI can create them when the story explicitly establishes them.</div>'}
+                            `).join('') : '<div class="npcb-muted-box">No custom System stats yet.</div>'}
                         </div>
                     </div>
-                ` : '<div class="npcb-system-locked npcb-npc-system-locked"><strong>DETAILED STATUS LOCKED</strong><span>Enable System only when the story establishes it.</span></div>'}
-            </section>
-
-            <section data-pane="relations" class="${tab === 'relations' ? 'active' : ''}">
-                <div class="npcb-form-grid">
-                    ${field('Relationship label', 'relationship.label', character.relationship.label, { placeholder: 'Friend / Rival / Neutral…' })}
-                    ${field('Relationship details', 'relationship.detail', character.relationship.detail, { type: 'textarea', rows: 5, wide: true })}
-                    ${field('Knowledge / secrets known', 'knowledge', character.knowledge.join('\n'), { type: 'textarea', rows: 8, wide: true, hint: 'One fact per line.' })}
-                </div>
-            </section>
-
-            <section data-pane="memory" class="${tab === 'memory' ? 'active' : ''}">
-                <div class="npcb-memory-toolbar">
-                    <button class="npcb-primary-btn npcb-add-memory" type="button">＋ Add memory</button>
-                </div>
-                <div class="npcb-memory-list">
-                    ${renderMemories(character)}
-                </div>
-                <div class="npcb-form-grid">
-                    ${field('Private notes', 'notes', character.notes, { type: 'textarea', rows: 8, wide: true })}
-                </div>
-            </section>
-
-            <section data-pane="lore" class="${tab === 'lore' ? 'active' : ''}">
-                <div class="npcb-info-strip">Persistent profile data is safe to sync. Current scene state is off by default.</div>
-                <div class="npcb-form-grid">
-                    ${field('Lorebook', 'lore.book', character.lore.book, { placeholder: 'Leave blank to use chat Lorebook' })}
-                    ${field('Entry UID', 'lore.uid', character.lore.uid, { placeholder: 'Created automatically on first Push' })}
-                    <label class="npcb-check wide"><input data-field="lore.includeScene" type="checkbox" ${character.lore.includeScene ? 'checked' : ''}> Include current scene state in generated Lorebook content</label>
-                    ${field('Lorebook content', 'lore.content', character.lore.content || buildLoreContent(character), { type: 'textarea', rows: 15, wide: true })}
-                </div>
-                <div class="npcb-lore-actions">
-                    <button class="npcb-soft-btn npcb-lore-rebuild" type="button">Rebuild from profile</button>
-                    <button class="npcb-primary-btn npcb-lore-push" type="button">Push → Lorebook</button>
-                    <button class="npcb-soft-btn npcb-lore-pull" type="button">Pull ← Lorebook</button>
-                </div>
-                <div class="npcb-sync-time">${character.lore.lastSync ? `Last sync: ${escapeHtml(character.lore.lastSync)}` : 'Not synced yet.'}</div>
+                ` : '<div class="npcb-system-locked npcb-npc-system-locked"><strong>DETAILED STATUS LOCKED</strong><span>Enable only when the story establishes a System.</span></div>'}
             </section>
         </div>
       </div>`;
 
-    bindWorkshopEvents(character);
+    bindWorkshopEvents(character, tab);
+    setTimeout(() => autoHydrateProfileFromLore(id, tab), 0);
 }
 
 function renderMemories(character) {
