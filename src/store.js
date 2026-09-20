@@ -47,12 +47,19 @@ export const DEFAULT_PLAYER = Object.freeze({
 });
 
 export const DEFAULT_STATE = Object.freeze({
-    version: 4,
+    version: 6,
     characters: {},
     order: [],
     scene: {
         location: '',
         time: '',
+        date: '',
+        day: '',
+        dayPart: '',
+        weather: '',
+        season: '',
+        year: '',
+        holiday: '',
         summary: '',
     },
     player: DEFAULT_PLAYER,
@@ -133,6 +140,19 @@ function normalizeSkill(raw = {}) {
     };
 }
 
+function normalizeWorldConditions(raw = {}) {
+    return {
+        time: String(raw.time || ''),
+        date: String(raw.date || ''),
+        day: String(raw.day || ''),
+        dayPart: String(raw.dayPart || ''),
+        weather: String(raw.weather || ''),
+        season: String(raw.season || ''),
+        year: String(raw.year || ''),
+        holiday: String(raw.holiday || ''),
+    };
+}
+
 function normalizeQuest(raw = {}) {
     return {
         id: raw.id || uid('quest'),
@@ -149,6 +169,7 @@ function normalizeQuest(raw = {}) {
             : [],
         reward: String(raw.reward || ''),
         source: String(raw.source || ''),
+        conditions: normalizeWorldConditions(raw.conditions || raw.trigger || {}),
         createdAt: raw.createdAt || new Date().toISOString(),
         updatedAt: raw.updatedAt || new Date().toISOString(),
     };
@@ -163,6 +184,8 @@ function normalizeEvent(raw = {}) {
         location: String(raw.location || ''),
         participants: Array.isArray(raw.participants) ? raw.participants.filter(Boolean).map(String) : [],
         importance: ['minor', 'normal', 'major', 'critical'].includes(raw.importance) ? raw.importance : 'normal',
+        trigger: normalizeWorldConditions(raw.trigger || {}),
+        status: ['pending', 'occurred', 'cancelled'].includes(raw.status) ? raw.status : 'occurred',
         createdAt: raw.createdAt || new Date().toISOString(),
     };
 }
@@ -310,7 +333,7 @@ export function getState() {
     const ctx = getContext();
     const raw = ctx.chatMetadata?.[META_KEY];
     const state = deepClone(raw || DEFAULT_STATE);
-    state.version = 4;
+    state.version = 6;
     state.characters ||= {};
     state.order ||= [];
     state.scene = { ...DEFAULT_STATE.scene, ...(state.scene || {}) };
