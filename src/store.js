@@ -261,6 +261,8 @@ function normalizePlayer(raw = {}) {
             currency: String(raw.funds?.real?.currency || ''),
         },
     };
+    delete merged.money;
+    delete merged.currency;
 
     merged.statPointsPerLevel = Math.max(0, Number(merged.statPointsPerLevel) || 5);
     merged.statPoints = Math.max(0, Number(merged.statPoints) || 0);
