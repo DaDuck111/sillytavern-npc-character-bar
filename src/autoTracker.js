@@ -88,6 +88,12 @@ function summarizeRoster(state) {
 
         if (active) {
             row.vitals = c.vitals || {};
+            row.mind = {
+                personality: String(c.profile?.personality || '').slice(0, 180),
+                goals: String(c.profile?.goals || '').slice(0, 140),
+                mood: String(c.scene?.mood || '').slice(0, 80),
+                relationship: String(c.relationship?.label || '').slice(0, 80),
+            };
             row.system = c.system?.hasSystem ? {
                 hasSystem: true,
                 level: c.system.level,
