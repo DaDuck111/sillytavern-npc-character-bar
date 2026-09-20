@@ -296,7 +296,7 @@ function renderWorldState(state) {
     const scene = state.scene || {};
     const chips = worldConditionChips(scene);
     return `
-        <div class="npcb-system-section-head"><span>RP WORLD STATE</span><b>STORY TIME</b></div>
+        <div class="npcb-system-section-head"><span>RP WORLD STATE</span><div><b>STORY TIME</b><button data-action="world-edit">EDIT</button></div></div>
         <div class="npcb-world-state">
             ${chips || '<div class="npcb-side-empty">Time / date / weather not established yet.</div>'}
         </div>
@@ -1041,6 +1041,28 @@ function bindEvents(root) {
 
             if (action === 'open-events') {
                 activeTab = 'events';
+                return renderDashboard();
+            }
+            if (action === 'world-edit') {
+                const scene = getState().scene;
+                const time = prompt('RP time', scene.time) ?? scene.time;
+                const date = prompt('RP date', scene.date) ?? scene.date;
+                const day = prompt('Day / weekday', scene.day) ?? scene.day;
+                const dayPart = prompt('Day part (dawn, morning, afternoon, evening, night...)', scene.dayPart) ?? scene.dayPart;
+                const weather = prompt('Weather', scene.weather) ?? scene.weather;
+                const season = prompt('Season', scene.season) ?? scene.season;
+                const year = prompt('Year', scene.year) ?? scene.year;
+                const holiday = prompt('Holiday / festival', scene.holiday) ?? scene.holiday;
+                await mutateState(s => Object.assign(s.scene, {
+                    time: time.trim(),
+                    date: date.trim(),
+                    day: day.trim(),
+                    dayPart: dayPart.trim(),
+                    weather: weather.trim(),
+                    season: season.trim(),
+                    year: year.trim(),
+                    holiday: holiday.trim(),
+                }));
                 return renderDashboard();
             }
             if (action === 'player-edit') return editPlayer();
