@@ -89,8 +89,39 @@ function buildPrompt(ctx, state, latestIndex) {
         }))
         .filter(m => m.text);
 
-    const system = `You are a silent RPG character-state extractor for SillyTavern.
-Read the recent roleplay and update a persistent character roster.
+    const playerSummary = {
+        name: state.player?.name || ctx.name1 || '{{user}}',
+        title: state.player?.title || '',
+        className: state.player?.className || '',
+        level: state.player?.level || 1,
+        xp: state.player?.xp || 0,
+        xpToNext: state.player?.xpToNext || 100,
+        money: state.player?.money || 0,
+        currency: state.player?.currency || 'Gold',
+        currentLocation: state.player?.currentLocation || '',
+        homeLocation: state.player?.homeLocation || '',
+        stats: (state.player?.stats || []).map(stat => ({
+            name: stat.name,
+            value: stat.value,
+            max: stat.max,
+            unit: stat.unit,
+            aiTrack: stat.aiTrack !== false,
+        })),
+        inventory: (state.player?.inventory || []).map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            type: item.type,
+            equipped: item.equipped,
+        })),
+        skills: (state.player?.skills || []).map(skill => ({
+            name: skill.name,
+            rank: skill.rank,
+        })),
+        titles: state.player?.titles || [],
+    };
+
+    const system = `You are a silent RPG state extractor for SillyTavern.
+Read the recent roleplay and update BOTH the persistent NPC roster and the user's RPG state.
 Return ONLY one JSON object. Do not roleplay, explain, use markdown, or invent facts.
 
 Schema:
@@ -100,7 +131,42 @@ Schema:
     "time": "current in-world time/date if explicitly known, otherwise empty string",
     "summary": "one short sentence describing the immediate scene"
   },
-  "presentCharacters": ["names of characters physically or conversationally present NOW"],
+  "playerUpdates": {
+    "name": "",
+    "title": "",
+    "className": "",
+    "level": "",
+    "xp": "",
+    "xpDelta": "",
+    "xpToNext": "",
+    "money": "",
+    "moneyDelta": "",
+    "currency": "",
+    "currentLocation": "",
+    "homeLocation": "",
+    "homeDescription": "",
+    "condition": "",
+    "statUpdates": [
+      { "name": "Health", "value": "", "delta": "", "max": "", "unit": "" }
+    ],
+    "inventoryAdd": [
+      { "name": "", "quantity": 1, "type": "", "description": "", "equipped": false, "value": "" }
+    ],
+    "inventoryRemove": [
+      { "name": "", "quantity": 1 }
+    ],
+    "inventoryUpdate": [
+      { "name": "", "quantity": "", "type": "", "description": "", "equipped": "", "value": "" }
+    ],
+    "skillsAdd": [
+      { "name": "", "rank": "", "description": "", "source": "" }
+    ],
+    "skillsUpdate": [
+      { "name": "", "rank": "", "description": "", "source": "" }
+    ],
+    "titlesAdd": []
+  },
+  "presentCharacters": ["names of NPCs physically or conversationally present NOW"],
   "newCharacters": [
     {
       "name": "canonical or best observed name",
@@ -121,7 +187,7 @@ Schema:
   ],
   "characterUpdates": [
     {
-      "name": "existing or observed character name",
+      "name": "existing or observed NPC name",
       "aliases": [],
       "role": "",
       "faction": "",
@@ -137,22 +203,33 @@ Schema:
   ]
 }
 
-Rules:
-- presentCharacters means present in the newest assistant roleplay reply, not merely mentioned in history.
+Player tracking rules:
+- Track the user's persona separately from NPCs. Never create the user as an NPC.
+- Only change player level, XP, money, items, skills, titles, or stats when the roleplay clearly establishes a change.
+- Prefer delta fields when the RP describes a gain/loss but not an exact new total.
+- Do not invent RPG rewards because a fight happened. A reward/level-up/skill/item must be stated or strongly and unambiguously established.
+- InventoryAdd means the player actually acquired/received/kept an item. InventoryRemove means the player actually lost/used/gave away an item.
+- Existing inventory quantities are authoritative unless the latest RP changes them.
+- Existing custom stats are authoritative. Update only stats with aiTrack=true.
+- If the RP explicitly creates a new measurable player stat, you may add it through statUpdates.
+- currentLocation may follow the scene location when the player is there.
+- homeLocation/homeDescription should only change when a home/base/residence is established or explicitly changed.
+
+NPC rules:
+- presentCharacters means NPCs present in the newest assistant roleplay reply, not merely mentioned in history.
 - If a named or clearly distinct recurring NPC appears and is not in the existing roster, include them in newCharacters.
 - Do NOT create entries for anonymous crowds, generic soldiers/guards, or throwaway labels unless the roleplay clearly treats that individual as a distinct character.
 - Match titles, nicknames, translated names, and parenthetical variants to an existing character when they are obviously the same person. Put the observed variant into aliases.
 - Never duplicate an existing character just because spelling/casing/title changed.
 - Do not overwrite permanent biography with temporary mood/action.
 - Only state thoughts when the narration explicitly reveals them.
-- Do not include the user's persona as a new NPC unless the roleplay clearly treats that persona as a separately tracked named character.
-- Use empty strings when information is unknown. Do not guess.`;
+- Use empty strings/arrays for unknown or unchanged data. Do not guess.`;
 
     return [
         { role: 'system', content: system },
         {
             role: 'user',
-            content: `Existing roster:\n${JSON.stringify(summarizeRoster(state), null, 2)}\n\nRecent roleplay:\n${JSON.stringify(history, null, 2)}\n\nExtract the current character state from the newest assistant reply.`,
+            content: `Existing player state:\n${JSON.stringify(playerSummary, null, 2)}\n\nExisting NPC roster:\n${JSON.stringify(summarizeRoster(state), null, 2)}\n\nRecent roleplay:\n${JSON.stringify(history, null, 2)}\n\nExtract only the changes established by the newest assistant reply.`,
         },
     ];
 }
@@ -196,6 +273,7 @@ export async function scanLatestRoleplay({ force = false, manual = false } = {})
 
         await applyTrackerPayload({
             scene: parsed.scene || {},
+            playerUpdates: parsed.playerUpdates && typeof parsed.playerUpdates === 'object' ? parsed.playerUpdates : {},
             presentCharacters: Array.isArray(parsed.presentCharacters) ? parsed.presentCharacters : [],
             replacePresent: true,
             newCharacters: Array.isArray(parsed.newCharacters) ? parsed.newCharacters : [],
