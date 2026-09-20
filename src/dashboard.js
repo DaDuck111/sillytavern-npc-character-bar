@@ -1764,7 +1764,7 @@ export function renderDashboard() {
         <div class="npcb-side-body">${body}</div>
         <div class="npcb-side-footer npcb-system-footer">
             <span>${escapeHtml(state.scene.summary || 'Awaiting tracker data')}</span>
-            <b>v0.8.0</b>
+            <b>v0.9.0</b>
         </div>
     `;
 
