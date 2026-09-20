@@ -918,9 +918,27 @@ async function addSkill() {
     const name = prompt('Skill name');
     if (!name?.trim()) return;
     const rank = prompt('Rank / level', '') ?? '';
-    const description = prompt('Description', '') ?? '';
+    const typeRaw = (prompt('Type: active / passive / toggle', 'active') ?? 'active').trim().toLowerCase();
+    const type = ['active','passive','toggle'].includes(typeRaw) ? typeRaw : 'active';
+    const description = prompt('What does this skill do?', '') ?? '';
+    const cooldown = prompt('Cooldown (example: 3 turns, 10 minutes, once/day)', '') ?? '';
+    const costResource = prompt('Resource cost type (Mana / Stamina / Health / blank)', '') ?? '';
+    const costAmount = costResource.trim() ? Math.max(0, Number(prompt('Resource cost amount', '0') ?? 0) || 0) : 0;
+    const requirement = prompt('Requirements / restrictions', '') ?? '';
+    const effects = prompt('Gameplay effects, one per line', '') ?? '';
     await mutateState(s => s.player.skills.push({
-        id: uid('skill'), name: name.trim(), rank: rank.trim(), description: description.trim(), source: '',
+        id: uid('skill'),
+        name: name.trim(),
+        rank: rank.trim(),
+        type,
+        description: description.trim(),
+        source: 'Manual',
+        cooldown: cooldown.trim(),
+        remainingCooldown: '',
+        cost: { resource: costResource.trim(), amount: costAmount },
+        requirements: { text: requirement.trim(), attributes: {} },
+        modifiers: {},
+        effects: effects.split('\n').map(x => x.trim()).filter(Boolean),
     }));
     renderDashboard();
 }
@@ -930,10 +948,30 @@ async function editSkill(id) {
     if (!skill) return;
     const name = prompt('Skill name', skill.name) ?? skill.name;
     const rank = prompt('Rank / level', skill.rank) ?? skill.rank;
-    const description = prompt('Description', skill.description) ?? skill.description;
+    const typeRaw = (prompt('Type: active / passive / toggle', skill.type || 'active') ?? skill.type || 'active').trim().toLowerCase();
+    const description = prompt('Explanation / effect', skill.description) ?? skill.description;
+    const cooldown = prompt('Base cooldown', skill.cooldown || '') ?? skill.cooldown;
+    const remainingCooldown = prompt('Current remaining cooldown (blank = ready)', skill.remainingCooldown || '') ?? skill.remainingCooldown;
+    const costResource = prompt('Resource cost type', skill.cost?.resource || '') ?? skill.cost?.resource || '';
+    const costAmount = costResource.trim()
+        ? Math.max(0, Number(prompt('Resource cost amount', String(skill.cost?.amount || 0)) ?? skill.cost?.amount || 0) || 0)
+        : 0;
+    const requirement = prompt('Requirements / restrictions', skill.requirements?.text || '') ?? skill.requirements?.text || '';
+    const effectsRaw = prompt('Gameplay effects, one per line', (skill.effects || []).join('\n')) ?? (skill.effects || []).join('\n');
+
     await mutateState(s => {
         const x = s.player.skills.find(v => v.id === id);
-        if (x) Object.assign(x, { name: name.trim() || x.name, rank: rank.trim(), description: description.trim() });
+        if (!x) return;
+        x.name = name.trim() || x.name;
+        x.rank = rank.trim();
+        x.type = ['active','passive','toggle'].includes(typeRaw) ? typeRaw : x.type || 'active';
+        x.description = description.trim();
+        x.cooldown = cooldown.trim();
+        x.remainingCooldown = remainingCooldown.trim();
+        x.cost = { resource: costResource.trim(), amount: costAmount };
+        x.requirements ||= { text: '', attributes: {} };
+        x.requirements.text = requirement.trim();
+        x.effects = effectsRaw.split('\n').map(v => v.trim()).filter(Boolean);
     });
     renderDashboard();
 }
