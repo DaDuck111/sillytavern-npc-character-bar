@@ -1111,6 +1111,13 @@ function bindEvents(root) {
         });
     });
 
+    root.querySelectorAll('[data-quest-category]').forEach(button => {
+        button.addEventListener('click', () => {
+            questCategory = button.dataset.questCategory || 'all';
+            renderDashboard();
+        });
+    });
+
     root.querySelector('.npcb-storage-select')?.addEventListener('change', event => {
         activeStorageId = event.target.value;
         renderDashboard();
