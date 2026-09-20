@@ -506,10 +506,44 @@ function applyQuestUpdates(state, payload) {
 
 function applyEvents(state, payload) {
     if (state.tracker.trackEvents === false) return;
+
+    const findEvent = raw => {
+        if (raw?.id) {
+            const exact = state.events.find(event => event.id === raw.id);
+            if (exact) return exact;
+        }
+        const needle = normalizeName(raw?.title || '');
+        return state.events.find(event => normalizeName(event.title) === needle) || null;
+    };
+
+    for (const raw of payload.eventsUpdate || []) {
+        const event = findEvent(raw);
+        if (!event) continue;
+        if (raw.status && ['pending', 'occurred', 'cancelled'].includes(raw.status)) event.status = raw.status;
+        if (raw.description !== undefined && raw.description !== '') event.description = String(raw.description);
+        if (raw.location !== undefined && raw.location !== '') event.location = String(raw.location);
+        if (raw.importance && ['minor', 'normal', 'major', 'critical'].includes(raw.importance)) event.importance = raw.importance;
+        if (Array.isArray(raw.participants) && raw.participants.length) event.participants = raw.participants.filter(Boolean).map(String);
+        if (raw.trigger && typeof raw.trigger === 'object') {
+            event.trigger ||= {};
+            for (const key of ['time','date','day','dayPart','weather','season','year','holiday']) {
+                if (raw.trigger[key] !== undefined && raw.trigger[key] !== '') event.trigger[key] = String(raw.trigger[key]);
+            }
+        }
+    }
+
     for (const raw of payload.eventsAdd || []) {
         if (!raw?.title && !raw?.description) continue;
         const title = String(raw.title || 'Event');
         const description = String(raw.description || '');
+        const existing = findEvent(raw);
+        if (existing) {
+            if (raw.status && ['pending', 'occurred', 'cancelled'].includes(raw.status)) existing.status = raw.status;
+            if (description) existing.description = description;
+            if (raw.location) existing.location = String(raw.location);
+            continue;
+        }
+
         const recentDuplicate = state.events.slice(-10).some(event =>
             normalizeName(event.title) === normalizeName(title)
             && normalizeName(event.description) === normalizeName(description));
