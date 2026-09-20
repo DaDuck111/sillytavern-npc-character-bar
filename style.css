@@ -6875,3 +6875,87 @@ body.charListGrid #npcb-character-library-shell > #rm_print_characters_block {
     pointer-events: auto !important;
     touch-action: manipulation;
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   v0.11.8 — standalone character chat modal
+   ═══════════════════════════════════════════════════════════════ */
+
+#npcb-character-chat-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    pointer-events: none;
+}
+
+#npcb-character-chat-modal.open {
+    display: flex;
+    pointer-events: auto;
+}
+
+.npcb-character-chat-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, .72);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+}
+
+.npcb-character-chat-modal-panel {
+    position: relative;
+    z-index: 1;
+    width: min(760px, calc(100vw - 28px));
+    max-height: min(82vh, 900px);
+    overflow: hidden;
+    border: 1px solid rgba(var(--npcb-accent-rgb), .22);
+    border-radius: 14px;
+    background:
+        radial-gradient(circle at 72% 0%, rgba(var(--npcb-accent-rgb), .08), transparent 34%),
+        rgba(8, 15, 19, .98);
+    box-shadow:
+        0 28px 70px rgba(0, 0, 0, .58),
+        0 0 26px rgba(var(--npcb-accent-rgb), .08);
+}
+
+#npcb-character-chat-modal-content {
+    max-height: min(82vh, 900px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(var(--npcb-accent-rgb), .38) transparent;
+}
+
+#npcb-character-chat-modal .npcb-char-library-detail-scroll {
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 16px !important;
+}
+
+#npcb-character-chat-modal .npcb-char-library-back {
+    position: sticky;
+    top: 0;
+    z-index: 6;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+@media (max-width: 560px) {
+    #npcb-character-chat-modal {
+        align-items: stretch;
+        padding: 8px;
+    }
+
+    .npcb-character-chat-modal-panel {
+        width: 100%;
+        max-height: calc(100vh - 16px);
+        border-radius: 12px;
+    }
+
+    #npcb-character-chat-modal-content {
+        max-height: calc(100vh - 16px);
+    }
+}
