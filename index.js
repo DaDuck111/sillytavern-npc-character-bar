@@ -6,6 +6,7 @@ import { mountDashboard, renderDashboard } from './src/dashboard.js';
 import { resetAutoTrackerSession, scanLatestRoleplay, scheduleAutoTrack } from './src/autoTracker.js';
 import { getContext } from './src/utils.js';
 import { refreshGameContext } from './src/gameContext.js';
+import { mountWorldInfoEnhancer, renderWorldInfoEnhancer } from './src/worldInfoUI.js';
 
 const TAG = '[NPC Character Bar]';
 let initialized = false;
@@ -17,6 +18,7 @@ function refreshAll() {
         mountDashboard();
         renderBar();
         renderDashboard();
+        renderWorldInfoEnhancer();
         refreshGameContext();
     }, 50);
 }
@@ -74,6 +76,7 @@ async function boot() {
     try { await mutateState(() => {}); } catch (error) { console.warn(TAG, 'Initial archive sync skipped:', error); }
     mountUI();
     mountDashboard();
+    mountWorldInfoEnhancer();
     refreshGameContext();
 
     window.NPCCharacterBar = {
