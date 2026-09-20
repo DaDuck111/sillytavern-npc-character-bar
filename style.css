@@ -3763,3 +3763,585 @@
     color: rgba(195,235,245,.38);
     font-size: 7px;
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   v0.8 — native Lorebook organizer, larger events, thoughts resize
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── SillyTavern native World Info / Lorebook drawer ─────────── */
+#WorldInfo {
+    width: min(1040px, calc(100vw - 18px)) !important;
+    max-width: calc(100vw - 18px) !important;
+    color: rgba(226,248,255,.92);
+    background:
+        radial-gradient(circle at 8% 0%, rgba(75,220,255,.08), transparent 28%),
+        linear-gradient(180deg, rgba(75,220,255,.025), transparent 18%),
+        rgba(5,11,18,.985) !important;
+    border: 1px solid rgba(75,220,255,.22) !important;
+    box-shadow: 0 24px 70px rgba(0,0,0,.58), inset 0 0 0 1px rgba(255,255,255,.018);
+}
+#WorldInfo > .flex-container:first-of-type h3,
+#WorldInfo h3 {
+    color: #a8efff;
+    letter-spacing: .035em;
+}
+#WorldInfo #wi-holder {
+    margin: 8px 6px !important;
+}
+#WorldInfo #wiTopBlock {
+    gap: 9px;
+    padding: 8px;
+    border: 1px solid rgba(75,220,255,.08);
+    border-radius: 7px;
+    background: rgba(75,220,255,.018);
+}
+#WorldInfo .range-block-title small,
+#WorldInfo .inline-drawer-header,
+#WorldInfo #WIEntryHeaderTitlesPC small {
+    color: rgba(183,231,242,.62);
+}
+#WorldInfo input,
+#WorldInfo select,
+#WorldInfo textarea,
+#WorldInfo .select2-selection {
+    border-color: rgba(75,220,255,.13) !important;
+    color: rgba(230,249,255,.88) !important;
+    background-color: rgba(0,7,13,.72) !important;
+}
+#WorldInfo #world_editor_select,
+#WorldInfo #world_info_search,
+#WorldInfo #world_info_sort_order {
+    min-height: 34px;
+    font-size: 11px !important;
+}
+#WorldInfo .menu_button {
+    border-color: rgba(75,220,255,.1) !important;
+    color: rgba(174,234,248,.68) !important;
+    background-color: rgba(75,220,255,.025) !important;
+}
+#WorldInfo .menu_button:hover {
+    color: #dffaff !important;
+    border-color: rgba(75,220,255,.35) !important;
+    background-color: rgba(75,220,255,.08) !important;
+}
+#WorldInfo #world_popup_entries_list {
+    padding-right: 3px;
+}
+#WorldInfo .world_entry,
+#WorldInfo .wi-card-entry {
+    margin: 5px 0 !important;
+    padding: 3px 6px !important;
+    border: 1px solid rgba(75,220,255,.09) !important;
+    border-radius: 7px !important;
+    background:
+        linear-gradient(90deg, rgba(75,220,255,.025), transparent 24%),
+        rgba(0,0,0,.18) !important;
+}
+#WorldInfo .world_entry:hover,
+#WorldInfo .wi-card-entry:hover {
+    border-color: rgba(75,220,255,.22) !important;
+    background-color: rgba(75,220,255,.035) !important;
+}
+#WorldInfo .world_entry textarea[name="comment"] {
+    min-height: 34px !important;
+    font-size: 12px !important;
+    font-weight: 700;
+    line-height: 1.35;
+}
+#WorldInfo .world_entry input,
+#WorldInfo .world_entry select,
+#WorldInfo .world_entry textarea {
+    font-size: 11px !important;
+}
+#WorldInfo .world_entry .killSwitch.fa-toggle-on {
+    color: #59e4ff !important;
+    filter: drop-shadow(0 0 5px rgba(75,220,255,.35));
+}
+#WorldInfo #WIEntryHeaderTitlesPC {
+    padding-top: 4px !important;
+    padding-bottom: 4px !important;
+    color: rgba(156,226,242,.55);
+}
+
+/* Shared Lorebook organizer inserted into the native drawer. */
+#npcb-native-lore-library {
+    margin: 8px 6px 10px;
+    border: 1px solid rgba(75,220,255,.15);
+    border-radius: 8px;
+    overflow: hidden;
+    background: rgba(3,10,17,.76);
+    box-shadow: inset 0 0 20px rgba(75,220,255,.02);
+}
+.npcb-native-lore-head {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) auto;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 11px;
+    border-bottom: 1px solid rgba(75,220,255,.1);
+    background: linear-gradient(90deg, rgba(75,220,255,.075), rgba(75,220,255,.012));
+}
+.npcb-native-lore-head small,
+.npcb-native-lore-head strong,
+.npcb-native-lore-head span {
+    display: block;
+}
+.npcb-native-lore-head small {
+    color: rgba(108,222,248,.5);
+    font-size: 8px;
+    letter-spacing: .1em;
+}
+.npcb-native-lore-head strong {
+    margin-top: 2px;
+    color: #9decff;
+    font-size: 13px;
+    letter-spacing: .08em;
+}
+.npcb-native-lore-head span {
+    margin-top: 2px;
+    color: rgba(185,229,239,.46);
+    font-size: 9px;
+}
+.npcb-native-lore-head button {
+    width: 31px;
+    height: 31px;
+    border: 1px solid rgba(75,220,255,.12);
+    border-radius: 5px;
+    color: rgba(175,237,250,.65);
+    background: rgba(75,220,255,.035);
+    cursor: pointer;
+}
+#npcb-native-lore-library.collapsed .npcb-native-lore-body {
+    display: none;
+}
+.npcb-native-lore-body {
+    padding: 8px;
+}
+.npcb-native-lore-tools {
+    display: grid;
+    grid-template-columns: minmax(190px,1.3fr) repeat(3,minmax(105px,.65fr));
+    gap: 6px;
+    margin-bottom: 8px;
+}
+.npcb-native-lore-tools input,
+.npcb-native-lore-tools select {
+    min-height: 34px;
+    width: 100%;
+    border: 1px solid rgba(75,220,255,.12);
+    border-radius: 5px;
+    color: rgba(229,248,254,.82);
+    background: rgba(0,7,13,.78);
+    padding: 6px 8px;
+    font: inherit;
+    font-size: 10px;
+}
+.npcb-native-lore-groups {
+    max-height: 330px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 2px;
+}
+.npcb-native-lore-group-section + .npcb-native-lore-group-section {
+    margin-top: 10px;
+}
+.npcb-native-lore-group-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 6px;
+    border-bottom: 1px solid rgba(75,220,255,.08);
+    color: rgba(132,229,249,.68);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .06em;
+}
+.npcb-native-lore-group-head b {
+    color: rgba(194,235,244,.38);
+}
+.npcb-native-lore-cards {
+    display: grid;
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    gap: 5px;
+    padding-top: 5px;
+}
+.npcb-native-lore-card {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) auto;
+    gap: 5px 7px;
+    align-items: center;
+    padding: 7px;
+    border: 1px solid rgba(75,220,255,.075);
+    border-radius: 6px;
+    background: rgba(0,0,0,.14);
+}
+.npcb-native-lore-card:hover {
+    border-color: rgba(75,220,255,.2);
+    background: rgba(75,220,255,.025);
+}
+.npcb-native-lore-open {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0,1fr) auto;
+    align-items: center;
+    gap: 5px;
+    border: 0;
+    color: inherit;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+}
+.npcb-native-lore-open strong,
+.npcb-native-lore-open span {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.npcb-native-lore-open strong {
+    color: rgba(227,249,255,.9);
+    font-size: 10px;
+}
+.npcb-native-lore-open span {
+    margin-top: 2px;
+    color: rgba(134,213,232,.38);
+    font-size: 7px;
+}
+.npcb-native-lore-open i {
+    color: rgba(97,219,246,.48);
+    font-size: 7px;
+    font-style: normal;
+}
+.npcb-native-lore-card-tags {
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+}
+.npcb-native-lore-card-tags em {
+    padding: 2px 4px;
+    border-radius: 99px;
+    color: rgba(198,189,255,.68);
+    background: rgba(119,92,255,.055);
+    font-size: 7px;
+    font-style: normal;
+}
+.npcb-native-lore-card-tags small {
+    color: rgba(180,216,224,.28);
+    font-size: 7px;
+}
+.npcb-native-lore-switch {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    color: rgba(176,229,241,.5);
+    font-size: 7px;
+}
+.npcb-native-lore-switch input {
+    accent-color: #4bdcff;
+}
+.npcb-native-lore-organize {
+    border: 1px solid rgba(75,220,255,.09);
+    border-radius: 4px;
+    color: rgba(141,224,243,.53);
+    background: rgba(75,220,255,.02);
+    padding: 5px;
+    font: inherit;
+    font-size: 6px;
+    cursor: pointer;
+}
+.npcb-native-lore-hint {
+    margin-top: 7px;
+    color: rgba(171,216,226,.34);
+    font-size: 8px;
+    line-height: 1.4;
+}
+.npcb-native-lore-empty {
+    padding: 14px;
+    color: rgba(184,224,233,.38);
+    text-align: center;
+    font-size: 9px;
+}
+
+/* ── Bigger RP time and event typography ─────────────────────── */
+.npcb-world-state small,
+.npcb-condition-chips small {
+    font-size: 9px !important;
+}
+.npcb-world-state strong,
+.npcb-condition-chips strong {
+    font-size: 12px !important;
+    line-height: 1.35 !important;
+}
+.npcb-event-mini {
+    min-height: 49px !important;
+    padding: 8px !important;
+}
+.npcb-event-mini strong {
+    font-size: 12px !important;
+    line-height: 1.35 !important;
+}
+.npcb-event-mini span {
+    margin-top: 3px !important;
+    font-size: 11px !important;
+    line-height: 1.45 !important;
+}
+.npcb-event-row {
+    padding: 9px 6px !important;
+}
+.npcb-event-row small {
+    font-size: 10px !important;
+}
+.npcb-event-row strong {
+    margin-top: 2px;
+    font-size: 14px !important;
+    line-height: 1.4 !important;
+}
+.npcb-event-row span {
+    margin-top: 4px;
+    font-size: 12px !important;
+    line-height: 1.55 !important;
+}
+.npcb-event-row em,
+.npcb-event-status {
+    font-size: 9px !important;
+}
+
+/* ── Resistance cards ────────────────────────────────────────── */
+.npcb-resistance-grid {
+    display: grid;
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    gap: 6px;
+    margin-bottom: 10px;
+}
+.npcb-resistance-card {
+    padding: 7px;
+    border: 1px solid rgba(75,220,255,.08);
+    background: rgba(75,220,255,.02);
+}
+.npcb-resistance-card > div:first-child {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+.npcb-resistance-card strong {
+    color: rgba(221,247,253,.82);
+    font-size: 9px;
+}
+.npcb-resistance-card > div:first-child span {
+    color: #87e8ff;
+    font-size: 10px;
+    font-weight: 800;
+}
+.npcb-resistance-bar {
+    height: 4px;
+    overflow: hidden;
+    margin: 5px 0;
+    border-radius: 99px;
+    background: rgba(255,255,255,.05);
+}
+.npcb-resistance-bar i {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg,#ff6a86,#5fe7ff);
+}
+.npcb-resistance-card small {
+    display: block;
+    min-height: 12px;
+    color: rgba(174,219,229,.4);
+    font-size: 7px;
+}
+.npcb-resistance-card > div:last-child {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    margin-top: 5px;
+}
+.npcb-resistance-card label,
+.npcb-resistance-card button {
+    color: rgba(145,222,240,.48);
+    font-size: 7px;
+}
+.npcb-resistance-card button {
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+/* ── Equip-able titles ───────────────────────────────────────── */
+.npcb-title-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.npcb-title-card {
+    padding: 8px;
+    border: 1px solid rgba(75,220,255,.075);
+    border-left: 2px solid rgba(120,102,255,.42);
+    background: rgba(89,67,200,.025);
+}
+.npcb-title-card.equipped {
+    border-color: rgba(75,220,255,.2);
+    border-left-color: #5eeaff;
+    background: rgba(75,220,255,.045);
+    box-shadow: inset 0 0 18px rgba(75,220,255,.025);
+}
+.npcb-title-head {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) auto;
+    gap: 7px;
+    align-items: center;
+}
+.npcb-title-head small,
+.npcb-title-head strong {
+    display: block;
+}
+.npcb-title-head small {
+    color: rgba(115,216,240,.43);
+    font-size: 6px;
+    letter-spacing: .09em;
+}
+.npcb-title-head strong {
+    margin-top: 2px;
+    color: #e0f8ff;
+    font-size: 11px;
+}
+.npcb-title-head button {
+    border: 1px solid rgba(75,220,255,.13);
+    color: rgba(153,230,247,.66);
+    background: rgba(75,220,255,.035);
+    padding: 5px 7px;
+    font: inherit;
+    font-size: 7px;
+    cursor: pointer;
+}
+.npcb-title-card > p {
+    margin: 6px 0;
+    color: rgba(184,225,235,.5);
+    font-size: 8px;
+    line-height: 1.5;
+}
+.npcb-title-effects {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+}
+.npcb-title-effects i {
+    padding: 3px 5px;
+    border-radius: 99px;
+    color: rgba(199,190,255,.68);
+    background: rgba(118,91,255,.05);
+    font-size: 7px;
+    font-style: normal;
+}
+.npcb-title-actions {
+    margin-top: 6px;
+    text-align: right;
+}
+.npcb-title-actions button {
+    margin-left: 5px;
+    border: 0;
+    color: rgba(137,220,240,.45);
+    background: transparent;
+    font-size: 7px;
+    cursor: pointer;
+}
+
+/* ── NPC faction sections ────────────────────────────────────── */
+.npcb-faction-section + .npcb-faction-section {
+    margin-top: 9px;
+}
+.npcb-faction-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 4px 4px;
+    border-bottom: 1px solid rgba(75,220,255,.08);
+    color: rgba(133,229,249,.66);
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: .055em;
+}
+.npcb-faction-head b {
+    color: rgba(195,234,243,.34);
+}
+.npcb-npc-view-tools {
+    grid-template-columns: auto minmax(95px,1fr) minmax(95px,1fr) auto !important;
+}
+
+/* ── NPC Thoughts: resize + user-controlled text size ────────── */
+#npcb-thoughts-panel {
+    min-width: 280px;
+    min-height: 220px;
+    max-width: calc(100vw - 12px);
+    max-height: calc(100dvh - 12px);
+    resize: both;
+    overflow: hidden !important;
+}
+.npcb-thoughts-head {
+    grid-template-columns: auto minmax(0,1fr) auto auto auto !important;
+}
+.npcb-thought-font-controls {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+.npcb-thought-font-controls button {
+    width: auto !important;
+    min-width: 28px;
+    padding: 0 4px;
+    border: 1px solid rgba(75,220,255,.09) !important;
+    border-radius: 4px;
+    color: rgba(170,231,245,.64) !important;
+    background: rgba(75,220,255,.025) !important;
+    font-size: 8px !important;
+}
+.npcb-thoughts-list article strong {
+    font-size: var(--npcb-thought-font, 12px) !important;
+}
+.npcb-thoughts-list article p {
+    font-size: var(--npcb-thought-font, 12px) !important;
+    line-height: 1.58 !important;
+}
+.npcb-thoughts-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+@media (max-width: 760px) {
+    .npcb-native-lore-tools {
+        grid-template-columns: 1fr 1fr;
+    }
+    .npcb-native-lore-search {
+        grid-column: 1 / -1;
+    }
+    .npcb-native-lore-cards {
+        grid-template-columns: 1fr;
+    }
+    .npcb-npc-view-tools {
+        grid-template-columns: 1fr 1fr !important;
+    }
+    .npcb-npc-view-tools label,
+    .npcb-npc-view-tools button {
+        align-self: stretch;
+    }
+    .npcb-npc-faction-filter,
+    .npcb-npc-group-filter {
+        grid-row: auto !important;
+        grid-column: auto !important;
+    }
+}
+@media (max-width: 480px) {
+    .npcb-resistance-grid {
+        grid-template-columns: 1fr;
+    }
+    .npcb-native-lore-tools {
+        grid-template-columns: 1fr;
+    }
+    .npcb-native-lore-search {
+        grid-column: auto;
+    }
+}
