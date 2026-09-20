@@ -1,5 +1,33 @@
 # NPC Character Bar for SillyTavern
 
+## v0.11.0 — Character Library & Per-Character Chat Browser
+
+- **Native SillyTavern character selector overhaul**
+  - The normal character screen now behaves like a character library rather than a plain list.
+  - Character rows use larger portraits, clearer names, description snippets, tags and a selected-state highlight.
+  - Existing SillyTavern search, sort, tags, groups and bulk-edit controls remain available.
+
+- **Single-click character preview**
+  - Clicking an individual character no longer immediately switches chats.
+  - A single click selects the character inside the library and opens a profile/chat detail pane.
+  - Group cards and SillyTavern bulk-edit mode keep their normal native click behavior.
+
+- **Real SillyTavern chat history**
+  - The detail pane reads that character's actual saved chats from SillyTavern's own `/api/characters/chats` endpoint.
+  - Chats are shown newest first with chat name, last-message preview, timestamp, message count and file size.
+  - The currently open chat is marked **CURRENT**.
+  - A chat search box filters that character's chat history.
+
+- **Open a specific chat directly**
+  - Every chat row has **OPEN CHAT**.
+  - The extension switches to the correct SillyTavern character when necessary, then opens the exact selected chat.
+  - **OPEN MOST RECENT CHAT** is available as a quick action.
+
+- **Responsive layout**
+  - Wide drawers show character list + chat detail side by side.
+  - Narrow drawers become a clean drill-in view: choose character → see chats → **← CHARACTERS** to return.
+  - Loading/error views also keep Back navigation available.
+
 ## v0.10.0 — Lorebook Folders, Theme Colors & Simpler Quests
 
 - **Lorebook folders replace the old group button workflow**
