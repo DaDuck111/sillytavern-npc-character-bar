@@ -20,6 +20,7 @@ let groupFilter = 'all';
 let tagFilter = 'all';
 let installed = false;
 let contextMenu = null;
+let contextMenuOutsideHandler = null;
 const selectedBooks = new Set();
 
 function filteredCatalog() {
@@ -48,6 +49,10 @@ function cleanSelection() {
 function removeContextMenu() {
     contextMenu?.remove();
     contextMenu = null;
+    if (contextMenuOutsideHandler) {
+        document.removeEventListener('mousedown', contextMenuOutsideHandler, true);
+        contextMenuOutsideHandler = null;
+    }
 }
 
 function selectedOr(name) {
@@ -112,7 +117,13 @@ function showMoveContextMenu(event, bookName) {
         await deleteSelectedBooks(names);
     });
 
-    setTimeout(() => document.addEventListener('mousedown', removeContextMenu, { once: true }), 0);
+    contextMenuOutsideHandler = event => {
+        if (contextMenu?.contains(event.target)) return;
+        removeContextMenu();
+    };
+    setTimeout(() => {
+        if (contextMenuOutsideHandler) document.addEventListener('mousedown', contextMenuOutsideHandler, true);
+    }, 0);
 }
 
 async function deleteSelectedBooks(names = [...selectedBooks]) {
@@ -379,7 +390,7 @@ function bind(root, visibleBooks) {
         card.addEventListener('contextmenu', event => showMoveContextMenu(event, name));
 
         card.addEventListener('dragstart', event => {
-            if (event.target.closest('input, label, button')) {
+            if (event.target.closest('input, label')) {
                 event.preventDefault();
                 return;
             }
