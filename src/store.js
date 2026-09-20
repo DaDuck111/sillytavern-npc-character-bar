@@ -1,11 +1,35 @@
 import { deepClone, getContext, normalizeName, uid } from './utils.js';
+import { syncArchiveFromState } from './globalArchive.js';
 
 export const META_KEY = 'npc_character_bar_v1';
 
 export const STATUS = ['present', 'nearby', 'away', 'unknown', 'missing', 'dead', 'inactive'];
 
+export const DEFAULT_PLAYER = Object.freeze({
+    name: '',
+    title: '',
+    className: '',
+    level: 1,
+    xp: 0,
+    xpToNext: 100,
+    money: 0,
+    currency: 'Gold',
+    currentLocation: '',
+    homeLocation: '',
+    homeDescription: '',
+    condition: '',
+    stats: [
+        { id: 'stat_hp', name: 'Health', value: 100, max: 100, unit: '%', aiTrack: true },
+        { id: 'stat_stamina', name: 'Stamina', value: 100, max: 100, unit: '%', aiTrack: true },
+        { id: 'stat_mana', name: 'Mana', value: 100, max: 100, unit: '%', aiTrack: true },
+    ],
+    inventory: [],
+    skills: [],
+    titles: [],
+});
+
 export const DEFAULT_STATE = Object.freeze({
-    version: 2,
+    version: 3,
     characters: {},
     order: [],
     scene: {
@@ -13,9 +37,15 @@ export const DEFAULT_STATE = Object.freeze({
         time: '',
         summary: '',
     },
+    player: DEFAULT_PLAYER,
     tracker: {
         autoRead: true,
         contextDepth: 6,
+        trackPlayer: true,
+        trackInventory: true,
+        trackStats: true,
+        trackSkills: true,
+        trackMoney: true,
     },
     ui: {
         showAwayOnBar: false,
@@ -25,10 +55,63 @@ export const DEFAULT_STATE = Object.freeze({
     },
 });
 
+function normalizeStat(raw, index = 0) {
+    return {
+        id: raw?.id || uid('stat'),
+        name: String(raw?.name || `Stat ${index + 1}`),
+        value: Number.isFinite(Number(raw?.value)) ? Number(raw.value) : 0,
+        max: Number.isFinite(Number(raw?.max)) ? Number(raw.max) : 100,
+        unit: String(raw?.unit ?? ''),
+        aiTrack: raw?.aiTrack !== false,
+    };
+}
+
+function normalizeInventoryItem(raw = {}) {
+    return {
+        id: raw.id || uid('item'),
+        name: String(raw.name || 'Item'),
+        quantity: Math.max(0, Number(raw.quantity ?? raw.qty ?? 1) || 0),
+        type: String(raw.type || ''),
+        description: String(raw.description || ''),
+        equipped: Boolean(raw.equipped),
+        value: Number.isFinite(Number(raw.value)) ? Number(raw.value) : 0,
+    };
+}
+
+function normalizeSkill(raw = {}) {
+    return {
+        id: raw.id || uid('skill'),
+        name: String(raw.name || 'Skill'),
+        rank: String(raw.rank || raw.level || ''),
+        description: String(raw.description || ''),
+        source: String(raw.source || ''),
+    };
+}
+
+function normalizePlayer(raw = {}) {
+    const ctx = getContext();
+    const base = deepClone(DEFAULT_PLAYER);
+    const merged = {
+        ...base,
+        ...raw,
+        name: raw.name || ctx.name1 || '',
+        stats: Array.isArray(raw.stats) ? raw.stats.map(normalizeStat) : base.stats.map(normalizeStat),
+        inventory: Array.isArray(raw.inventory) ? raw.inventory.map(normalizeInventoryItem) : [],
+        skills: Array.isArray(raw.skills) ? raw.skills.map(normalizeSkill) : [],
+        titles: Array.isArray(raw.titles) ? raw.titles.filter(Boolean).map(String) : [],
+    };
+    merged.level = Math.max(1, Number(merged.level) || 1);
+    merged.xp = Math.max(0, Number(merged.xp) || 0);
+    merged.xpToNext = Math.max(1, Number(merged.xpToNext) || 100);
+    merged.money = Number(merged.money) || 0;
+    return merged;
+}
+
 export function makeCharacter(seed = {}) {
     const now = new Date().toISOString();
     return {
         id: seed.id || uid('npc'),
+        archiveId: seed.archiveId || '',
         name: seed.name || 'Unnamed NPC',
         aliases: Array.isArray(seed.aliases) ? seed.aliases : [],
         portrait: seed.portrait || '',
@@ -76,6 +159,7 @@ function normalizeCharacter(raw = {}) {
     return {
         ...base,
         ...raw,
+        archiveId: raw.archiveId || '',
         aliases: Array.isArray(raw.aliases) ? raw.aliases.filter(Boolean) : base.aliases,
         relationship: { ...base.relationship, ...(typeof raw.relationship === 'object' ? raw.relationship : {}) },
         profile: { ...base.profile, ...(raw.profile || {}) },
@@ -90,10 +174,11 @@ export function getState() {
     const ctx = getContext();
     const raw = ctx.chatMetadata?.[META_KEY];
     const state = deepClone(raw || DEFAULT_STATE);
-    state.version = 2;
+    state.version = 3;
     state.characters ||= {};
     state.order ||= [];
     state.scene = { ...DEFAULT_STATE.scene, ...(state.scene || {}) };
+    state.player = normalizePlayer(state.player || {});
     state.tracker = { ...DEFAULT_STATE.tracker, ...(state.tracker || {}) };
     state.ui = { ...DEFAULT_STATE.ui, ...(state.ui || {}) };
 
@@ -110,6 +195,8 @@ export function getState() {
 
 export async function saveState(state) {
     const ctx = getContext();
+    state.player = normalizePlayer(state.player || {});
+    syncArchiveFromState(state);
     ctx.chatMetadata[META_KEY] = deepClone(state);
     await ctx.saveMetadata();
     return state;
@@ -197,6 +284,7 @@ export async function importRoster(payload) {
             state.order.push(character.id);
         }
         if (incoming.scene) state.scene = { ...state.scene, ...incoming.scene };
+        if (incoming.player) state.player = normalizePlayer({ ...state.player, ...incoming.player });
         if (incoming.tracker) state.tracker = { ...state.tracker, ...incoming.tracker };
         if (incoming.ui) state.ui = { ...state.ui, ...incoming.ui };
     });
