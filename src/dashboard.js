@@ -1,11 +1,14 @@
-import { getState, mutateState } from './store.js';
+import { CORE_ATTRIBUTES, getState, mutateState } from './store.js';
 import { scanLatestRoleplay } from './autoTracker.js';
 import { openArchive, openWorkshop, renderBar } from './ui.js';
 import { escapeHtml, uid } from './utils.js';
 
 const ID = 'npcb-dashboard';
 const TOGGLE_ID = 'npcb-dashboard-toggle';
+
 let activeTab = 'status';
+let inventoryTab = 'person';
+let activeStorageId = '';
 let trackerStatus = { status: 'idle', message: 'Waiting for roleplay.' };
 let listenersInstalled = false;
 
@@ -29,13 +32,73 @@ function pct(value, max) {
     return Math.max(0, Math.min(100, (Number(value) || 0) / m * 100));
 }
 
+function clampRelationship(value) {
+    return Math.max(-100, Math.min(100, Number(value) || 0));
+}
+
+function relationshipPct(value) {
+    return (clampRelationship(value) + 100) / 2;
+}
+
 function playerTitle(player) {
+    if (!player.hasSystem) return 'SYSTEM NOT ACQUIRED';
     return player.title || player.className || 'AWAKENED';
+}
+
+function renderRecentEvents(state) {
+    const events = [...(state.events || [])].slice(-4).reverse();
+    return `
+        <div class="npcb-system-section-head">
+            <span>EVENT TRACKER</span>
+            <button data-action="open-events">VIEW ALL</button>
+        </div>
+        <div class="npcb-event-mini-list">
+            ${events.length ? events.map(event => `
+                <button class="npcb-event-mini" data-action="open-events">
+                    <i class="importance-${escapeHtml(event.importance)}"></i>
+                    <div>
+                        <strong>${escapeHtml(event.title)}</strong>
+                        <span>${escapeHtml(event.description || event.location || event.type)}</span>
+                    </div>
+                </button>
+            `).join('') : '<div class="npcb-side-empty">No major events tracked yet.</div>'}
+        </div>
+    `;
+}
+
+function renderAttributes(player) {
+    if (!player.hasSystem) {
+        return `
+            <div class="npcb-system-locked">
+                <div class="npcb-lock-glyph">◇</div>
+                <strong>ATTRIBUTE INTERFACE LOCKED</strong>
+                <span>Lv. 0 · EXP unavailable until the story grants a System.</span>
+            </div>
+        `;
+    }
+
+    const canSpend = Number(player.statPoints) > 0;
+    return `
+        <div class="npcb-system-section-head">
+            <span>CORE ATTRIBUTES</span>
+            <b>${escapeHtml(player.statPoints)} POINT${Number(player.statPoints) === 1 ? '' : 'S'} AVAILABLE</b>
+        </div>
+        <div class="npcb-attribute-grid">
+            ${CORE_ATTRIBUTES.map(key => `
+                <div class="npcb-attribute-card" data-attribute="${key}">
+                    <small>${key}</small>
+                    <strong>${escapeHtml(player.attributes?.[key] ?? 0)}</strong>
+                    <button data-action="attribute-plus" ${canSpend ? '' : 'disabled'}>＋</button>
+                </div>
+            `).join('')}
+        </div>
+    `;
 }
 
 function renderStatus(state) {
     const p = state.player;
-    const xpPct = pct(p.xp, p.xpToNext);
+    const xpPct = p.hasSystem ? pct(p.xp, p.xpToNext) : 0;
+
     const stats = (p.stats || []).map(stat => {
         const statPct = pct(stat.value, stat.max);
         return `
@@ -46,7 +109,7 @@ function renderStatus(state) {
             </div>
             <div class="npcb-system-bar"><i style="width:${statPct}%"></i></div>
             <div class="npcb-system-stat-actions">
-                <label title="Allow the AI tracker to update this stat"><input class="npcb-stat-ai" type="checkbox" ${stat.aiTrack !== false ? 'checked' : ''}> AI</label>
+                <label title="Allow AI tracker to update this stat"><input class="npcb-stat-ai" type="checkbox" ${stat.aiTrack !== false ? 'checked' : ''}> AI</label>
                 <button data-action="stat-edit">Edit</button>
                 <button data-action="stat-delete">×</button>
             </div>
@@ -54,8 +117,8 @@ function renderStatus(state) {
     }).join('');
 
     return `
-        <div class="npcb-player-card">
-            <div class="npcb-player-rank">LV. ${escapeHtml(p.level)}</div>
+        <div class="npcb-player-card ${p.hasSystem ? 'system-active' : 'system-locked'}">
+            <div class="npcb-player-rank">LV. ${escapeHtml(p.hasSystem ? p.level : 0)}</div>
             <div class="npcb-player-ident">
                 <small>PLAYER</small>
                 <strong>${escapeHtml(p.name || 'Player')}</strong>
@@ -64,49 +127,122 @@ function renderStatus(state) {
             <button class="npcb-system-mini" data-action="player-edit">EDIT</button>
         </div>
 
-        <div class="npcb-system-xp">
-            <div><span>EXPERIENCE</span><strong>${escapeHtml(p.xp)} / ${escapeHtml(p.xpToNext)}</strong></div>
+        <div class="npcb-system-xp ${p.hasSystem ? '' : 'locked'}">
+            <div>
+                <span>EXPERIENCE</span>
+                <strong>${p.hasSystem ? `${escapeHtml(p.xp)} / ${escapeHtml(p.xpToNext)}` : 'LOCKED'}</strong>
+            </div>
             <div class="npcb-system-bar xp"><i style="width:${xpPct}%"></i></div>
         </div>
+
+        ${renderAttributes(p)}
 
         <div class="npcb-system-resource-grid">
             <div><small>FUNDS</small><strong>${escapeHtml(p.money.toLocaleString?.() ?? p.money)} <em>${escapeHtml(p.currency)}</em></strong></div>
             <div><small>LOCATION</small><strong>${escapeHtml(p.currentLocation || state.scene.location || 'Unknown')}</strong></div>
         </div>
 
-        <div class="npcb-system-section-head"><span>ATTRIBUTES</span><button data-action="stat-add">＋ ADD STAT</button></div>
-        <div class="npcb-system-stats">${stats || '<div class="npcb-side-empty">No stats configured.</div>'}</div>
+        <div class="npcb-system-section-head"><span>VITAL / CUSTOM STATS</span><button data-action="stat-add">＋ ADD STAT</button></div>
+        <div class="npcb-system-stats">${stats || '<div class="npcb-side-empty">No custom stats configured.</div>'}</div>
 
         ${p.condition ? `<div class="npcb-system-condition"><small>CONDITION</small><span>${escapeHtml(p.condition)}</span></div>` : ''}
+
+        ${renderRecentEvents(state)}
     `;
+}
+
+function inventoryUsed(player, type, storageId = '') {
+    return (player.inventory || []).filter(item => {
+        if (item.locationType !== type) return false;
+        if (type === 'stored') return item.storageId === storageId;
+        return true;
+    }).length;
+}
+
+function inventoryCapacity(player, type, storageId = '') {
+    if (type === 'person') return Math.max(1, Number(player.inventoryLimits?.onPerson) || 12);
+    if (type === 'clothing') return Math.max(1, Number(player.inventoryLimits?.clothing) || 8);
+    const storage = (player.storageLocations || []).find(x => x.id === storageId);
+    return Math.max(1, Number(storage?.capacity) || Number(player.inventoryLimits?.defaultStorage) || 30);
+}
+
+function renderInventoryItems(player, type, storageId = '') {
+    const items = (player.inventory || [])
+        .filter(item => item.locationType === type && (type !== 'stored' || item.storageId === storageId))
+        .sort((a, b) => Number(b.equipped) - Number(a.equipped) || a.name.localeCompare(b.name));
+
+    return items.length ? items.map(item => `
+        <div class="npcb-system-list-row ${item.equipped ? 'equipped' : ''}" data-item-id="${escapeHtml(item.id)}">
+            <div class="npcb-system-list-icon">${type === 'clothing' ? '◫' : type === 'stored' ? '▣' : '◇'}</div>
+            <div class="npcb-system-list-main">
+                <strong>${escapeHtml(item.name)} ${item.quantity > 1 ? `×${escapeHtml(item.quantity)}` : ''}</strong>
+                <span>${escapeHtml(item.type || item.description || (item.equipped ? 'Equipped' : 'Item'))}</span>
+            </div>
+            <div class="npcb-system-row-actions">
+                <button data-action="item-minus">−</button>
+                <button data-action="item-plus">＋</button>
+                <button data-action="item-move">MOVE</button>
+                <button data-action="item-equip">${item.equipped ? 'OFF' : 'EQUIP'}</button>
+                <button data-action="item-delete">×</button>
+            </div>
+        </div>
+    `).join('') : '<div class="npcb-side-empty">No items in this category.</div>';
 }
 
 function renderInventory(state) {
     const p = state.player;
-    const items = [...(p.inventory || [])].sort((a, b) => Number(b.equipped) - Number(a.equipped) || a.name.localeCompare(b.name));
+    const storages = (p.storageLocations || []).filter(storage => !storage.systemOnly || p.hasSystem);
+
+    if (inventoryTab === 'stored' && !activeStorageId && storages.length) activeStorageId = storages[0].id;
+    if (inventoryTab === 'stored' && activeStorageId && !storages.some(x => x.id === activeStorageId)) {
+        activeStorageId = storages[0]?.id || '';
+    }
+
+    const storage = storages.find(x => x.id === activeStorageId);
+    const used = inventoryUsed(p, inventoryTab, inventoryTab === 'stored' ? activeStorageId : '');
+    const cap = inventoryCapacity(p, inventoryTab, inventoryTab === 'stored' ? activeStorageId : '');
+    const over = used > cap;
+
     return `
-        <div class="npcb-system-section-head"><span>INVENTORY</span><button data-action="item-add">＋ ADD ITEM</button></div>
+        <div class="npcb-inventory-subtabs">
+            <button data-inventory-tab="person" class="${inventoryTab === 'person' ? 'active' : ''}">ON PERSON</button>
+            <button data-inventory-tab="clothing" class="${inventoryTab === 'clothing' ? 'active' : ''}">CLOTHING</button>
+            <button data-inventory-tab="stored" class="${inventoryTab === 'stored' ? 'active' : ''}">STORED</button>
+        </div>
+
         <div class="npcb-inventory-money">
             <span>AVAILABLE FUNDS</span>
             <strong>${escapeHtml(p.money.toLocaleString?.() ?? p.money)} ${escapeHtml(p.currency)}</strong>
             <button data-action="money-edit">EDIT</button>
         </div>
+
+        ${inventoryTab === 'stored' ? `
+            <div class="npcb-storage-toolbar">
+                <select class="npcb-storage-select">
+                    ${storages.length ? storages.map(x => `<option value="${escapeHtml(x.id)}" ${x.id === activeStorageId ? 'selected' : ''}>${escapeHtml(x.name)}${x.systemOnly ? ' [SYSTEM]' : ''}</option>`).join('') : '<option value="">No storage locations</option>'}
+                </select>
+                <button data-action="storage-add">＋ STORAGE</button>
+                ${storage ? '<button data-action="storage-edit">EDIT LIMIT</button>' : ''}
+            </div>
+        ` : ''}
+
+        <div class="npcb-capacity-line ${over ? 'over' : ''}">
+            <span>SLOTS</span>
+            <strong>${used} / ${cap}</strong>
+            <button data-action="capacity-edit">${inventoryTab === 'stored' ? 'STORAGE LIMIT' : 'EDIT LIMIT'}</button>
+        </div>
+
+        ${over ? '<div class="npcb-capacity-warning">CAPACITY EXCEEDED — move or remove item stacks.</div>' : ''}
+
+        <div class="npcb-system-section-head">
+            <span>${inventoryTab === 'person' ? 'CARRIED ITEMS' : inventoryTab === 'clothing' ? 'CLOTHING / EQUIPMENT' : escapeHtml(storage?.name || 'STORED ITEMS')}</span>
+            <button data-action="item-add">＋ ADD ITEM</button>
+        </div>
+
         <div class="npcb-system-list">
-            ${items.length ? items.map(item => `
-                <div class="npcb-system-list-row ${item.equipped ? 'equipped' : ''}" data-item-id="${escapeHtml(item.id)}">
-                    <div class="npcb-system-list-icon">◇</div>
-                    <div class="npcb-system-list-main">
-                        <strong>${escapeHtml(item.name)} ${item.quantity > 1 ? `×${escapeHtml(item.quantity)}` : ''}</strong>
-                        <span>${escapeHtml(item.type || item.description || (item.equipped ? 'Equipped' : 'Item'))}</span>
-                    </div>
-                    <div class="npcb-system-row-actions">
-                        <button data-action="item-minus">−</button>
-                        <button data-action="item-plus">＋</button>
-                        <button data-action="item-equip">${item.equipped ? 'UNEQUIP' : 'EQUIP'}</button>
-                        <button data-action="item-delete">×</button>
-                    </div>
-                </div>
-            `).join('') : '<div class="npcb-side-empty">Inventory empty. Items acquired in RP can be added automatically.</div>'}
+            ${inventoryTab === 'stored' && !storage
+                ? '<div class="npcb-side-empty">Create a storage location first. Story-detected homes, lockers, vehicles, vaults and System storage can also appear here automatically.</div>'
+                : renderInventoryItems(p, inventoryTab, inventoryTab === 'stored' ? activeStorageId : '')}
         </div>
     `;
 }
@@ -121,10 +257,7 @@ function renderSkills(state) {
                     <div class="npcb-skill-rank">${escapeHtml(skill.rank || '—')}</div>
                     <strong>${escapeHtml(skill.name)}</strong>
                     <span>${escapeHtml(skill.description || skill.source || 'Acquired skill')}</span>
-                    <div>
-                        <button data-action="skill-edit">EDIT</button>
-                        <button data-action="skill-delete">×</button>
-                    </div>
+                    <div><button data-action="skill-edit">EDIT</button><button data-action="skill-delete">×</button></div>
                 </div>
             `).join('') : '<div class="npcb-side-empty">No skills acquired yet.</div>'}
         </div>
@@ -141,11 +274,11 @@ function renderHome(state) {
         <div class="npcb-home-banner">
             <small>PLAYER BASE / HOME</small>
             <strong>${escapeHtml(p.homeLocation || 'UNASSIGNED')}</strong>
-            <span>Home is persistent player data and does not change just because the scene moves.</span>
+            <span>Persistent home data stays put when the active scene moves.</span>
         </div>
         <label class="npcb-system-field">
             <span>CURRENT LOCATION</span>
-            <input data-player-field="currentLocation" value="${escapeHtml(p.currentLocation || state.scene.location || '')}" placeholder="Where the player is now">
+            <input data-player-field="currentLocation" value="${escapeHtml(p.currentLocation || state.scene.location || '')}">
         </label>
         <label class="npcb-system-field">
             <span>HOME / BASE LOCATION</span>
@@ -153,12 +286,64 @@ function renderHome(state) {
         </label>
         <label class="npcb-system-field">
             <span>HOME DETAILS</span>
-            <textarea data-player-field="homeDescription" rows="6" placeholder="Rooms, facilities, storage, NPC residents, upgrades…">${escapeHtml(p.homeDescription)}</textarea>
+            <textarea data-player-field="homeDescription" rows="6" placeholder="Rooms, facilities, storage, residents, upgrades…">${escapeHtml(p.homeDescription)}</textarea>
         </label>
         <label class="npcb-system-field">
             <span>CURRENT CONDITION</span>
-            <textarea data-player-field="condition" rows="4" placeholder="Injured, exhausted, buffed…">${escapeHtml(p.condition)}</textarea>
+            <textarea data-player-field="condition" rows="4">${escapeHtml(p.condition)}</textarea>
         </label>
+    `;
+}
+
+function renderQuestCard(quest) {
+    return `
+        <div class="npcb-quest-card status-${escapeHtml(quest.status)}" data-quest-id="${escapeHtml(quest.id)}">
+            <div class="npcb-quest-top">
+                <div>
+                    <small>${escapeHtml(quest.type.toUpperCase())} QUEST</small>
+                    <strong>${escapeHtml(quest.title)}</strong>
+                </div>
+                <select class="npcb-quest-status">
+                    ${['active','completed','failed','hidden'].map(status => `<option value="${status}" ${quest.status === status ? 'selected' : ''}>${status.toUpperCase()}</option>`).join('')}
+                </select>
+            </div>
+            ${quest.description ? `<p>${escapeHtml(quest.description)}</p>` : ''}
+            <div class="npcb-quest-objectives">
+                ${quest.objectives?.length ? quest.objectives.map(obj => `
+                    <label data-objective-id="${escapeHtml(obj.id)}">
+                        <input type="checkbox" class="npcb-objective-check" ${obj.complete ? 'checked' : ''}>
+                        <span>${escapeHtml(obj.text)}</span>
+                    </label>
+                `).join('') : '<em>No objectives recorded.</em>'}
+            </div>
+            ${quest.reward ? `<div class="npcb-quest-reward"><span>REWARD</span><strong>${escapeHtml(quest.reward)}</strong></div>` : ''}
+            ${quest.source ? `<div class="npcb-quest-source">SOURCE // ${escapeHtml(quest.source)}</div>` : ''}
+            <div class="npcb-quest-actions"><button data-action="quest-edit">EDIT</button><button data-action="quest-delete">DELETE</button></div>
+        </div>
+    `;
+}
+
+function renderQuests(state) {
+    const quests = [...(state.quests || [])].sort((a, b) => {
+        const rank = { active: 0, completed: 1, failed: 2, hidden: 3 };
+        return (rank[a.status] ?? 9) - (rank[b.status] ?? 9) || String(b.updatedAt).localeCompare(String(a.updatedAt));
+    });
+
+    return `
+        <div class="npcb-system-section-head"><span>QUEST LOG</span><button data-action="quest-add">＋ ADD QUEST</button></div>
+        <div class="npcb-quest-list">
+            ${quests.length ? quests.map(renderQuestCard).join('') : '<div class="npcb-side-empty">No quests tracked. Story goals and explicit System quests can be detected automatically.</div>'}
+        </div>
+    `;
+}
+
+function npcMeter(label, value, max, cls = '') {
+    return `
+        <div class="npcb-npc-meter ${cls}">
+            <span>${escapeHtml(label)}</span>
+            <div><i style="width:${pct(value, max)}%"></i></div>
+            <b>${escapeHtml(value)} / ${escapeHtml(max)}</b>
+        </div>
     `;
 }
 
@@ -168,22 +353,28 @@ function characterRows(state) {
     chars.sort((a, b) => (rank[a.status] ?? 9) - (rank[b.status] ?? 9) || a.name.localeCompare(b.name));
 
     if (!chars.length) {
-        return '<div class="npcb-side-empty">No NPCs saved yet.<br>The System will register named characters from roleplay.</div>';
+        return '<div class="npcb-side-empty">No NPCs saved yet.<br>The tracker will register named characters from RP.</div>';
     }
 
     return chars.map(c => {
         const portrait = c.portrait
             ? `<img src="${escapeHtml(c.portrait)}" alt="">`
             : `<div class="npcb-side-avatar-fallback">${escapeHtml(c.name.trim().slice(0, 2).toUpperCase() || '?')}</div>`;
-        const detail = c.scene?.action || c.scene?.mood || c.role || c.faction || 'Saved character';
-        return `<button class="npcb-side-character status-${escapeHtml(c.status)}" data-id="${escapeHtml(c.id)}">
-            <div class="npcb-side-avatar">${portrait}<span class="npcb-side-presence"></span></div>
-            <div class="npcb-side-character-text">
-                <strong>${escapeHtml(c.name)}</strong>
-                <span>${escapeHtml(detail)}</span>
-            </div>
-            <small>${escapeHtml(c.status)}</small>
-        </button>`;
+        const rel = clampRelationship(c.relationship?.value || 0);
+        return `
+            <button class="npcb-side-character npcb-npc-vital-card status-${escapeHtml(c.status)}" data-id="${escapeHtml(c.id)}">
+                <div class="npcb-side-avatar">${portrait}<span class="npcb-side-presence"></span></div>
+                <div class="npcb-side-character-text">
+                    <div class="npcb-npc-name-line"><strong>${escapeHtml(c.name)}</strong>${c.system?.hasSystem ? `<i>SYS · LV${escapeHtml(c.system.level)}</i>` : ''}</div>
+                    <span>${escapeHtml(c.role || c.scene?.action || c.faction || 'NPC')}</span>
+                    <div class="npcb-npc-mini-bars">
+                        <div title="HP"><i class="hp" style="width:${pct(c.vitals?.hp, c.vitals?.maxHp)}%"></i></div>
+                        <div title="Fatigue"><i class="fatigue" style="width:${pct(c.vitals?.fatigue, c.vitals?.maxFatigue)}%"></i></div>
+                        <div title="Relationship"><i class="relationship" style="width:${relationshipPct(rel)}%"></i></div>
+                    </div>
+                </div>
+                <small>${escapeHtml(c.status)}</small>
+            </button>`;
     }).join('');
 }
 
@@ -194,8 +385,33 @@ function renderCharacters(state) {
             <button class="npcb-side-scan"><span>↻</span> Scan latest RP</button>
             <button class="npcb-side-archive">Global Archive</button>
         </div>
-        <div class="npcb-side-section-title"><span>CHARACTERS IN SYSTEM</span><small>${present} active · ${state.order.length} linked</small></div>
+        <div class="npcb-side-section-title"><span>NPC VITAL TRACKER</span><small>${present} active · ${state.order.length} linked</small></div>
         <div class="npcb-side-character-list">${characterRows(state)}</div>
+        <div class="npcb-npc-legend"><span>HP</span><span>FATIGUE</span><span>RELATIONSHIP</span><em>Detailed STR/DEX/INT/STA/SEN only appears on NPCs with a System.</em></div>
+    `;
+}
+
+function renderEvents(state) {
+    const events = [...(state.events || [])].reverse();
+    return `
+        <div class="npcb-system-section-head">
+            <span>EVENT TRACKER</span>
+            <div><button data-action="event-add">＋ EVENT</button><button data-action="event-clear">CLEAR</button></div>
+        </div>
+        <div class="npcb-event-list">
+            ${events.length ? events.map(event => `
+                <div class="npcb-event-row importance-${escapeHtml(event.importance)}" data-event-id="${escapeHtml(event.id)}">
+                    <div class="npcb-event-node"></div>
+                    <div>
+                        <small>${escapeHtml(event.type.toUpperCase())}${event.location ? ` // ${escapeHtml(event.location)}` : ''}</small>
+                        <strong>${escapeHtml(event.title)}</strong>
+                        <span>${escapeHtml(event.description)}</span>
+                        ${event.participants?.length ? `<em>${escapeHtml(event.participants.join(' · '))}</em>` : ''}
+                    </div>
+                    <button data-action="event-delete">×</button>
+                </div>
+            `).join('') : '<div class="npcb-side-empty">No tracked events yet.</div>'}
+        </div>
     `;
 }
 
@@ -213,18 +429,21 @@ function renderTrackerSettings(state) {
             <div><strong>${escapeHtml(statusLabel())}</strong><span>${escapeHtml(trackerStatus.message || '')}</span></div>
         </div>
 
-        ${toggle('tracker.autoRead', t.autoRead !== false, 'Auto-read roleplay', 'Run one separate System extraction after assistant replies.')}
-        ${toggle('tracker.trackPlayer', t.trackPlayer !== false, 'Track player state', 'Allow System extraction to update the player HUD.')}
-        ${toggle('tracker.trackStats', t.trackStats !== false, 'Track stats', 'Update AI-enabled custom stats when RP clearly changes them.')}
-        ${toggle('tracker.trackInventory', t.trackInventory !== false, 'Track inventory', 'Add/remove/equip items established in RP.')}
-        ${toggle('tracker.trackSkills', t.trackSkills !== false, 'Track skills & titles', 'Record newly acquired skills, ranks and titles.')}
-        ${toggle('tracker.trackMoney', t.trackMoney !== false, 'Track money', 'Update funds only when spending/rewards are explicit.')}
-        ${toggle('ui.autoRegisterTrackerNPCs', state.ui.autoRegisterTrackerNPCs !== false, 'Auto-register NPCs', 'Save newly detected named NPCs to the archive.')}
-        ${toggle('ui.showAwayOnBar', Boolean(state.ui.showAwayOnBar), 'Show away NPC covers', 'Keep absent characters on the cover shelf.')}
-        ${toggle('ui.compact', Boolean(state.ui.compact), 'Compact NPC covers', 'Use smaller portrait covers above the input.')}
+        ${toggle('tracker.autoRead', t.autoRead !== false, 'Auto-read roleplay', 'Run one separate extraction after assistant replies.')}
+        ${toggle('tracker.trackPlayer', t.trackPlayer !== false, 'Track player state', 'Track System state, location and condition.')}
+        ${toggle('tracker.trackStats', t.trackStats !== false, 'Track player vitals', 'Update AI-enabled custom stats.')}
+        ${toggle('tracker.trackInventory', t.trackInventory !== false, 'Track inventory + storage', 'Track carried, clothing and stored items.')}
+        ${toggle('tracker.trackSkills', t.trackSkills !== false, 'Track skills & titles', 'Record acquired skills/ranks/titles.')}
+        ${toggle('tracker.trackMoney', t.trackMoney !== false, 'Track money', 'Update funds when explicit spending/rewards occur.')}
+        ${toggle('tracker.trackQuests', t.trackQuests !== false, 'Track quests', 'Create/update story and System quests from clear objectives.')}
+        ${toggle('tracker.trackEvents', t.trackEvents !== false, 'Track events', 'Record meaningful story developments for continuity.')}
+        ${toggle('tracker.trackNpcVitals', t.trackNpcVitals !== false, 'Track NPC HP/Fatigue', 'Maintain lightweight vitals for recurring NPCs.')}
+        ${toggle('ui.autoRegisterTrackerNPCs', state.ui.autoRegisterTrackerNPCs !== false, 'Auto-register NPCs', 'Save newly detected named NPCs.')}
+        ${toggle('ui.showAwayOnBar', Boolean(state.ui.showAwayOnBar), 'Show away NPC covers', 'Keep absent NPCs on portrait shelf.')}
+        ${toggle('ui.compact', Boolean(state.ui.compact), 'Compact NPC covers', 'Use smaller portrait covers.')}
 
         <label class="npcb-side-number">
-            <div><strong>System context depth</strong><span>Recent messages sent to the extractor (2–20).</span></div>
+            <div><strong>System context depth</strong><span>Recent messages sent to extractor (2–20).</span></div>
             <input type="number" min="2" max="20" step="1" data-setting="tracker.contextDepth" value="${Number(t.contextDepth || 6)}">
         </label>
 
@@ -248,36 +467,66 @@ async function editPlayer() {
     const name = prompt('Player name', p.name) ?? p.name;
     const title = prompt('Title', p.title) ?? p.title;
     const className = prompt('Class / role', p.className) ?? p.className;
-    const level = prompt('Level', String(p.level)) ?? String(p.level);
-    const xp = prompt('Current XP', String(p.xp)) ?? String(p.xp);
-    const xpToNext = prompt('XP needed for next level', String(p.xpToNext)) ?? String(p.xpToNext);
-    await mutateState(s => Object.assign(s.player, {
-        name: name.trim(),
-        title: title.trim(),
-        className: className.trim(),
-        level: Math.max(1, Number(level) || 1),
-        xp: Math.max(0, Number(xp) || 0),
-        xpToNext: Math.max(1, Number(xpToNext) || 100),
-    }));
+    const systemAnswer = prompt('Has System? yes / no', p.hasSystem ? 'yes' : 'no');
+    if (systemAnswer === null) return;
+    const hasSystem = /^y(es)?$/i.test(systemAnswer.trim());
+
+    let level = p.level;
+    let xp = p.xp;
+    let xpToNext = p.xpToNext;
+
+    if (hasSystem) {
+        level = Math.max(1, Number(prompt('Level', String(Math.max(1, p.level || 1))) ?? p.level) || 1);
+        xp = Math.max(0, Number(prompt('Current XP', String(p.xp || 0)) ?? p.xp) || 0);
+        xpToNext = Math.max(1, Number(prompt('XP needed for next level', String(p.xpToNext || 100)) ?? p.xpToNext) || 100);
+    }
+
+    await mutateState(s => {
+        const wasSystem = s.player.hasSystem;
+        Object.assign(s.player, {
+            name: name.trim(),
+            title: title.trim(),
+            className: className.trim(),
+            hasSystem,
+        });
+
+        if (!hasSystem) {
+            s.player.level = 0;
+            s.player.xp = 0;
+            s.player.xpToNext = 0;
+            s.player.statPoints = 0;
+            s.player.attributes = Object.fromEntries(CORE_ATTRIBUTES.map(key => [key, 0]));
+        } else {
+            s.player.level = level;
+            s.player.xp = xp;
+            s.player.xpToNext = xpToNext;
+            if (!wasSystem && CORE_ATTRIBUTES.every(key => !Number(s.player.attributes?.[key]))) {
+                s.player.attributes = Object.fromEntries(CORE_ATTRIBUTES.map(key => [key, 10]));
+            }
+        }
+    });
     renderDashboard();
 }
 
 async function addStat() {
-    const name = prompt('Stat name (example: Health, Mana, Sanity)');
+    const name = prompt('Stat name (Health, Mana, Sanity, etc.)');
     if (!name?.trim()) return;
     const value = Number(prompt('Starting value', '100') ?? 100);
     const max = Number(prompt('Maximum value', '100') ?? 100);
-    const unit = prompt('Unit (%, points, etc.)', '%') ?? '';
+    const unit = prompt('Unit (%, pts, etc.)', '') ?? '';
     await mutateState(s => s.player.stats.push({
-        id: uid('stat'), name: name.trim(), value: Number.isFinite(value) ? value : 0,
-        max: Number.isFinite(max) && max > 0 ? max : 100, unit: unit.trim(), aiTrack: true,
+        id: uid('stat'),
+        name: name.trim(),
+        value: Number.isFinite(value) ? value : 0,
+        max: Number.isFinite(max) && max > 0 ? max : 100,
+        unit: unit.trim(),
+        aiTrack: true,
     }));
     renderDashboard();
 }
 
 async function editStat(id) {
-    const state = getState();
-    const stat = state.player.stats.find(x => x.id === id);
+    const stat = getState().player.stats.find(x => x.id === id);
     if (!stat) return;
     const name = prompt('Stat name', stat.name) ?? stat.name;
     const value = prompt('Current value', String(stat.value));
@@ -295,15 +544,53 @@ async function editStat(id) {
 }
 
 async function addItem() {
+    const state = getState();
     const name = prompt('Item name');
     if (!name?.trim()) return;
     const quantity = Math.max(1, Number(prompt('Quantity', '1') ?? 1) || 1);
     const type = prompt('Type (weapon, armor, consumable, quest…)', '') ?? '';
     const description = prompt('Description', '') ?? '';
+
+    if (inventoryTab === 'stored' && !activeStorageId) {
+        alert('Create/select a storage location first.');
+        return;
+    }
+
     await mutateState(s => s.player.inventory.push({
-        id: uid('item'), name: name.trim(), quantity, type: type.trim(), description: description.trim(),
-        equipped: false, value: 0,
+        id: uid('item'),
+        name: name.trim(),
+        quantity,
+        type: type.trim(),
+        description: description.trim(),
+        equipped: inventoryTab === 'clothing',
+        value: 0,
+        locationType: inventoryTab,
+        storageId: inventoryTab === 'stored' ? activeStorageId : '',
     }));
+    renderDashboard();
+}
+
+async function addStorage() {
+    const state = getState();
+    const name = prompt('Storage location name (Apartment Storage, Guild Locker, System Inventory…)');
+    if (!name?.trim()) return;
+    const capacity = Math.max(1, Number(prompt('Slot capacity', String(state.player.inventoryLimits.defaultStorage || 30)) ?? 30) || 30);
+    const systemOnly = /^y(es)?$/i.test((prompt('System-only storage? yes / no', 'no') ?? 'no').trim());
+    if (systemOnly && !state.player.hasSystem) {
+        alert('System-only storage cannot exist before the player acquires a System.');
+        return;
+    }
+    const id = uid('storage');
+    await mutateState(s => s.player.storageLocations.push({
+        id,
+        name: name.trim(),
+        capacity,
+        type: systemOnly ? 'system' : 'location',
+        systemOnly,
+        description: '',
+    }));
+    activeStorageId = id;
+    inventoryTab = 'stored';
     renderDashboard();
 }
 
@@ -331,12 +618,120 @@ async function editSkill(id) {
     renderDashboard();
 }
 
+async function addQuest() {
+    const title = prompt('Quest title');
+    if (!title?.trim()) return;
+    const description = prompt('Quest description', '') ?? '';
+    const type = prompt('Type: story / main / side / system', 'story') ?? 'story';
+    if (type.trim().toLowerCase() === 'system' && !getState().player.hasSystem) {
+        alert('A System quest cannot exist before the player acquires a System.');
+        return;
+    }
+    const objectivesRaw = prompt('Objectives, one per line', '') ?? '';
+    await mutateState(s => s.quests.push({
+        id: uid('quest'),
+        title: title.trim(),
+        type: ['story','main','side','system'].includes(type.trim().toLowerCase()) ? type.trim().toLowerCase() : 'story',
+        status: 'active',
+        description: description.trim(),
+        objectives: objectivesRaw.split('\n').map(x => x.trim()).filter(Boolean).map(text => ({ id: uid('objective'), text, complete: false })),
+        reward: '',
+        source: 'Manual',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+    }));
+    renderDashboard();
+}
+
+async function editQuest(id) {
+    const quest = getState().quests.find(x => x.id === id);
+    if (!quest) return;
+    const title = prompt('Quest title', quest.title) ?? quest.title;
+    const description = prompt('Description', quest.description) ?? quest.description;
+    const reward = prompt('Reward', quest.reward) ?? quest.reward;
+    const source = prompt('Source / issuer', quest.source) ?? quest.source;
+    await mutateState(s => {
+        const q = s.quests.find(x => x.id === id);
+        if (q) {
+            Object.assign(q, { title: title.trim() || q.title, description, reward, source, updatedAt: new Date().toISOString() });
+        }
+    });
+    renderDashboard();
+}
+
+async function addEvent() {
+    const title = prompt('Event title');
+    if (!title?.trim()) return;
+    const description = prompt('Description', '') ?? '';
+    const type = prompt('Type (combat, discovery, social, travel, quest, system, acquisition, story)', 'story') ?? 'story';
+    await mutateState(s => s.events.push({
+        id: uid('event'),
+        type: type.trim() || 'story',
+        title: title.trim(),
+        description: description.trim(),
+        location: s.scene.location || s.player.currentLocation || '',
+        participants: [],
+        importance: 'normal',
+        createdAt: new Date().toISOString(),
+    }));
+    renderDashboard();
+}
+
+async function moveItem(id) {
+    const state = getState();
+    const item = state.player.inventory.find(x => x.id === id);
+    if (!item) return;
+
+    const answer = prompt('Move to: person / clothing / stored', item.locationType) ?? item.locationType;
+    const target = answer.trim().toLowerCase();
+    if (!['person','clothing','stored'].includes(target)) return;
+
+    let storageId = '';
+    if (target === 'stored') {
+        const available = state.player.storageLocations.filter(x => !x.systemOnly || state.player.hasSystem);
+        if (!available.length) {
+            alert('No storage locations exist.');
+            return;
+        }
+        const storageName = prompt(`Storage name:\n${available.map(x => x.name).join('\n')}`, available[0].name);
+        if (!storageName) return;
+        const storage = available.find(x => x.name.toLowerCase() === storageName.trim().toLowerCase());
+        if (!storage) {
+            alert('Storage not found.');
+            return;
+        }
+        storageId = storage.id;
+    }
+
+    await mutateState(s => {
+        const x = s.player.inventory.find(v => v.id === id);
+        if (!x) return;
+        x.locationType = target;
+        x.storageId = storageId;
+        if (target === 'clothing') x.equipped = true;
+        if (target !== 'clothing' && x.equipped && x.type.toLowerCase().includes('clothing')) x.equipped = false;
+    });
+    renderDashboard();
+}
+
 function bindEvents(root) {
     root.querySelectorAll('.npcb-side-tabs button').forEach(button => {
         button.addEventListener('click', () => {
             activeTab = button.dataset.tab;
             renderDashboard();
         });
+    });
+
+    root.querySelectorAll('[data-inventory-tab]').forEach(button => {
+        button.addEventListener('click', () => {
+            inventoryTab = button.dataset.inventoryTab;
+            renderDashboard();
+        });
+    });
+
+    root.querySelector('.npcb-storage-select')?.addEventListener('change', event => {
+        activeStorageId = event.target.value;
+        renderDashboard();
     });
 
     root.querySelector('.npcb-side-close')?.addEventListener('click', () => {
@@ -374,20 +769,114 @@ function bindEvents(root) {
         });
     });
 
+    root.querySelectorAll('.npcb-stat-ai').forEach(input => {
+        input.addEventListener('change', async () => {
+            const id = input.closest('[data-stat-id]')?.dataset.statId;
+            await mutateState(s => {
+                const stat = s.player.stats.find(x => x.id === id);
+                if (stat) stat.aiTrack = input.checked;
+            });
+        });
+    });
+
+    root.querySelectorAll('.npcb-quest-status').forEach(select => {
+        select.addEventListener('change', async () => {
+            const id = select.closest('[data-quest-id]')?.dataset.questId;
+            await mutateState(s => {
+                const quest = s.quests.find(x => x.id === id);
+                if (quest) {
+                    quest.status = select.value;
+                    quest.updatedAt = new Date().toISOString();
+                }
+            });
+            renderDashboard();
+        });
+    });
+
+    root.querySelectorAll('.npcb-objective-check').forEach(input => {
+        input.addEventListener('change', async () => {
+            const questId = input.closest('[data-quest-id]')?.dataset.questId;
+            const objectiveId = input.closest('[data-objective-id]')?.dataset.objectiveId;
+            await mutateState(s => {
+                const quest = s.quests.find(x => x.id === questId);
+                const objective = quest?.objectives.find(x => x.id === objectiveId);
+                if (objective) objective.complete = input.checked;
+                if (quest) quest.updatedAt = new Date().toISOString();
+            });
+            renderDashboard();
+        });
+    });
+
     root.querySelectorAll('[data-action]').forEach(button => {
         button.addEventListener('click', async event => {
             event.stopPropagation();
             const action = button.dataset.action;
+
+            if (action === 'open-events') {
+                activeTab = 'events';
+                return renderDashboard();
+            }
             if (action === 'player-edit') return editPlayer();
             if (action === 'stat-add') return addStat();
             if (action === 'item-add') return addItem();
+            if (action === 'storage-add') return addStorage();
             if (action === 'skill-add') return addSkill();
+            if (action === 'quest-add') return addQuest();
+            if (action === 'event-add') return addEvent();
+
             if (action === 'money-edit') {
                 const p = getState().player;
                 const money = prompt('Money / funds', String(p.money));
                 if (money === null) return;
                 const currency = prompt('Currency name', p.currency) ?? p.currency;
-                await mutateState(s => { s.player.money = Number(money) || 0; s.player.currency = currency.trim() || s.player.currency; });
+                await mutateState(s => {
+                    s.player.money = Number(money) || 0;
+                    s.player.currency = currency.trim() || s.player.currency;
+                });
+                return renderDashboard();
+            }
+
+            if (action === 'attribute-plus') {
+                const key = button.closest('[data-attribute]')?.dataset.attribute;
+                await mutateState(s => {
+                    if (!s.player.hasSystem || s.player.statPoints <= 0 || !CORE_ATTRIBUTES.includes(key)) return;
+                    s.player.attributes[key] = (Number(s.player.attributes[key]) || 0) + 1;
+                    s.player.statPoints -= 1;
+                });
+                return renderDashboard();
+            }
+
+            if (action === 'capacity-edit') {
+                const p = getState().player;
+                if (inventoryTab === 'stored') {
+                    const storage = p.storageLocations.find(x => x.id === activeStorageId);
+                    if (!storage) return;
+                    const next = prompt(`Capacity for ${storage.name}`, String(storage.capacity));
+                    if (next === null) return;
+                    await mutateState(s => {
+                        const x = s.player.storageLocations.find(v => v.id === activeStorageId);
+                        if (x) x.capacity = Math.max(1, Number(next) || 1);
+                    });
+                } else {
+                    const key = inventoryTab === 'person' ? 'onPerson' : 'clothing';
+                    const next = prompt('Slot capacity', String(p.inventoryLimits[key]));
+                    if (next === null) return;
+                    await mutateState(s => { s.player.inventoryLimits[key] = Math.max(1, Number(next) || 1); });
+                }
+                return renderDashboard();
+            }
+
+            if (action === 'storage-edit') {
+                const storage = getState().player.storageLocations.find(x => x.id === activeStorageId);
+                if (!storage) return;
+                const name = prompt('Storage name', storage.name) ?? storage.name;
+                const cap = prompt('Slot capacity', String(storage.capacity));
+                await mutateState(s => {
+                    const x = s.player.storageLocations.find(v => v.id === activeStorageId);
+                    if (!x) return;
+                    x.name = name.trim() || x.name;
+                    if (cap !== null) x.capacity = Math.max(1, Number(cap) || x.capacity);
+                });
                 return renderDashboard();
             }
 
@@ -404,6 +893,7 @@ function bindEvents(root) {
             const itemRow = button.closest('[data-item-id]');
             if (itemRow) {
                 const id = itemRow.dataset.itemId;
+                if (action === 'item-move') return moveItem(id);
                 await mutateState(s => {
                     const item = s.player.inventory.find(x => x.id === id);
                     if (!item) return;
@@ -425,16 +915,28 @@ function bindEvents(root) {
                     return renderDashboard();
                 }
             }
-        });
-    });
 
-    root.querySelectorAll('.npcb-stat-ai').forEach(input => {
-        input.addEventListener('change', async () => {
-            const id = input.closest('[data-stat-id]')?.dataset.statId;
-            await mutateState(s => {
-                const stat = s.player.stats.find(x => x.id === id);
-                if (stat) stat.aiTrack = input.checked;
-            });
+            const questRow = button.closest('[data-quest-id]');
+            if (questRow) {
+                const id = questRow.dataset.questId;
+                if (action === 'quest-edit') return editQuest(id);
+                if (action === 'quest-delete' && confirm('Delete this quest?')) {
+                    await mutateState(s => { s.quests = s.quests.filter(x => x.id !== id); });
+                    return renderDashboard();
+                }
+            }
+
+            const eventRow = button.closest('[data-event-id]');
+            if (eventRow && action === 'event-delete') {
+                const id = eventRow.dataset.eventId;
+                await mutateState(s => { s.events = s.events.filter(x => x.id !== id); });
+                return renderDashboard();
+            }
+
+            if (action === 'event-clear' && confirm('Clear all tracked events for this chat?')) {
+                await mutateState(s => { s.events = []; });
+                return renderDashboard();
+            }
         });
     });
 }
@@ -467,7 +969,7 @@ export function mountDashboard() {
             renderDashboard();
         });
         window.addEventListener('npcb:archive-changed', () => {
-            if (activeTab === 'characters') renderDashboard();
+            if (activeTab === 'npc') renderDashboard();
         });
     }
 
@@ -482,9 +984,11 @@ export function renderDashboard() {
     const renders = {
         status: renderStatus,
         inventory: renderInventory,
+        quests: renderQuests,
         skills: renderSkills,
         home: renderHome,
-        characters: renderCharacters,
+        npc: renderCharacters,
+        events: renderEvents,
         tracker: renderTrackerSettings,
     };
     const body = (renders[activeTab] || renderStatus)(state);
@@ -497,14 +1001,14 @@ export function renderDashboard() {
         </div>
         <div class="npcb-side-tabs npcb-system-tabs">
             ${[
-                ['status','STATUS'], ['inventory','ITEMS'], ['skills','SKILLS'],
-                ['home','HOME'], ['characters','NPC'], ['tracker','SYSTEM'],
+                ['status','STATUS'], ['inventory','ITEMS'], ['quests','QUESTS'], ['skills','SKILLS'],
+                ['home','HOME'], ['npc','NPC'], ['events','EVENTS'], ['tracker','SYSTEM'],
             ].map(([key,label]) => `<button data-tab="${key}" class="${activeTab === key ? 'active' : ''}">${label}</button>`).join('')}
         </div>
         <div class="npcb-side-body">${body}</div>
         <div class="npcb-side-footer npcb-system-footer">
-            <span>QUEST LOG // ${escapeHtml(state.scene.summary || 'Awaiting System data')}</span>
-            <b>v0.3.0</b>
+            <span>${escapeHtml(state.scene.summary || 'Awaiting System data')}</span>
+            <b>v0.4.0</b>
         </div>
     `;
 
