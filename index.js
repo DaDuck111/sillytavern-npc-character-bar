@@ -80,7 +80,7 @@ async function boot() {
     refreshGameContext();
 
     window.NPCCharacterBar = {
-        version: '0.10.0',
+        version: '0.10.1',
         getState,
         addCharacter: async seed => { const c = await addCharacter(seed); renderBar(); renderDashboard(); return c; },
         updateCharacter: async (id, patch) => { const c = await updateCharacter(id, patch); renderBar(); renderDashboard(); return c; },
@@ -105,7 +105,7 @@ async function boot() {
     renderBar();
     renderDashboard();
     scheduleAutoTrack(1200);
-    console.info(`${TAG} v0.10.0 ready — Lorebook folders, drag/drop/right-click moves, customizable UI colors and simplified quests enabled.`);
+    console.info(`${TAG} v0.10.1 ready — archive self-repair and stale tombstone migration enabled.`);
 }
 
 const timer = setInterval(() => {
