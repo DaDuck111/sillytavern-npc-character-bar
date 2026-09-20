@@ -6858,3 +6858,20 @@ body.charListGrid #npcb-character-library-shell > #rm_print_characters_block {
     outline: 2px solid rgba(var(--npcb-accent-rgb), .65);
     outline-offset: 2px;
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   v0.11.7 — harden card pointer targets
+   ═══════════════════════════════════════════════════════════════ */
+#npcb-character-library-shell #rm_print_characters_block .character_select {
+    position: relative !important;
+    pointer-events: auto !important;
+    isolation: isolate;
+}
+
+#npcb-character-library-shell #rm_print_characters_block .character_select .npcb-character-openhint {
+    position: relative;
+    z-index: 5;
+    pointer-events: auto !important;
+    touch-action: manipulation;
+}
