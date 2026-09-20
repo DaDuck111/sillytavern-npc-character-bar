@@ -6609,3 +6609,139 @@ body.charListGrid #npcb-character-library-shell #rm_print_characters_block .char
         max-width: 72px !important;
     }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   v0.11.4 — responsive character shelf + favorites + streaks
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Character shelf: fill left → right, then wrap automatically. */
+#npcb-character-library-shell > #rm_print_characters_block,
+body.charListGrid #npcb-character-library-shell > #rm_print_characters_block {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr)) !important;
+    grid-auto-flow: row !important;
+    grid-auto-rows: max-content;
+    gap: 10px !important;
+    align-content: start !important;
+    justify-content: stretch !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
+
+/* Favorite-character HotSwap should read as an intentional quick-access shelf. */
+#HotSwapWrapper {
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center !important;
+    column-gap: 8px !important;
+}
+#HotSwapWrapper::before {
+    content: "★ FAVORITES";
+    align-self: center;
+    color: rgba(var(--npcb-accent-rgb), .62);
+    font-size: 8px;
+    font-weight: 900;
+    letter-spacing: .08em;
+    white-space: nowrap;
+}
+#HotSwapWrapper .hotswap {
+    width: 100%;
+}
+#HotSwapWrapper .hotswap .avatar {
+    outline: 1px solid transparent;
+}
+#HotSwapWrapper .hotswap .avatar:hover {
+    outline-color: rgba(var(--npcb-accent-rgb), .12);
+}
+#HotSwapWrapper .hotswap .avatar.npcb-hotswap-current::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -7px;
+    width: 16px;
+    height: 2px;
+    border-radius: 99px;
+    background: var(--npcb-accent);
+    transform: translateX(-50%);
+    box-shadow: 0 0 8px rgba(var(--npcb-accent-rgb), .5);
+}
+
+/* Favorite individual chats. */
+.npcb-char-chat-card {
+    grid-template-columns: 34px minmax(0,1fr) auto !important;
+}
+.npcb-char-chat-card.favorite {
+    border-color: rgba(255,205,86,.2) !important;
+    background:
+        linear-gradient(90deg, rgba(255,196,56,.045), transparent 35%),
+        rgba(var(--npcb-panel-rgb), .38);
+}
+.npcb-chat-favorite {
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    align-self: start;
+    margin-top: 1px;
+    border: 1px solid rgba(var(--npcb-accent-rgb), .09);
+    border-radius: 7px;
+    color: rgba(183,218,227,.36);
+    background: rgba(var(--npcb-panel-rgb), .45);
+    font: inherit;
+    font-size: 15px;
+    cursor: pointer;
+    transition: color .12s ease, border-color .12s ease, background .12s ease, transform .12s ease;
+}
+.npcb-chat-favorite:hover {
+    transform: translateY(-1px);
+    color: #ffd35f;
+    border-color: rgba(255,210,91,.28);
+    background: rgba(255,194,49,.06);
+}
+.npcb-chat-favorite.active {
+    color: #ffd35f;
+    border-color: rgba(255,210,91,.38);
+    background: rgba(255,194,49,.095);
+    box-shadow: 0 0 12px rgba(255,185,44,.08);
+    text-shadow: 0 0 7px rgba(255,210,91,.42);
+}
+.npcb-char-chat-card.favorite .npcb-char-chat-titleline strong {
+    color: rgba(255,242,197,.94);
+}
+
+/* Fire badges stay readable without dominating the card. */
+.npcb-character-streak,
+.npcb-chat-streak,
+.npcb-hotswap-streak {
+    user-select: none;
+}
+
+/* Let the browser/drawer width decide how many character columns fit. */
+@container (min-width: 650px) {
+    #npcb-character-library-shell > #rm_print_characters_block,
+    body.charListGrid #npcb-character-library-shell > #rm_print_characters_block {
+        grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)) !important;
+    }
+}
+@container (max-width: 360px) {
+    #npcb-character-library-shell > #rm_print_characters_block,
+    body.charListGrid #npcb-character-library-shell > #rm_print_characters_block {
+        grid-template-columns: repeat(2, minmax(0,1fr)) !important;
+        gap: 7px !important;
+    }
+    #HotSwapWrapper {
+        grid-template-columns: 1fr !important;
+        row-gap: 3px;
+    }
+    #HotSwapWrapper::before {
+        padding-left: 3px;
+    }
+    .npcb-char-chat-card {
+        grid-template-columns: 32px minmax(0,1fr) !important;
+    }
+    .npcb-char-chat-card > [data-open-chat] {
+        grid-column: 1 / -1;
+        width: 100%;
+    }
+}
