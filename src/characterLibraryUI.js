@@ -2,6 +2,7 @@ import { escapeHtml, getContext } from './utils.js';
 
 const SHELL_ID = 'npcb-character-library-shell';
 const DETAIL_ID = 'npcb-character-library-detail';
+const ACTIVITY_KEY = 'npc_character_bar_daily_activity_v1';
 let installed = false;
 let selectedChid = '';
 let requestSerial = 0;
@@ -9,6 +10,126 @@ const chatCache = new Map();
 
 function currentContext() {
     try { return getContext(); } catch { return null; }
+}
+
+function activityRoot() {
+    const ctx = currentContext();
+    if (!ctx) return { chats: {} };
+    ctx.extensionSettings ||= {};
+    if (!ctx.extensionSettings[ACTIVITY_KEY] || typeof ctx.extensionSettings[ACTIVITY_KEY] !== 'object') {
+        ctx.extensionSettings[ACTIVITY_KEY] = { chats: {} };
+    }
+    const root = ctx.extensionSettings[ACTIVITY_KEY];
+    root.chats ||= {};
+    return root;
+}
+
+function localDayKey(date = new Date()) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function dayOrdinal(key) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(key || ''));
+    if (!match) return NaN;
+    return Math.floor(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) / 86400000);
+}
+
+function streakFromDays(days = []) {
+    const ordinals = [...new Set(days.map(dayOrdinal).filter(Number.isFinite))].sort((a, b) => a - b);
+    if (!ordinals.length) return 0;
+
+    const today = dayOrdinal(localDayKey());
+    const last = ordinals.at(-1);
+    if (last < today - 1 || last > today) return 0;
+
+    let streak = 1;
+    for (let i = ordinals.length - 1; i > 0; i--) {
+        if (ordinals[i] - ordinals[i - 1] !== 1) break;
+        streak++;
+    }
+    return streak;
+}
+
+function chatActivityKey(avatar, chatId) {
+    return `${String(avatar || '')}::${String(chatId || '')}`;
+}
+
+function getChatStreak(avatar, chatId) {
+    const record = activityRoot().chats?.[chatActivityKey(avatar, chatId)];
+    return streakFromDays(record?.days || []);
+}
+
+function getCharacterStreak(avatar) {
+    const cleanAvatar = String(avatar || '');
+    if (!cleanAvatar) return 0;
+    let best = 0;
+    for (const record of Object.values(activityRoot().chats || {})) {
+        if (String(record?.avatar || '') !== cleanAvatar) continue;
+        best = Math.max(best, streakFromDays(record.days || []));
+    }
+    return best;
+}
+
+function recordCurrentChatActivity() {
+    const ctx = currentContext();
+    const character = characterById(ctx?.characterId);
+    const chatId = String(ctx?.getCurrentChatId?.() || ctx?.chatId || '');
+    const avatar = String(character?.avatar || '');
+    if (!avatar || !chatId) return false;
+
+    const root = activityRoot();
+    const key = chatActivityKey(avatar, chatId);
+    const record = root.chats[key] ||= {
+        avatar,
+        chatId,
+        characterName: String(character?.name || ''),
+        days: [],
+    };
+
+    const today = localDayKey();
+    record.avatar = avatar;
+    record.chatId = chatId;
+    record.characterName = String(character?.name || record.characterName || '');
+    record.days = [...new Set([...(record.days || []), today])]
+        .filter(day => Number.isFinite(dayOrdinal(day)))
+        .sort()
+        .slice(-400);
+    record.lastActive = new Date().toISOString();
+
+    ctx?.saveSettingsDebounced?.();
+    return true;
+}
+
+function decorateHotswap() {
+    const ctx = currentContext();
+    document.querySelectorAll('#right-nav-panel .hotswap .avatar[data-chid]').forEach(avatarEl => {
+        const chid = avatarEl.dataset.chid;
+        const character = characterById(chid);
+        if (!character) return;
+
+        const streak = getCharacterStreak(character.avatar);
+        avatarEl.classList.toggle('npcb-hotswap-current', String(ctx?.characterId) === String(chid));
+
+        let badge = avatarEl.querySelector('.npcb-hotswap-streak');
+        if (streak > 0) {
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.className = 'npcb-hotswap-streak';
+                avatarEl.appendChild(badge);
+            }
+            badge.textContent = `🔥${streak}`;
+        } else {
+            badge?.remove();
+        }
+
+        if (!avatarEl.dataset.npcbBaseTitle) avatarEl.dataset.npcbBaseTitle = avatarEl.getAttribute('title') || character.name || '';
+        avatarEl.setAttribute('title', streak > 0
+            ? `${avatarEl.dataset.npcbBaseTitle}\n🔥 ${streak}-day chat streak`
+            : avatarEl.dataset.npcbBaseTitle);
+    });
 }
 
 function characterById(chid) {
@@ -146,6 +267,21 @@ function enhanceCards() {
         card.dataset.npcbLibraryReady = '1';
         card.setAttribute('aria-label', `${card.querySelector('.ch_name')?.textContent || 'Character'} — click to view chats`);
         card.setAttribute('title', 'Click to view chats');
+        const character = characterById(chid);
+        const streak = getCharacterStreak(character?.avatar);
+        let streakBadge = card.querySelector('.npcb-character-streak');
+        if (streak > 0) {
+            if (!streakBadge) {
+                streakBadge = document.createElement('span');
+                streakBadge.className = 'npcb-character-streak';
+                card.appendChild(streakBadge);
+            }
+            streakBadge.textContent = `🔥 ${streak} DAY${streak === 1 ? '' : 'S'}`;
+            streakBadge.title = `${streak}-day activity streak across this character's chats`;
+        } else {
+            streakBadge?.remove();
+        }
+
         if (!card.querySelector('.npcb-character-openhint')) {
             const hint = document.createElement('span');
             hint.className = 'npcb-character-openhint';
@@ -154,6 +290,7 @@ function enhanceCards() {
         }
     });
     markSelectedCard();
+    decorateHotswap();
 }
 
 async function fetchCharacterChats(chid, { force = false } = {}) {
@@ -281,7 +418,8 @@ function renderCharacterDetail(chid, chats, card) {
                             <div class="npcb-char-chat-main">
                                 <div class="npcb-char-chat-titleline">
                                     <strong>${escapeHtml(chatTitle(chat))}</strong>
-                                    ${current ? '<span>CURRENT</span>' : ''}
+                                    ${current ? '<span class="npcb-chat-current">CURRENT</span>' : ''}
+                                    ${getChatStreak(character.avatar, fileId) > 0 ? `<span class="npcb-chat-streak">🔥 ${getChatStreak(character.avatar, fileId)} DAY${getChatStreak(character.avatar, fileId) === 1 ? '' : 'S'}</span>` : ''}
                                 </div>
                                 <p>${escapeHtml(preview || '[Empty chat]')}</p>
                                 <div class="npcb-char-chat-meta">
@@ -426,6 +564,8 @@ export function refreshCharacterLibrary() {
     enhanceNativeCharacterEditor();
     if (!shell) return;
 
+    decorateHotswap();
+
     if (selectedChid) {
         const card = document.querySelector(`#rm_print_characters_block .character_select[data-chid="${CSS.escape(String(selectedChid))}"]`);
         if (!characterById(selectedChid)) {
@@ -451,8 +591,28 @@ export function mountCharacterLibrary() {
     if (events.CHARACTER_PAGE_LOADED) {
         ctx.eventSource?.on?.(events.CHARACTER_PAGE_LOADED, () => setTimeout(refreshCharacterLibrary, 0));
     }
+    if (events.MESSAGE_SENT) {
+        ctx.eventSource?.on?.(events.MESSAGE_SENT, () => {
+            if (!recordCurrentChatActivity()) return;
+            requestAnimationFrame(() => {
+                enhanceCards();
+                decorateHotswap();
+                if (selectedChid && String(currentContext()?.characterId) === String(selectedChid)) {
+                    const card = document.querySelector(`#rm_print_characters_block .character_select[data-chid="${CSS.escape(String(selectedChid))}"]`);
+                    if (card) selectCharacterPreview(selectedChid, card);
+                }
+            });
+        });
+    }
+    if (events.CHARACTER_EDITED) {
+        ctx.eventSource?.on?.(events.CHARACTER_EDITED, () => setTimeout(() => {
+            enhanceCards();
+            decorateHotswap();
+        }, 80));
+    }
     if (events.CHAT_CHANGED) {
         ctx.eventSource?.on?.(events.CHAT_CHANGED, () => {
+            decorateHotswap();
             const current = currentContext();
             if (selectedChid && String(current?.characterId) === String(selectedChid)) {
                 chatCache.delete(String(characterById(selectedChid)?.avatar || ''));
