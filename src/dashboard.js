@@ -474,11 +474,13 @@ async function editPlayer() {
     let level = p.level;
     let xp = p.xp;
     let xpToNext = p.xpToNext;
+    let pointsPerLevel = Math.max(0, Number(p.statPointsPerLevel) || 5);
 
     if (hasSystem) {
         level = Math.max(1, Number(prompt('Level', String(Math.max(1, p.level || 1))) ?? p.level) || 1);
         xp = Math.max(0, Number(prompt('Current XP', String(p.xp || 0)) ?? p.xp) || 0);
         xpToNext = Math.max(1, Number(prompt('XP needed for next level', String(p.xpToNext || 100)) ?? p.xpToNext) || 100);
+        pointsPerLevel = Math.max(0, Number(prompt('Allocatable stat points gained per level', String(pointsPerLevel)) ?? pointsPerLevel) || 0);
     }
 
     await mutateState(s => {
@@ -497,6 +499,11 @@ async function editPlayer() {
             s.player.statPoints = 0;
             s.player.attributes = Object.fromEntries(CORE_ATTRIBUTES.map(key => [key, 0]));
         } else {
+            const oldLevel = wasSystem ? Math.max(1, Number(s.player.level) || 1) : level;
+            s.player.statPointsPerLevel = pointsPerLevel;
+            if (wasSystem && level > oldLevel) {
+                s.player.statPoints += (level - oldLevel) * pointsPerLevel;
+            }
             s.player.level = level;
             s.player.xp = xp;
             s.player.xpToNext = xpToNext;
