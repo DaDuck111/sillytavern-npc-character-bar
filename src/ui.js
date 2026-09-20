@@ -466,15 +466,35 @@ function renderMemories(character) {
     }).join('');
 }
 
-function bindWorkshopEvents(character) {
+function bindWorkshopEvents(character, activeTab = 'overview') {
     const root = ensureModalRoot();
     root.querySelector('.npcb-close-btn').addEventListener('click', closeModal);
-    root.querySelectorAll('.npcb-tabs button').forEach(button => button.addEventListener('click', () => {
-        root.querySelectorAll('.npcb-tabs button').forEach(x => x.classList.toggle('active', x === button));
-        root.querySelectorAll('[data-pane]').forEach(pane => pane.classList.toggle('active', pane.dataset.pane === button.dataset.tab));
+    root.querySelector('.npcb-back-btn')?.addEventListener('click', async () => {
+        await persistWorkshopNow(character.id);
+        openArchive();
+    });
+
+    root.querySelectorAll('.npcb-workshop-tabs button').forEach(button => button.addEventListener('click', async () => {
+        if (button.dataset.tab === activeTab) return;
+        await persistWorkshopNow(character.id);
+        openWorkshop(character.id, button.dataset.tab);
     }));
-    root.querySelectorAll('[data-field]').forEach(input => input.addEventListener('input', persistWorkshop));
+    root.querySelectorAll('[data-field]').forEach(input => input.addEventListener('input', event => {
+        if (['lore.book', 'lore.uid'].includes(event.target.dataset.field)) loreAutoSynced.delete(character.id);
+        persistWorkshop();
+    }));
     root.querySelectorAll('[data-field]').forEach(input => input.addEventListener('change', persistWorkshop));
+
+    const loreContentInput = root.querySelector('[data-field="lore.content"]');
+    if (loreContentInput) {
+        const hydrateFromEditedLore = debounce(async () => {
+            await updateCharacter(character.id, c => {
+                c.lore.content = loreContentInput.value;
+                applyLoreContentToCharacter(c, loreContentInput.value, { overwrite: true });
+            });
+        }, 500);
+        loreContentInput.addEventListener('input', hydrateFromEditedLore);
+    }
 
     root.querySelector('.npcb-npc-system-toggle')?.addEventListener('change', async event => {
         const enabled = event.target.checked;
@@ -514,7 +534,7 @@ function bindWorkshopEvents(character) {
             const dataUrl = await imageFileToDataUrl(fileInput.files?.[0]);
             await updateCharacter(character.id, c => { c.portrait = dataUrl; });
             toast('success', 'Portrait saved.');
-            openWorkshop(character.id, 'identity');
+            openWorkshop(character.id, 'overview');
             renderBar();
         } catch (error) { toast('error', error.message); }
     });
@@ -567,7 +587,7 @@ function bindWorkshopEvents(character) {
         await persistWorkshopNow(character.id);
         const fresh = getState().characters[character.id];
         await updateCharacter(character.id, c => { c.lore.content = buildLoreContent(fresh); });
-        openWorkshop(character.id, 'lore');
+        openWorkshop(character.id, 'memory');
     });
     root.querySelector('.npcb-lore-push').addEventListener('click', async () => {
         try {
@@ -584,9 +604,13 @@ function bindWorkshopEvents(character) {
             await persistWorkshopNow(character.id);
             const fresh = getState().characters[character.id];
             const lore = await pullLore(fresh);
-            await updateCharacter(character.id, c => Object.assign(c.lore, lore));
-            toast('success', `Loaded Lorebook entry for ${fresh.name}.`);
-            openWorkshop(character.id, 'lore');
+            await updateCharacter(character.id, c => {
+                Object.assign(c.lore, lore);
+                applyLoreContentToCharacter(c, lore.content, { overwrite: true });
+            });
+            loreAutoSynced.add(character.id);
+            toast('success', `Loaded Lorebook and refreshed profile for ${fresh.name}.`);
+            openWorkshop(character.id, 'memory');
         } catch (error) { console.error(error); toast('error', error.message || 'Lorebook pull failed.'); }
     });
 }
