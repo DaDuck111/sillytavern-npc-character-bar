@@ -334,7 +334,22 @@ export function openWorkshop(id, tab = 'identity') {
                                 </label>
                             `).join('')}
                         </div>
-                        <div class="npcb-muted-box">NPC custom System stats are AI-trackable. The tracker only fills detailed values when the story explicitly establishes that this NPC has a System.</div>
+                        <div class="npcb-system-section-head">
+                            <span>CUSTOM SYSTEM STATS</span>
+                            <button class="npcb-add-npc-system-stat" type="button">＋ ADD STAT</button>
+                        </div>
+                        <div class="npcb-npc-system-stat-list">
+                            ${character.system.stats?.length ? character.system.stats.map((stat, index) => `
+                                <div class="npcb-npc-system-stat-row" data-system-stat-index="${index}">
+                                    <input data-field="system.stats.${index}.name" value="${escapeHtml(stat.name)}" placeholder="Stat">
+                                    <input data-field="system.stats.${index}.value" type="number" value="${escapeHtml(stat.value)}" placeholder="Value">
+                                    <span>/</span>
+                                    <input data-field="system.stats.${index}.max" type="number" value="${escapeHtml(stat.max)}" placeholder="Max">
+                                    <input data-field="system.stats.${index}.unit" value="${escapeHtml(stat.unit || '')}" placeholder="Unit">
+                                    <button class="npcb-remove-npc-system-stat" type="button">×</button>
+                                </div>
+                            `).join('') : '<div class="npcb-muted-box">No custom System stats yet. AI can create them when the story explicitly establishes them.</div>'}
+                        </div>
                     </div>
                 ` : '<div class="npcb-system-locked npcb-npc-system-locked"><strong>DETAILED STATUS LOCKED</strong><span>Enable System only when the story establishes it.</span></div>'}
             </section>
@@ -449,6 +464,23 @@ function bindWorkshopEvents(character) {
         await updateCharacter(character.id, c => { c.portrait = ''; });
         openWorkshop(character.id, 'identity');
         renderBar();
+    });
+
+    root.querySelector('.npcb-add-npc-system-stat')?.addEventListener('click', async () => {
+        await persistWorkshopNow(character.id);
+        await updateCharacter(character.id, c => {
+            c.system.stats ||= [];
+            c.system.stats.push({ id: `npcstat_${Date.now()}`, name: 'Custom Stat', value: 0, max: 100, unit: '', aiTrack: true });
+        });
+        openWorkshop(character.id, 'stats');
+    });
+    root.querySelectorAll('.npcb-remove-npc-system-stat').forEach(button => {
+        button.addEventListener('click', async () => {
+            const index = Number(button.closest('[data-system-stat-index]')?.dataset.systemStatIndex);
+            if (!Number.isFinite(index)) return;
+            await updateCharacter(character.id, c => c.system.stats.splice(index, 1));
+            openWorkshop(character.id, 'stats');
+        });
     });
 
     root.querySelector('.npcb-add-memory').addEventListener('click', async () => {
