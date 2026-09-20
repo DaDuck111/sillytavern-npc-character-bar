@@ -1,6 +1,12 @@
 import { CORE_ATTRIBUTES, findByNameOrAlias, getState, makeCharacter, saveState } from './store.js';
 import { normalizeName, uid } from './utils.js';
 
+function numeric(value, fallback = 0) {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    const parsed = Number.parseFloat(String(value ?? '').replace(/,/g, '').replace(/%/g, '').trim());
+    return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 function mergeScene(character, update) {
     for (const key of ['location', 'mood', 'action', 'condition', 'clothing', 'thoughts']) {
         if (update[key] !== undefined && update[key] !== null && update[key] !== '') {
@@ -24,13 +30,13 @@ function mergeNpcVitals(character, update, trackVitals = true) {
     if (!trackVitals) return;
 
     if (update.maxHp !== undefined && update.maxHp !== null && update.maxHp !== '') {
-        character.vitals.maxHp = Math.max(1, Number(update.maxHp) || character.vitals.maxHp || 100);
+        character.vitals.maxHp = Math.max(1, numeric(update.maxHp, character.vitals.maxHp || 100));
     }
     if (update.hp !== undefined && update.hp !== null && update.hp !== '') {
-        character.vitals.hp = Math.max(0, Math.min(Number(update.hp) || 0, character.vitals.maxHp));
+        character.vitals.hp = Math.max(0, Math.min(numeric(update.hp, 0), character.vitals.maxHp));
     } else if (update.hpDelta !== undefined && update.hpDelta !== null && update.hpDelta !== '') {
         character.vitals.hp = Math.max(0, Math.min(
-            (Number(character.vitals.hp) || 0) + (Number(update.hpDelta) || 0),
+            (numeric(character.vitals.hp, 0)) + (numeric(update.hpDelta, 0)),
             character.vitals.maxHp,
         ));
     }
@@ -50,13 +56,13 @@ function mergeNpcVitals(character, update, trackVitals = true) {
     if (update.manaRelative !== undefined) character.vitals.manaRelative = Boolean(update.manaRelative);
 
     if (update.maxFatigue !== undefined && update.maxFatigue !== null && update.maxFatigue !== '') {
-        character.vitals.maxFatigue = Math.max(1, Number(update.maxFatigue) || character.vitals.maxFatigue || 100);
+        character.vitals.maxFatigue = Math.max(1, numeric(update.maxFatigue, character.vitals.maxFatigue || 100));
     }
     if (update.fatigue !== undefined && update.fatigue !== null && update.fatigue !== '') {
-        character.vitals.fatigue = Math.max(0, Math.min(Number(update.fatigue) || 0, character.vitals.maxFatigue));
+        character.vitals.fatigue = Math.max(0, Math.min(numeric(update.fatigue, 0), character.vitals.maxFatigue));
     } else if (update.fatigueDelta !== undefined && update.fatigueDelta !== null && update.fatigueDelta !== '') {
         character.vitals.fatigue = Math.max(0, Math.min(
-            (Number(character.vitals.fatigue) || 0) + (Number(update.fatigueDelta) || 0),
+            (numeric(character.vitals.fatigue, 0)) + (numeric(update.fatigueDelta, 0)),
             character.vitals.maxFatigue,
         ));
     }
@@ -148,13 +154,15 @@ function mergePersistent(character, update) {
         }
     }
 
-    if (!character.role && update.role) character.role = String(update.role);
-    if (!character.faction && update.faction) character.faction = String(update.faction);
+    if (update.role !== undefined && String(update.role).trim()) character.role = String(update.role).trim();
+    if (update.faction !== undefined && String(update.faction).trim()) character.faction = String(update.faction).trim();
 
     const profileMap = ['age', 'gender', 'appearance', 'personality', 'background', 'goals', 'secrets'];
     for (const key of profileMap) {
         const value = update.profile?.[key] ?? update[key];
-        if (!character.profile[key] && value) character.profile[key] = String(value);
+        if (value !== undefined && value !== null && String(value).trim()) {
+            character.profile[key] = String(value).trim();
+        }
     }
 
 }
