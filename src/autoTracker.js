@@ -453,11 +453,11 @@ NPC RULES:
         { role: 'system', content: system },
         {
             role: 'user',
-            content: `Existing player state:\n${JSON.stringify(playerSummary, null, 2)}
-\nExisting quests:\n${JSON.stringify(questSummary, null, 2)}
-\nRecent tracked events:\n${JSON.stringify(recentEvents, null, 2)}
-\nExisting NPC roster:\n${JSON.stringify(summarizeRoster(state), null, 2)}
-\nRecent roleplay:\n${JSON.stringify(history, null, 2)}
+            content: `Existing player state:\n${JSON.stringify(playerSummary)}
+\nExisting quests:\n${JSON.stringify(questSummary)}
+\nRecent tracked events:\n${JSON.stringify(recentEvents)}
+\nExisting NPC roster:\n${JSON.stringify(summarizeRoster(state))}
+\nRecent roleplay:\n${JSON.stringify(history)}
 \nExtract ONLY changes established by the newest assistant reply.`,
         },
     ];
