@@ -7,6 +7,7 @@ import { resetAutoTrackerSession, scanLatestRoleplay, scheduleAutoTrack } from '
 import { getContext } from './src/utils.js';
 import { refreshGameContext } from './src/gameContext.js';
 import { mountWorldInfoEnhancer, renderWorldInfoEnhancer } from './src/worldInfoUI.js';
+import { mountCharacterLibrary, refreshCharacterLibrary } from './src/characterLibraryUI.js';
 
 const TAG = '[NPC Character Bar]';
 let initialized = false;
@@ -19,6 +20,7 @@ function refreshAll() {
         renderBar();
         renderDashboard();
         renderWorldInfoEnhancer();
+        refreshCharacterLibrary();
         refreshGameContext();
     }, 50);
 }
@@ -77,6 +79,7 @@ async function boot() {
     mountUI();
     mountDashboard();
     mountWorldInfoEnhancer();
+    mountCharacterLibrary();
     refreshGameContext();
 
     window.NPCCharacterBar = {
