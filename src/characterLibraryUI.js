@@ -73,6 +73,49 @@ function getCharacterStreak(avatar) {
     return best;
 }
 
+function backfillCurrentChatActivity() {
+    const ctx = currentContext();
+    const character = characterById(ctx?.characterId);
+    const chatId = String(ctx?.getCurrentChatId?.() || ctx?.chatId || '');
+    const avatar = String(character?.avatar || '');
+    if (!avatar || !chatId || !Array.isArray(ctx?.chat)) return false;
+
+    const historicalDays = ctx.chat
+        .filter(message => message?.is_user && message?.send_date)
+        .map(message => {
+            const date = new Date(message.send_date);
+            return Number.isNaN(date.getTime()) ? '' : localDayKey(date);
+        })
+        .filter(Boolean);
+
+    if (!historicalDays.length) return false;
+
+    const root = activityRoot();
+    const key = chatActivityKey(avatar, chatId);
+    const record = root.chats[key] ||= {
+        avatar,
+        chatId,
+        characterName: String(character?.name || ''),
+        days: [],
+    };
+
+    const before = JSON.stringify(record.days || []);
+    record.avatar = avatar;
+    record.chatId = chatId;
+    record.characterName = String(character?.name || record.characterName || '');
+    record.days = [...new Set([...(record.days || []), ...historicalDays])]
+        .filter(day => Number.isFinite(dayOrdinal(day)))
+        .sort()
+        .slice(-400);
+    record.lastBackfill = new Date().toISOString();
+
+    if (JSON.stringify(record.days) !== before) {
+        ctx?.saveSettingsDebounced?.();
+        return true;
+    }
+    return false;
+}
+
 function recordCurrentChatActivity() {
     const ctx = currentContext();
     const character = characterById(ctx?.characterId);
@@ -580,6 +623,12 @@ export function refreshCharacterLibrary() {
 
 export function mountCharacterLibrary() {
     ensureShell();
+    setTimeout(() => {
+        if (backfillCurrentChatActivity()) {
+            enhanceCards();
+            decorateHotswap();
+        }
+    }, 250);
     if (installed) return;
     installed = true;
 
@@ -612,6 +661,11 @@ export function mountCharacterLibrary() {
     }
     if (events.CHAT_CHANGED) {
         ctx.eventSource?.on?.(events.CHAT_CHANGED, () => {
+            setTimeout(() => {
+                backfillCurrentChatActivity();
+                enhanceCards();
+                decorateHotswap();
+            }, 180);
             decorateHotswap();
             const current = currentContext();
             if (selectedChid && String(current?.characterId) === String(selectedChid)) {
