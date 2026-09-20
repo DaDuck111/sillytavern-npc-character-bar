@@ -234,10 +234,12 @@ function normalizeWorldConditions(raw = {}) {
 }
 
 function normalizeQuest(raw = {}) {
+    const rawType = String(raw.type || 'side').toLowerCase();
+    const type = rawType === 'story' ? 'side' : (['main', 'side', 'system'].includes(rawType) ? rawType : 'side');
     return {
         id: raw.id || uid('quest'),
         title: String(raw.title || 'Untitled Quest'),
-        type: String(raw.type || 'story'),
+        type,
         status: ['active', 'completed', 'failed', 'hidden'].includes(raw.status) ? raw.status : 'active',
         description: String(raw.description || ''),
         objectives: Array.isArray(raw.objectives)
