@@ -158,10 +158,19 @@ function loreMetaRoot() {
     const ctx = getContext();
     ctx.extensionSettings ||= {};
     if (!ctx.extensionSettings[LORE_META_KEY] || typeof ctx.extensionSettings[LORE_META_KEY] !== 'object') {
-        ctx.extensionSettings[LORE_META_KEY] = { books: {} };
+        ctx.extensionSettings[LORE_META_KEY] = { books: {}, folders: [] };
     }
-    ctx.extensionSettings[LORE_META_KEY].books ||= {};
-    return ctx.extensionSettings[LORE_META_KEY];
+    const root = ctx.extensionSettings[LORE_META_KEY];
+    root.books ||= {};
+    root.folders = Array.isArray(root.folders) ? root.folders.filter(Boolean).map(String) : [];
+
+    // Migrate pre-folder "group" values into the persistent folder registry.
+    for (const book of Object.values(root.books)) {
+        const folder = String(book?.group || '').trim();
+        if (folder && !root.folders.includes(folder)) root.folders.push(folder);
+    }
+    root.folders = [...new Set(root.folders)].sort((a, b) => a.localeCompare(b));
+    return root;
 }
 
 function saveLoreMeta() {
@@ -206,7 +215,77 @@ export function deleteLorebookMeta(name) {
 }
 
 export function getLorebookGroups() {
-    return [...new Set(getLorebookCatalog().map(book => book.group).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    const meta = loreMetaRoot();
+    return [...new Set([
+        ...(meta.folders || []),
+        ...getLorebookCatalog().map(book => book.group).filter(Boolean),
+    ])].sort((a, b) => a.localeCompare(b));
+}
+
+export function createLorebookFolder(name) {
+    const clean = String(name || '').trim();
+    if (!clean) return false;
+    const meta = loreMetaRoot();
+    if ((meta.folders || []).some(folder => folder.toLowerCase() === clean.toLowerCase())) return false;
+    meta.folders.push(clean);
+    meta.folders.sort((a, b) => a.localeCompare(b));
+    saveLoreMeta();
+    window.dispatchEvent(new CustomEvent('npcb:lore-meta-changed'));
+    return true;
+}
+
+export function renameLorebookFolder(oldName, newName) {
+    const oldClean = String(oldName || '').trim();
+    const newClean = String(newName || '').trim();
+    if (!oldClean || !newClean) return false;
+    const meta = loreMetaRoot();
+    const index = meta.folders.findIndex(folder => folder === oldClean);
+    if (index < 0) return false;
+    if (meta.folders.some(folder => folder !== oldClean && folder.toLowerCase() === newClean.toLowerCase())) return false;
+
+    meta.folders[index] = newClean;
+    for (const book of Object.values(meta.books || {})) {
+        if (String(book?.group || '') === oldClean) book.group = newClean;
+    }
+    meta.folders = [...new Set(meta.folders)].sort((a, b) => a.localeCompare(b));
+    saveLoreMeta();
+    window.dispatchEvent(new CustomEvent('npcb:lore-meta-changed'));
+    return true;
+}
+
+export function deleteLorebookFolder(name) {
+    const clean = String(name || '').trim();
+    if (!clean) return false;
+    const meta = loreMetaRoot();
+    const before = meta.folders.length;
+    meta.folders = meta.folders.filter(folder => folder !== clean);
+    for (const book of Object.values(meta.books || {})) {
+        if (String(book?.group || '') === clean) book.group = '';
+    }
+    if (meta.folders.length === before) return false;
+    saveLoreMeta();
+    window.dispatchEvent(new CustomEvent('npcb:lore-meta-changed'));
+    return true;
+}
+
+export function moveLorebooksToFolder(names = [], folder = '') {
+    const meta = loreMetaRoot();
+    const target = String(folder || '').trim();
+    if (target && !meta.folders.includes(target)) return false;
+    let changed = false;
+    for (const name of [...new Set((names || []).map(String))]) {
+        if (!name) continue;
+        meta.books[name] ||= { group: '', tags: [] };
+        if (String(meta.books[name].group || '') !== target) {
+            meta.books[name].group = target;
+            changed = true;
+        }
+    }
+    if (changed) {
+        saveLoreMeta();
+        window.dispatchEvent(new CustomEvent('npcb:lore-meta-changed'));
+    }
+    return changed;
 }
 
 export function getLorebookTags() {
