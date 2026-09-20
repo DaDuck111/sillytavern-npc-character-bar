@@ -23,6 +23,10 @@ function compactSkill(skill) {
         .filter(([, value]) => Number(value) > 0)
         .map(([key, value]) => `${key}≥${value}`);
     if (attrs.length) parts.push(`Req:${attrs.join(',')}`);
+    const mods = Object.entries(skill.modifiers || {})
+        .filter(([, value]) => Number(value) !== 0)
+        .map(([key, value]) => `${key}${Number(value) > 0 ? '+' : ''}${value}`);
+    if (mods.length) parts.push(`Mods:${mods.join(',')}`);
     if (skill.effects?.length) parts.push(`Effect:${skill.effects.slice(0, 2).join('; ')}`);
     return parts.join(' ');
 }
@@ -62,6 +66,10 @@ function buildPrompt(state) {
         const bits = [effect.name];
         if (effect.duration) bits.push(`duration ${effect.duration}`);
         if (effect.description) bits.push(effect.description);
+        const mods = Object.entries(effect.modifiers || {})
+            .filter(([, value]) => Number(value) !== 0)
+            .map(([key, value]) => `${key}${Number(value) > 0 ? '+' : ''}${value}`);
+        if (mods.length) bits.push(`Mods ${mods.join(',')}`);
         return bits.join(': ');
     });
     if (effects.length) lines.push(`Active effects: ${effects.join(' || ')}`);
@@ -81,6 +89,12 @@ function buildPrompt(state) {
                 `Fatigue ${npc.vitals?.fatigue ?? 0}/${npc.vitals?.maxFatigue ?? 100}`,
             ].filter(Boolean);
             if (npc.scene?.condition) vitals.push(`Condition ${npc.scene.condition}`);
+            if (npc.system?.hasSystem) {
+                const attrs = Object.entries(npc.system.attributes || {})
+                    .map(([key, value]) => `${key}=${value}`)
+                    .join(' ');
+                vitals.push(`System Lv${npc.system.level || 1}${attrs ? ` ${attrs}` : ''}`);
+            }
             return `${npc.name}: ${vitals.join(', ')}`;
         });
     if (present.length) lines.push(`Present NPCs: ${present.join(' || ')}`);
