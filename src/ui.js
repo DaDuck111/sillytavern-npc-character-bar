@@ -764,7 +764,16 @@ async function persistWorkshopNow(id) {
     });
 }
 
-export function openArchive() {
+export async function openArchive() {
+    // Always reconcile the visible per-chat roster into the global archive
+    // immediately before opening it. This makes the Archive self-healing when
+    // older extension versions left stale archive IDs/tombstones behind.
+    try {
+        await mutateState(() => {});
+    } catch (error) {
+        console.warn('[NPC Character Bar] Archive pre-open sync failed:', error);
+    }
+
     const localState = getState();
     const archive = getGlobalArchive();
     const currentChat = getCurrentChatRef();
