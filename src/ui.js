@@ -1,4 +1,5 @@
 import {
+    CORE_ATTRIBUTES,
     STATUS,
     addCharacter,
     deleteCharacter,
@@ -260,7 +261,7 @@ export function openWorkshop(id, tab = 'identity') {
         </header>
 
         <nav class="npcb-tabs">
-            ${[['identity','Identity'],['profile','Profile'],['state','Scene'],['relations','Relations'],['memory','Memory'],['lore','Lorebook']]
+            ${[['identity','Identity'],['profile','Profile'],['state','Scene'],['stats','Vitals / Stats'],['relations','Relations'],['memory','Memory'],['lore','Lorebook']]
                 .map(([key,label]) => `<button data-tab="${key}" class="${key === tab ? 'active' : ''}">${label}</button>`).join('')}
         </nav>
 
@@ -305,6 +306,36 @@ export function openWorkshop(id, tab = 'identity') {
                     ${field('Clothing', 'scene.clothing', character.scene.clothing, { type: 'textarea', rows: 3, wide: true })}
                     ${field('Internal thoughts', 'scene.thoughts', character.scene.thoughts, { type: 'textarea', rows: 5, wide: true })}
                 </div>
+            </section>
+
+            <section data-pane="stats" class="${tab === 'stats' ? 'active' : ''}">
+                <div class="npcb-info-strip">All recurring NPCs can track HP, Fatigue and Relationship. Detailed RPG attributes are only available when this NPC has a System.</div>
+                <div class="npcb-form-grid">
+                    ${field('HP', 'vitals.hp', character.vitals?.hp ?? 100, { type: 'number' })}
+                    ${field('Max HP', 'vitals.maxHp', character.vitals?.maxHp ?? 100, { type: 'number' })}
+                    ${field('Fatigue', 'vitals.fatigue', character.vitals?.fatigue ?? 0, { type: 'number' })}
+                    ${field('Max Fatigue', 'vitals.maxFatigue', character.vitals?.maxFatigue ?? 100, { type: 'number' })}
+                    ${field('Relationship value (-100 to 100)', 'relationship.value', character.relationship?.value ?? 0, { type: 'number', wide: true })}
+                    <label class="npcb-check wide"><input class="npcb-npc-system-toggle" data-field="system.hasSystem" type="checkbox" ${character.system?.hasSystem ? 'checked' : ''}> This NPC has a System / detailed RPG status interface</label>
+                </div>
+                ${character.system?.hasSystem ? `
+                    <div class="npcb-system-npc-sheet">
+                        <div class="npcb-form-grid">
+                            ${field('System Level', 'system.level', character.system.level ?? 1, { type: 'number' })}
+                            ${field('System XP', 'system.xp', character.system.xp ?? 0, { type: 'number' })}
+                            ${field('XP to next level', 'system.xpToNext', character.system.xpToNext ?? 100, { type: 'number' })}
+                        </div>
+                        <div class="npcb-npc-attribute-editor">
+                            ${CORE_ATTRIBUTES.map(key => `
+                                <label>
+                                    <span>${key}</span>
+                                    <input data-field="system.attributes.${key}" type="number" min="0" value="${escapeHtml(character.system.attributes?.[key] ?? 0)}">
+                                </label>
+                            `).join('')}
+                        </div>
+                        <div class="npcb-muted-box">NPC custom System stats are AI-trackable. The tracker only fills detailed values when the story explicitly establishes that this NPC has a System.</div>
+                    </div>
+                ` : '<div class="npcb-system-locked npcb-npc-system-locked"><strong>DETAILED STATUS LOCKED</strong><span>Enable System only when the story establishes it.</span></div>'}
             </section>
 
             <section data-pane="relations" class="${tab === 'relations' ? 'active' : ''}">
