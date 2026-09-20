@@ -517,7 +517,7 @@ Schema:
       "mana": "",
       "maxMana": "",
       "manaRelative": "",
-      "fatigue": ""
+      "fatigue": "",
       "maxFatigue": "",
       "hasSystem": false,
       "level": "",
@@ -565,7 +565,7 @@ Schema:
       "manaDelta": "",
       "maxMana": "",
       "manaRelative": "",
-      "fatigue": ""
+      "fatigue": "",
       "fatigueDelta": "",
       "maxFatigue": "",
 
