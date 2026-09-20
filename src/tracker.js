@@ -143,11 +143,6 @@ function mergePersistent(character, update) {
         if (!character.profile[key] && value) character.profile[key] = String(value);
     }
 
-    const memory = String(update.memory || '').trim();
-    if (memory) {
-        const exists = character.memories.some(m => String(m?.text ?? m).trim().toLowerCase() === memory.toLowerCase());
-        if (!exists) character.memories.push({ date: '', text: memory });
-    }
 }
 
 function resolveFromRaw(state, raw) {
@@ -463,6 +458,16 @@ function applyQuestUpdates(state, payload) {
                     : [],
                 reward: String(raw.reward || ''),
                 source: String(raw.source || ''),
+                conditions: {
+                    time: String(raw.conditions?.time || ''),
+                    date: String(raw.conditions?.date || ''),
+                    day: String(raw.conditions?.day || ''),
+                    dayPart: String(raw.conditions?.dayPart || ''),
+                    weather: String(raw.conditions?.weather || ''),
+                    season: String(raw.conditions?.season || ''),
+                    year: String(raw.conditions?.year || ''),
+                    holiday: String(raw.conditions?.holiday || ''),
+                },
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
             };
@@ -477,6 +482,12 @@ function applyQuestUpdates(state, payload) {
         if (raw.description !== undefined && raw.description !== '') quest.description = String(raw.description);
         if (raw.reward !== undefined && raw.reward !== '') quest.reward = String(raw.reward);
         if (raw.source !== undefined && raw.source !== '') quest.source = String(raw.source);
+        if (raw.conditions && typeof raw.conditions === 'object') {
+            quest.conditions ||= {};
+            for (const key of ['time','date','day','dayPart','weather','season','year','holiday']) {
+                if (raw.conditions[key] !== undefined && raw.conditions[key] !== '') quest.conditions[key] = String(raw.conditions[key]);
+            }
+        }
 
         if (Array.isArray(raw.objectives)) {
             for (const obj of raw.objectives) {
@@ -512,10 +523,48 @@ function applyEvents(state, payload) {
             location: String(raw.location || state.scene?.location || ''),
             participants: Array.isArray(raw.participants) ? raw.participants.filter(Boolean).map(String) : [],
             importance: ['minor', 'normal', 'major', 'critical'].includes(raw.importance) ? raw.importance : 'normal',
+            trigger: {
+                time: String(raw.trigger?.time || ''),
+                date: String(raw.trigger?.date || ''),
+                day: String(raw.trigger?.day || ''),
+                dayPart: String(raw.trigger?.dayPart || ''),
+                weather: String(raw.trigger?.weather || ''),
+                season: String(raw.trigger?.season || ''),
+                year: String(raw.trigger?.year || ''),
+                holiday: String(raw.trigger?.holiday || ''),
+            },
+            status: ['pending', 'occurred', 'cancelled'].includes(raw.status) ? raw.status : 'occurred',
             createdAt: new Date().toISOString(),
         });
     }
     state.events = state.events.slice(-100);
+}
+
+function conditionSummary(conditions = {}) {
+    return ['time','date','day','dayPart','weather','season','year','holiday']
+        .filter(key => String(conditions?.[key] || '').trim())
+        .map(key => `${key}=${conditions[key]}`);
+}
+
+function conditionsMatch(scene, conditions = {}) {
+    const entries = conditionSummary(conditions);
+    if (!entries.length) return false;
+    for (const key of ['time','date','day','dayPart','weather','season','year','holiday']) {
+        const expected = String(conditions?.[key] || '').trim().toLowerCase();
+        if (!expected) continue;
+        const actual = String(scene?.[key] || '').trim().toLowerCase();
+        if (!actual || (!actual.includes(expected) && !expected.includes(actual))) return false;
+    }
+    return true;
+}
+
+function refreshConditionStates(state) {
+    for (const quest of state.quests || []) {
+        quest.conditionsMet = conditionsMatch(state.scene, quest.conditions || {});
+    }
+    for (const event of state.events || []) {
+        event.triggerMet = event.status === 'pending' && conditionsMatch(state.scene, event.trigger || {});
+    }
 }
 
 export async function applyTrackerPayload(payload = {}) {
@@ -541,7 +590,7 @@ export async function applyTrackerPayload(payload = {}) {
     const state = getState();
 
     if (payload.scene && typeof payload.scene === 'object') {
-        for (const key of ['location', 'time', 'summary']) {
+        for (const key of ['location', 'time', 'date', 'day', 'dayPart', 'weather', 'season', 'year', 'holiday', 'summary']) {
             if (payload.scene[key] !== undefined && payload.scene[key] !== null && payload.scene[key] !== '') {
                 state.scene[key] = String(payload.scene[key]);
             }
@@ -596,6 +645,7 @@ export async function applyTrackerPayload(payload = {}) {
         }
     }
 
+    refreshConditionStates(state);
     await saveState(state);
     window.dispatchEvent(new CustomEvent('npcb:state-changed'));
     return state;
