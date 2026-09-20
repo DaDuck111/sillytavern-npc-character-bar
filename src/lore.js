@@ -1,3 +1,4 @@
+import { world_names } from '../../../../../scripts/world-info.js';
 import { getContext } from './utils.js';
 
 function q(value) {
@@ -163,6 +164,66 @@ export function buildLoreContent(character) {
     }
 
     return lines.join('\n');
+}
+
+export function getLorebookNames() {
+    return [...new Set(Array.isArray(world_names) ? world_names.filter(Boolean).map(String) : [])]
+        .sort((a, b) => a.localeCompare(b));
+}
+
+export async function findLoreEntry(book, character) {
+    const names = [character.name, ...(character.aliases || [])].filter(Boolean);
+    for (const name of names) {
+        const uid = await run(`/findentry file=${q(book)} field=key ${q(name)}`);
+        if (uid) return String(uid).trim();
+    }
+    return '';
+}
+
+export async function syncLore(character, { book = character.lore?.book || '', createIfMissing = true } = {}) {
+    const resolvedBook = String(book || '').trim() || await getChatBook();
+    if (!resolvedBook) throw new Error('Could not resolve a Lorebook.');
+
+    let uid = String(character.lore?.uid || '').trim();
+    if (!uid || resolvedBook !== String(character.lore?.book || '').trim()) {
+        uid = await findLoreEntry(resolvedBook, character);
+    }
+
+    let content = '';
+    if (uid) {
+        content = await run(`/getentryfield file=${q(resolvedBook)} field=content ${q(uid)}`);
+        return {
+            book: resolvedBook,
+            uid,
+            content,
+            lastSync: new Date().toISOString(),
+            created: false,
+        };
+    }
+
+    if (!createIfMissing) {
+        return {
+            book: resolvedBook,
+            uid: '',
+            content: '',
+            lastSync: new Date().toISOString(),
+            created: false,
+        };
+    }
+
+    content = buildLoreContent(character);
+    uid = await run(`/createentry file=${q(resolvedBook)} key=${q([character.name, ...(character.aliases || [])].filter(Boolean).join(','))} ${q(content)}`);
+    if (!uid) throw new Error('Could not create Lorebook entry.');
+
+    await run(`/setentryfield file=${q(resolvedBook)} uid=${q(uid)} field=comment ${q(`NPC — ${character.name}`)}`);
+
+    return {
+        book: resolvedBook,
+        uid: String(uid).trim(),
+        content,
+        lastSync: new Date().toISOString(),
+        created: true,
+    };
 }
 
 export async function getChatBook() {
