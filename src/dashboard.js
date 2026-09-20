@@ -268,19 +268,34 @@ function renderAttributes(player) {
     }
 
     const canSpend = Number(player.statPoints) > 0;
+    const modifiers = Object.fromEntries(CORE_ATTRIBUTES.map(key => [key, 0]));
+    for (const skill of player.skills || []) {
+        if (skill.type !== 'passive') continue;
+        for (const key of CORE_ATTRIBUTES) modifiers[key] += Number(skill.modifiers?.[key]) || 0;
+    }
+    for (const effect of player.effects || []) {
+        for (const key of CORE_ATTRIBUTES) modifiers[key] += Number(effect.modifiers?.[key]) || 0;
+    }
+
     return `
         <div class="npcb-system-section-head">
             <span>CORE ATTRIBUTES</span>
             <b>${escapeHtml(player.statPoints)} POINT${Number(player.statPoints) === 1 ? '' : 'S'} AVAILABLE</b>
         </div>
         <div class="npcb-attribute-grid">
-            ${CORE_ATTRIBUTES.map(key => `
-                <div class="npcb-attribute-card" data-attribute="${key}">
-                    <small>${key}</small>
-                    <strong>${escapeHtml(player.attributes?.[key] ?? 0)}</strong>
-                    <button data-action="attribute-plus" ${canSpend ? '' : 'disabled'}>＋</button>
-                </div>
-            `).join('')}
+            ${CORE_ATTRIBUTES.map(key => {
+                const base = Number(player.attributes?.[key]) || 0;
+                const mod = Number(modifiers[key]) || 0;
+                const effective = base + mod;
+                return `
+                    <div class="npcb-attribute-card" data-attribute="${key}" title="${mod ? `Base ${base} · Modifier ${mod > 0 ? '+' : ''}${mod}` : `Base ${base}`}">
+                        <small>${key}</small>
+                        <strong>${escapeHtml(effective)}</strong>
+                        ${mod ? `<em>${mod > 0 ? '+' : ''}${escapeHtml(mod)} EFFECT</em>` : '<em>BASE</em>'}
+                        <button data-action="attribute-plus" ${canSpend ? '' : 'disabled'}>＋</button>
+                    </div>
+                `;
+            }).join('')}
         </div>
     `;
 }
