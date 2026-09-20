@@ -94,6 +94,13 @@ function summarizeRoster(state) {
                 mood: String(c.scene?.mood || '').slice(0, 80),
                 relationship: String(c.relationship?.label || '').slice(0, 80),
             };
+            row.visual = {
+                age: String(c.profile?.age || '').slice(0, 60),
+                gender: String(c.profile?.gender || '').slice(0, 60),
+                appearance: String(c.profile?.appearance || '').slice(0, 220),
+                clothing: String(c.scene?.clothing || '').slice(0, 180),
+                condition: String(c.scene?.condition || '').slice(0, 120),
+            };
             row.system = c.system?.hasSystem ? {
                 hasSystem: true,
                 level: c.system.level,
@@ -181,7 +188,19 @@ function buildPrompt(ctx, state, latestIndex) {
             harmful: effect.harmful,
             modifiers: effect.modifiers,
         })),
-        titles: p.titles || [],
+        resistances: (p.resistances || []).map(resistance => ({
+            name: resistance.name,
+            value: resistance.value,
+            description: resistance.description,
+            aiTrack: resistance.aiTrack !== false,
+        })),
+        titles: (p.titles || []).map(title => ({
+            name: title.name,
+            equipped: title.id === p.equippedTitleId || title.equipped,
+            description: title.description,
+            effects: title.effects,
+            modifiers: title.modifiers,
+        })),
     };
 
     const questSummary = (state.quests || []).map(q => ({
@@ -214,8 +233,10 @@ Return ONLY one JSON object. No markdown, no prose outside JSON, no invented fac
 PLAYER SYSTEM RULE:
 - The player's System is a story fact, not an always-on mechanic.
 - If the player does NOT currently have a System, hasSystem is false, level MUST remain 0, XP MUST remain 0, XP cannot be gained, and STR/DEX/INT/STA/SEN must not be assigned.
-- Set playerUpdates.hasSystem=true ONLY if the newest roleplay clearly grants/awakens/activates a System or equivalent RPG status interface for the player.
-- Set hasSystem=false only if the story explicitly removes/destroys/disables that System.
+- Set playerUpdates.hasSystem=true ONLY if the newest roleplay explicitly grants, awakens, activates, or visibly opens a PERSONAL System/status interface for the player.
+- Mentions of "system", quests, ranks, hunters, game-like language, magic, stats belonging to OTHER characters, or this extension's tracker UI are NOT enough.
+- If the existing player state says hasSystem=false, preserve false unless that explicit acquisition happens in the newest RP.
+- Set hasSystem=false only if the story explicitly removes/destroys/disables that acquired interface.
 - When a System user levels up, return the new level. The extension grants allocatable stat points automatically.
 - Only output attribute changes when the story/System explicitly changes STR, DEX, INT, STA, or SEN. Do not invent stat growth.
 
@@ -269,6 +290,9 @@ Schema:
 
     "statUpdates": [
       { "name": "Health", "value": "", "delta": "", "max": "", "unit": "" }
+    ],
+    "resistanceUpdates": [
+      { "name": "Fire", "value": "", "delta": "", "description": "" }
     ],
 
     "storageLocationsAdd": [
@@ -359,7 +383,24 @@ Schema:
       { "name": "", "description": "", "duration": "", "source": "", "harmful": "" }
     ],
     "effectsRemove": [],
-    "titlesAdd": []
+    "titlesAdd": [
+      {
+        "name": "",
+        "equipped": false,
+        "description": "",
+        "effects": [],
+        "modifiers": { "STR": "", "DEX": "", "INT": "", "STA": "", "SEN": "" }
+      }
+    ],
+    "titlesUpdate": [
+      {
+        "name": "",
+        "equipped": "",
+        "description": "",
+        "effects": [],
+        "modifiers": { "STR": "", "DEX": "", "INT": "", "STA": "", "SEN": "" }
+      }
+    ]
   },
 
   "questsAdd": [
@@ -475,7 +516,8 @@ Schema:
       "maxHp": "",
       "mana": "",
       "maxMana": "",
-      "fatigue": "",
+      "manaRelative": "",
+      "fatigue": ""
       "maxFatigue": "",
       "hasSystem": false,
       "level": "",
@@ -522,7 +564,8 @@ Schema:
       "mana": "",
       "manaDelta": "",
       "maxMana": "",
-      "fatigue": "",
+      "manaRelative": "",
+      "fatigue": ""
       "fatigueDelta": "",
       "maxFatigue": "",
 
@@ -554,7 +597,19 @@ GENERAL PLAYER RULES:
 - Never invent loot, XP, funds, skills, stat increases, or quest rewards merely because combat happened.
 - When a skill is used, update its remainingCooldown and explicit resource cost consequences when established.
 - Track temporary status effects/buffs/debuffs in effectsAdd/effectsUpdate/effectsRemove. Keep descriptions compact and gameplay-relevant.
+- Vital/custom stat value/max fields MUST be JSON numbers, never strings such as "85%" or "one hundred". Put units separately.
+- resistanceUpdates are percentage resistances/vulnerabilities from -100 to 100. Positive = resistance, negative = vulnerability. Only change them from explicit/established mechanics.
+- Titles are collectable gameplay objects. Track description/effects/modifiers when established; only equip/unequip a title when the story/System or user clearly chooses it.
 - Existing inventory quantities and storage locations are authoritative unless the roleplay changes them.
+
+MAGIC / MANA RULES:
+- A character who clearly uses spellcasting, mana, MP, magical energy, or a magic skill should have a Mana pool even without a System.
+- If canonical numeric Mana/MP values are established, use those exact values.
+- If magic ability is clearly established but no numeric pool exists, initialize a RELATIVE pool at 100/100 with manaRelative=true. This is an abstract reserve percentage, not a claim about canon MP.
+- For relative Mana, update conservatively from narration: light use about -5, moderate use about -10 to -20, heavy/ultimate use about -25 to -40; minor rest/recovery about +10, meaningful rest about +20 to +30, full recovery only when clearly stated. Never go below 0 or above 100.
+- Apply the same concept to the player by creating/updating a numeric Mana custom stat with max 100 and unit "%" when the player clearly uses magic but the setting gives no canonical MP scale.
+- If a known skill already has an explicit Mana cost, use that cost instead of estimating.
+- Mana may recover naturally only when the RP establishes rest, recovery, regeneration, a skill/item, or sufficient time passage.
 
 SKILL / STATUS RULES:
 - Skills are gameplay state, not decorative labels. Keep description, cost, cooldown, requirements and effects when the story establishes them.
@@ -584,7 +639,10 @@ WORLD TIME / WEATHER RULES:
 - Keep the last known RP time/date/weather when the newest reply does not change it.
 - time is CLOCK TIME only (for example 10:31, 23:40, around 6 PM). Never put weekday/month/year text into time.
 - day is a weekday/day label such as Friday or Day 12. date is the calendar date/month/year such as 25 December 2026 or October 2024.
-- If only "Friday, October 2024" is known, use day="Friday", date="October 2024", and leave time unchanged/blank.
+- If only "Friday, October 2024" is known, use day="Friday" and date="October 2024".
+- TIME SHOULD NOT DISAPPEAR merely because the story gives only a daypart. When no exact clock is given but a clear daypart is established, use an approximate clock and prefix it with "~": dawn ~06:00, morning ~09:00, noon ~12:00, afternoon ~15:00, evening ~19:00, night ~22:00, late night ~01:00.
+- If a known clock exists and the RP says time passed ("two hours later", "after thirty minutes"), calculate the new story clock.
+- Preserve the last known clock when the newest reply does not move time.
 - dayPart should be a compact value such as dawn, morning, afternoon, evening, night, late night.
 - weather should be short and story-grounded: clear, rain, snow, storm, fog, etc.
 - season/year/holiday are optional and only set when established. Holiday may be values such as Christmas, New Year, Lunar New Year, festival names, or fictional holidays.
@@ -592,11 +650,12 @@ WORLD TIME / WEATHER RULES:
 - A future event may be tracked as status="pending" with trigger fields. Do not say it occurred until the story actually narrates it.
 
 QUEST RULES:
-- Add a quest when the story clearly establishes a goal, assignment, contract, mission, promise, investigation, survival objective, or explicit System quest.
-- Story quests are allowed even without a System.
-- System quests require an actual System.
-- Do not create a quest for every casual action.
-- Update objective completion/status only when the newest reply establishes progress, completion, or failure.
+- Automatically create/update quests from the RP when a durable goal is established: mission, contract, rescue, investigation, promise, survival objective, hunt, delivery, training goal, major personal objective, or explicit System quest.
+- Classify central plot-driving objectives as main, optional/parallel objectives as side, System-issued objectives as system, and uncategorized durable goals as story.
+- Story/main/side quests are allowed without a System. System quests require an actually acquired System.
+- Do not create a quest for every casual action, ordinary conversation, or momentary combat move.
+- Merge with an existing matching quest instead of creating duplicates.
+- Update objectives, rewards, conditions, completion and failure automatically when the newest RP establishes progress.
 
 EVENT RULES:
 - Treat the event log as compact continuity memory. After EVERY assistant RP reply that advances the scene, add 1–2 short durable events. Return 0 only when literally no new action, fact, consequence, movement, decision, or relationship/quest/state change occurred.
@@ -619,7 +678,10 @@ NPC RULES:
 - presentCharacters means NPCs present NOW in the newest assistant reply, not merely mentioned.
 - Do not create entries for anonymous crowds/generic guards unless the story treats one as a distinct recurring character.
 - Match aliases/titles/translations to existing NPC identities.
-- For NPC profile fields, fill ONLY facts supported by the RP and only when profileMissing says that field is missing, or the newest reply clearly corrects it.
+- Keep NPC identity/profile facts current. Fill missing age/gender/appearance/personality/background/goals/secrets from supported RP or Lore hints.
+- Even when a profile field is already filled, update it when the newest RP explicitly reveals a new persistent fact or corrects an old one (for example age, hair/eye traits, scars, species, build, identity, faction, role).
+- Current clothing is LIVE state: replace scene.clothing whenever the outfit/armor/accessories materially change. Do not append old outfits forever.
+- Keep persistent appearance separate from temporary clothing/condition. Blood, dirt, wounds and temporary disguises belong in condition/clothing unless they become lasting traits.
 - Keep profile patches tiny: age/gender as short values; appearance/personality/background/goals/secrets each at most one compact sentence. Do not write prose biographies.
 - Do not repeat already-known profile text in every response.
 - Use empty strings/arrays for unchanged or unknown data. Never guess.`;
