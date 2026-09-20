@@ -27,8 +27,9 @@ function installEvents() {
     const events = ctx.eventTypes || ctx.event_types || {};
 
     if (events.CHAT_CHANGED) {
-        ctx.eventSource.on(events.CHAT_CHANGED, () => {
+        ctx.eventSource.on(events.CHAT_CHANGED, async () => {
             resetAutoTrackerSession();
+            try { await mutateState(() => {}); } catch (error) { console.warn(TAG, 'Archive sync skipped:', error); }
             refreshAll();
         });
     }
@@ -67,6 +68,7 @@ async function boot() {
 
     installTrackerBridge();
     installEvents();
+    try { await mutateState(() => {}); } catch (error) { console.warn(TAG, 'Initial archive sync skipped:', error); }
     mountUI();
     mountDashboard();
 
