@@ -1023,15 +1023,15 @@ async function editSkill(id) {
     if (!skill) return;
     const name = prompt('Skill name', skill.name) ?? skill.name;
     const rank = prompt('Rank / level', skill.rank) ?? skill.rank;
-    const typeRaw = (prompt('Type: active / passive / toggle', skill.type || 'active') ?? skill.type || 'active').trim().toLowerCase();
+    const typeRaw = (prompt('Type: active / passive / toggle', skill.type || 'active') ?? (skill.type || 'active')).trim().toLowerCase();
     const description = prompt('Explanation / effect', skill.description) ?? skill.description;
     const cooldown = prompt('Base cooldown', skill.cooldown || '') ?? skill.cooldown;
     const remainingCooldown = prompt('Current remaining cooldown (blank = ready)', skill.remainingCooldown || '') ?? skill.remainingCooldown;
-    const costResource = prompt('Resource cost type', skill.cost?.resource || '') ?? skill.cost?.resource || '';
+    const costResource = prompt('Resource cost type', skill.cost?.resource || '') ?? (skill.cost?.resource || '');
     const costAmount = costResource.trim()
-        ? Math.max(0, Number(prompt('Resource cost amount', String(skill.cost?.amount || 0)) ?? skill.cost?.amount || 0) || 0)
+        ? Math.max(0, Number(prompt('Resource cost amount', String(skill.cost?.amount || 0)) ?? (skill.cost?.amount || 0)) || 0)
         : 0;
-    const requirement = prompt('Requirements / restrictions', skill.requirements?.text || '') ?? skill.requirements?.text || '';
+    const requirement = prompt('Requirements / restrictions', skill.requirements?.text || '') ?? (skill.requirements?.text || '');
     const effectsRaw = prompt('Gameplay effects, one per line', (skill.effects || []).join('\n')) ?? (skill.effects || []).join('\n');
 
     await mutateState(s => {
