@@ -3,10 +3,11 @@ import { deepClone, getContext, normalizeName, uid } from './utils.js';
 const SETTINGS_KEY = 'npc_character_bar_global';
 
 const DEFAULT_ARCHIVE = {
-    version: 3,
+    version: 4,
     groups: {},
     npcs: {},
     deletedNpcIds: [],
+    legacyDeletedNpcIds: [],
     redirects: {},
 };
 
@@ -17,11 +18,26 @@ function settingsRoot() {
         ctx.extensionSettings[SETTINGS_KEY] = deepClone(DEFAULT_ARCHIVE);
     }
     const root = ctx.extensionSettings[SETTINGS_KEY];
-    root.version = 3;
+    const previousVersion = Number(root.version) || 0;
+
     root.groups ||= {};
     root.npcs ||= {};
     root.deletedNpcIds = Array.isArray(root.deletedNpcIds) ? root.deletedNpcIds : [];
+    root.legacyDeletedNpcIds = Array.isArray(root.legacyDeletedNpcIds) ? root.legacyDeletedNpcIds : [];
     root.redirects ||= {};
+
+    // v0.9/v0.10 tombstones could strand valid per-chat NPCs outside the global
+    // archive. Preserve them only as migration history and allow visible local
+    // NPCs to register again. Deletions made on schema v4 remain authoritative.
+    if (previousVersion > 0 && previousVersion < 4 && root.deletedNpcIds.length) {
+        root.legacyDeletedNpcIds = [...new Set([
+            ...root.legacyDeletedNpcIds,
+            ...root.deletedNpcIds,
+        ])];
+        root.deletedNpcIds = [];
+    }
+
+    root.version = 4;
     return root;
 }
 
