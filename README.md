@@ -1,5 +1,17 @@
 # NPC Character Bar for SillyTavern
 
+## v0.11.1 — Simpler Character → Chat Navigation
+
+- Removed the permanent split-pane character screen that left an unexplained empty area before a character was selected.
+- The character list now always uses the full drawer width.
+- Clear two-step flow:
+  - **STEP 1 — Choose a Character**
+  - **STEP 2 — Choose a Chat**
+- Each character card has an explicit **VIEW CHATS ›** cue.
+- Selecting a character replaces the list with that character's chat history instead of opening a side pane.
+- **← BACK TO CHARACTERS** returns to the full character list.
+- Chat/profile text and buttons were enlarged for readability.
+
 ## v0.11.0 — Character Library & Per-Character Chat Browser
 
 - **Native SillyTavern character selector overhaul**
