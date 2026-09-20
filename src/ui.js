@@ -298,6 +298,16 @@ function renderLoreLibrary(character) {
         return true;
     });
 
+    const groupedBooks = Object.entries(filtered.reduce((acc, book) => {
+        const key = book.group || 'Ungrouped';
+        (acc[key] ||= []).push(book);
+        return acc;
+    }, {})).sort(([a], [b]) => {
+        if (a === 'Ungrouped') return 1;
+        if (b === 'Ungrouped') return -1;
+        return a.localeCompare(b);
+    });
+
     return `
         <div class="npcb-lore-link-card">
             <div>
@@ -305,7 +315,10 @@ function renderLoreLibrary(character) {
                 <strong>${escapeHtml(character.lore?.book || 'Current chat Lorebook')}</strong>
                 <span>${character.lore?.uid ? `Entry #${escapeHtml(character.lore.uid)}` : 'No NPC entry linked yet'}</span>
             </div>
-            <button class="npcb-primary-btn npcb-lore-sync" type="button">SYNC NPC</button>
+            <div class="npcb-lore-link-actions">
+                <button class="npcb-soft-btn npcb-lore-use-current-chat" type="button">USE CHAT LORE</button>
+                <button class="npcb-primary-btn npcb-lore-sync" type="button">SYNC NPC</button>
+            </div>
         </div>
 
         <div class="npcb-lore-help">
@@ -331,24 +344,29 @@ function renderLoreLibrary(character) {
         </div>
 
         <div class="npcb-lore-library">
-            ${filtered.length ? filtered.map(book => `
-                <article class="npcb-lore-book-card ${book.name === character.lore?.book ? 'selected' : ''}" data-book-name="${escapeHtml(book.name)}">
-                    <button class="npcb-lore-use" type="button" title="Use this Lorebook for this NPC">
-                        <span class="npcb-lore-radio">${book.name === character.lore?.book ? '●' : '○'}</span>
-                        <div>
-                            <strong>${escapeHtml(book.name)}</strong>
-                            <small>${book.group ? escapeHtml(book.group) : 'Ungrouped'}</small>
-                        </div>
-                    </button>
-                    <div class="npcb-lore-tags">
-                        ${(book.tags || []).length ? book.tags.map(tag => `<i>#${escapeHtml(tag)}</i>`).join('') : '<em>No tags</em>'}
-                    </div>
-                    <label class="npcb-lore-active-switch">
-                        <input type="checkbox" ${book.active ? 'checked' : ''}>
-                        <span>${book.active ? 'ACTIVE' : 'INACTIVE'}</span>
-                    </label>
-                    <button class="npcb-lore-organize" type="button">ORGANIZE</button>
-                </article>
+            ${groupedBooks.length ? groupedBooks.map(([groupName, groupBooks]) => `
+                <section class="npcb-lore-library-group">
+                    <div class="npcb-lore-library-group-head"><span>${escapeHtml(groupName)}</span><b>${groupBooks.length}</b></div>
+                    ${groupBooks.map(book => `
+                        <article class="npcb-lore-book-card ${book.name === character.lore?.book ? 'selected' : ''}" data-book-name="${escapeHtml(book.name)}">
+                            <button class="npcb-lore-use" type="button" title="Use this Lorebook for this NPC">
+                                <span class="npcb-lore-radio">${book.name === character.lore?.book ? '●' : '○'}</span>
+                                <div>
+                                    <strong>${escapeHtml(book.name)}</strong>
+                                    <small>${book.active ? 'Active in SillyTavern' : 'Inactive'}</small>
+                                </div>
+                            </button>
+                            <div class="npcb-lore-tags">
+                                ${(book.tags || []).length ? book.tags.map(tag => `<i>#${escapeHtml(tag)}</i>`).join('') : '<em>No tags</em>'}
+                            </div>
+                            <label class="npcb-lore-active-switch">
+                                <input type="checkbox" ${book.active ? 'checked' : ''}>
+                                <span>${book.active ? 'ACTIVE' : 'INACTIVE'}</span>
+                            </label>
+                            <button class="npcb-lore-organize" type="button">ORGANIZE</button>
+                        </article>
+                    `).join('')}
+                </section>
             `).join('') : '<div class="npcb-muted-box">No Lorebooks match these filters.</div>'}
         </div>
 
@@ -656,6 +674,16 @@ function bindWorkshopEvents(character, activeTab = 'overview') {
     root.querySelector('.npcb-lore-tag-filter')?.addEventListener('change', event => {
         loreTagFilter = event.target.value;
         rerenderLore();
+    });
+
+    root.querySelector('.npcb-lore-use-current-chat')?.addEventListener('click', async () => {
+        loreAutoSynced.delete(character.id);
+        await updateCharacter(character.id, c => {
+            c.lore.book = '';
+            c.lore.uid = '';
+            c.lore.lastSync = '';
+        });
+        openWorkshop(character.id, 'lore');
     });
 
     root.querySelectorAll('.npcb-lore-book-card').forEach(card => {
