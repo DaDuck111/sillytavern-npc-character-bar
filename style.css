@@ -3699,3 +3699,36 @@
         grid-row: 2;
     }
 }
+
+
+.npcb-card-vitals {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3px;
+    margin-top: 4px;
+}
+.npcb-card-vitals .npcb-card-hp,
+.npcb-card-vitals .npcb-card-mana {
+    height: 4px;
+    margin-top: 0;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,.05);
+    border-radius: 99px;
+    background: rgba(0,0,0,.45);
+}
+.npcb-card-mana > i {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, #3d8fe5, #62c7ff);
+    box-shadow: 0 0 7px rgba(82,174,246,.28);
+}
+.npcb-card-mana.unknown {
+    opacity: .24;
+}
+#npcb-dashboard *::-webkit-scrollbar-button,
+.npcb-modal-root *::-webkit-scrollbar-button,
+#npcb-thoughts-panel *::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+}
