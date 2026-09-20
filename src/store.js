@@ -25,8 +25,10 @@ export const DEFAULT_PLAYER = Object.freeze({
     statPoints: 0,
     statPointsPerLevel: 5,
     attributes: DEFAULT_ATTRIBUTES,
-    money: 0,
-    currency: 'Gold',
+    funds: {
+        system: { amount: 0, currency: 'Gold' },
+        real: { amount: 0, currency: '' },
+    },
     currentLocation: '',
     homeLocation: '',
     homeDescription: '',
@@ -43,11 +45,12 @@ export const DEFAULT_PLAYER = Object.freeze({
     storageLocations: [],
     inventory: [],
     skills: [],
+    effects: [],
     titles: [],
 });
 
 export const DEFAULT_STATE = Object.freeze({
-    version: 6,
+    version: 7,
     characters: {},
     order: [],
     scene: {
@@ -76,6 +79,7 @@ export const DEFAULT_STATE = Object.freeze({
         trackQuests: true,
         trackEvents: true,
         trackNpcVitals: true,
+        injectGameState: true,
     },
     ui: {
         showAwayOnBar: false,
@@ -131,12 +135,46 @@ function normalizeInventoryItem(raw = {}) {
 }
 
 function normalizeSkill(raw = {}) {
+    const cost = raw.cost && typeof raw.cost === 'object' ? raw.cost : {};
+    const requirements = raw.requirements && typeof raw.requirements === 'object' ? raw.requirements : {};
+    const modifiers = raw.modifiers && typeof raw.modifiers === 'object' ? raw.modifiers : {};
     return {
         id: raw.id || uid('skill'),
         name: String(raw.name || 'Skill'),
         rank: String(raw.rank || raw.level || ''),
+        type: ['active', 'passive', 'toggle'].includes(raw.type) ? raw.type : 'active',
         description: String(raw.description || ''),
         source: String(raw.source || ''),
+        cooldown: String(raw.cooldown || ''),
+        remainingCooldown: String(raw.remainingCooldown || ''),
+        cost: {
+            resource: String(cost.resource || ''),
+            amount: Number.isFinite(Number(cost.amount)) ? Number(cost.amount) : 0,
+        },
+        requirements: {
+            text: String(requirements.text || raw.requirement || ''),
+            attributes: Object.fromEntries(CORE_ATTRIBUTES
+                .filter(key => requirements.attributes?.[key] !== undefined)
+                .map(key => [key, Math.max(0, Number(requirements.attributes[key]) || 0)])),
+        },
+        modifiers: Object.fromEntries(CORE_ATTRIBUTES
+            .filter(key => modifiers[key] !== undefined)
+            .map(key => [key, Number(modifiers[key]) || 0])),
+        effects: Array.isArray(raw.effects) ? raw.effects.filter(Boolean).map(String) : [],
+    };
+}
+
+function normalizeEffect(raw = {}) {
+    return {
+        id: raw.id || uid('effect'),
+        name: String(raw.name || 'Effect'),
+        description: String(raw.description || ''),
+        duration: String(raw.duration || ''),
+        source: String(raw.source || ''),
+        harmful: Boolean(raw.harmful),
+        modifiers: Object.fromEntries(CORE_ATTRIBUTES
+            .filter(key => raw.modifiers?.[key] !== undefined)
+            .map(key => [key, Number(raw.modifiers[key]) || 0])),
     };
 }
 
@@ -206,13 +244,26 @@ function normalizePlayer(raw = {}) {
         storageLocations: Array.isArray(raw.storageLocations) ? raw.storageLocations.map(normalizeStorage) : [],
         inventory: Array.isArray(raw.inventory) ? raw.inventory.map(normalizeInventoryItem) : [],
         skills: Array.isArray(raw.skills) ? raw.skills.map(normalizeSkill) : [],
+        effects: Array.isArray(raw.effects) ? raw.effects.map(normalizeEffect) : [],
         titles: Array.isArray(raw.titles) ? raw.titles.filter(Boolean).map(String) : [],
         inventoryLimits: { ...base.inventoryLimits, ...(raw.inventoryLimits || {}) },
     };
 
+    const legacyMoney = Number(raw.money) || 0;
+    const legacyCurrency = String(raw.currency || 'Gold');
+    merged.funds = {
+        system: {
+            amount: Number(raw.funds?.system?.amount ?? legacyMoney) || 0,
+            currency: String(raw.funds?.system?.currency || legacyCurrency || 'Gold'),
+        },
+        real: {
+            amount: Number(raw.funds?.real?.amount) || 0,
+            currency: String(raw.funds?.real?.currency || ''),
+        },
+    };
+
     merged.statPointsPerLevel = Math.max(0, Number(merged.statPointsPerLevel) || 5);
     merged.statPoints = Math.max(0, Number(merged.statPoints) || 0);
-    merged.money = Number(merged.money) || 0;
 
     if (!hasSystem) {
         merged.level = 0;
@@ -220,6 +271,7 @@ function normalizePlayer(raw = {}) {
         merged.xpToNext = 0;
         merged.statPoints = 0;
         merged.attributes = normalizeAttributes({});
+        merged.funds.system.amount = 0;
     } else {
         merged.level = Math.max(1, Number(merged.level) || 1);
         merged.xp = Math.max(0, Number(merged.xp) || 0);
@@ -266,6 +318,8 @@ export function makeCharacter(seed = {}) {
         vitals: {
             hp: Number.isFinite(Number(seed.vitals?.hp)) ? Number(seed.vitals.hp) : 100,
             maxHp: Math.max(1, Number(seed.vitals?.maxHp) || 100),
+            mana: Math.max(0, Number(seed.vitals?.mana) || 0),
+            maxMana: Math.max(0, Number(seed.vitals?.maxMana) || 0),
             fatigue: Math.max(0, Number(seed.vitals?.fatigue) || 0),
             maxFatigue: Math.max(1, Number(seed.vitals?.maxFatigue) || 100),
         },
@@ -312,6 +366,8 @@ function normalizeCharacter(raw = {}) {
             ...(raw.vitals || {}),
             hp: Number.isFinite(Number(raw.vitals?.hp)) ? Number(raw.vitals.hp) : base.vitals.hp,
             maxHp: Math.max(1, Number(raw.vitals?.maxHp) || base.vitals.maxHp),
+            mana: Math.max(0, Number(raw.vitals?.mana) || 0),
+            maxMana: Math.max(0, Number(raw.vitals?.maxMana) || 0),
             fatigue: Math.max(0, Number(raw.vitals?.fatigue) || 0),
             maxFatigue: Math.max(1, Number(raw.vitals?.maxFatigue) || base.vitals.maxFatigue),
         },
@@ -335,7 +391,7 @@ export function getState() {
     const ctx = getContext();
     const raw = ctx.chatMetadata?.[META_KEY];
     const state = deepClone(raw || DEFAULT_STATE);
-    state.version = 6;
+    state.version = 7;
     state.characters ||= {};
     state.order ||= [];
     state.scene = { ...DEFAULT_STATE.scene, ...(state.scene || {}) };
