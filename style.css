@@ -6959,3 +6959,265 @@ body.charListGrid #npcb-character-library-shell > #rm_print_characters_block {
         max-height: calc(100vh - 16px);
     }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   v0.11.10 — resilient responsive preview modal
+   ═══════════════════════════════════════════════════════════════ */
+
+/*
+ * The preview lives outside SillyTavern's drawer, so make it size itself from
+ * the actual viewport and its own container instead of inheriting old drawer
+ * breakpoints. This keeps it stable while the browser is resized live.
+ */
+#npcb-character-chat-modal {
+    --npcb-modal-gap: clamp(6px, 1.8vw, 18px);
+    box-sizing: border-box;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    padding: var(--npcb-modal-gap) !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: hidden;
+}
+
+.npcb-character-chat-modal-panel {
+    container-type: inline-size;
+    container-name: npcbPreview;
+    box-sizing: border-box;
+    width: min(760px, 100%) !important;
+    max-width: 100% !important;
+    height: auto;
+    max-height: min(900px, calc(100dvh - var(--npcb-modal-gap) - var(--npcb-modal-gap))) !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    display: flex;
+    flex-direction: column;
+}
+
+#npcb-character-chat-modal-content {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    max-height: none !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+}
+
+#npcb-character-chat-modal .npcb-char-library-detail-scroll {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: clamp(10px, 2.2vw, 16px) !important;
+}
+
+#npcb-character-chat-modal .npcb-char-library-hero,
+#npcb-character-chat-modal .npcb-char-library-identity,
+#npcb-character-chat-modal .npcb-char-library-actions,
+#npcb-character-chat-modal .npcb-char-library-chat-head,
+#npcb-character-chat-modal .npcb-char-chat-list,
+#npcb-character-chat-modal .npcb-char-chat-card,
+#npcb-character-chat-modal .npcb-char-chat-main {
+    min-width: 0 !important;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+#npcb-character-chat-modal .npcb-char-library-identity strong,
+#npcb-character-chat-modal .npcb-char-library-identity span,
+#npcb-character-chat-modal .npcb-char-chat-titleline strong,
+#npcb-character-chat-modal .npcb-char-chat-main p {
+    overflow-wrap: anywhere;
+}
+
+#npcb-character-chat-modal .npcb-char-library-actions > button,
+#npcb-character-chat-modal .npcb-char-chat-card > button,
+#npcb-character-chat-modal .npcb-char-chat-search {
+    box-sizing: border-box;
+    max-width: 100%;
+}
+
+/* Medium/narrow preview: stop the later 3-column favorite-chat rule from
+ * crushing the content after a live browser resize. */
+@container npcbPreview (max-width: 560px) {
+    #npcb-character-chat-modal .npcb-char-library-hero {
+        grid-template-columns: 72px minmax(0, 1fr) !important;
+        gap: 10px !important;
+    }
+
+    #npcb-character-chat-modal .npcb-char-library-avatar,
+    #npcb-character-chat-modal .npcb-char-library-avatar img {
+        width: 72px !important;
+        height: 72px !important;
+        min-width: 72px !important;
+    }
+
+    #npcb-character-chat-modal .npcb-char-library-identity strong {
+        font-size: 17px !important;
+        line-height: 1.2 !important;
+    }
+
+    #npcb-character-chat-modal .npcb-char-library-identity span {
+        font-size: 10px !important;
+    }
+
+    #npcb-character-chat-modal .npcb-char-library-actions {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 6px !important;
+    }
+
+    #npcb-character-chat-modal .npcb-char-library-actions > button {
+        width: 100% !important;
+        min-width: 0 !important;
+        white-space: normal !important;
+    }
+
+    #npcb-character-chat-modal .npcb-char-library-chat-head {
+        grid-template-columns: 1fr !important;
+        gap: 7px !important;
+    }
+
+    #npcb-character-chat-modal .npcb-char-chat-card {
+        grid-template-columns: 32px minmax(0, 1fr) !important;
+        align-items: start !important;
+        gap: 8px !important;
+        padding: 10px !important;
+    }
+
+    #npcb-character-chat-modal .npcb-chat-favorite {
+        grid-column: 1 !important;
+        grid-row: 1 !important;
+    }
+
+    #npcb-character-chat-modal .npcb-char-chat-main {
+        grid-column: 2 !important;
+        grid-row: 1 !important;
+    }
+
+    #npcb-character-chat-modal .npcb-char-chat-card > [data-open-chat] {
+        grid-column: 1 / -1 !important;
+        grid-row: 2 !important;
+        width: 100% !important;
+    }
+
+    #npcb-character-chat-modal .npcb-char-chat-titleline {
+        flex-wrap: wrap !important;
+        align-items: flex-start !important;
+    }
+
+    #npcb-character-chat-modal .npcb-char-chat-titleline strong {
+        flex: 1 1 100% !important;
+        width: 100% !important;
+        white-space: normal !important;
+        text-overflow: clip !important;
+    }
+}
+
+@container npcbPreview (max-width: 380px) {
+    #npcb-character-chat-modal .npcb-char-library-hero {
+        grid-template-columns: 58px minmax(0, 1fr) !important;
+        gap: 8px !important;
+    }
+
+    #npcb-character-chat-modal .npcb-char-library-avatar,
+    #npcb-character-chat-modal .npcb-char-library-avatar img {
+        width: 58px !important;
+        height: 58px !important;
+        min-width: 58px !important;
+        border-radius: 9px !important;
+    }
+
+    #npcb-character-chat-modal .npcb-char-library-identity strong {
+        font-size: 15px !important;
+    }
+
+    #npcb-character-chat-modal .npcb-char-library-description {
+        margin-top: 9px !important;
+        padding: 8px 9px !important;
+        font-size: 10px !important;
+        line-height: 1.5 !important;
+    }
+
+    #npcb-character-chat-modal .npcb-char-library-actions {
+        grid-template-columns: 1fr !important;
+    }
+
+    #npcb-character-chat-modal .npcb-char-library-chat-head strong {
+        font-size: 14px !important;
+    }
+
+    #npcb-character-chat-modal .npcb-char-chat-card {
+        grid-template-columns: 28px minmax(0, 1fr) !important;
+        gap: 7px !important;
+        padding: 8px !important;
+    }
+
+    #npcb-character-chat-modal .npcb-chat-favorite {
+        width: 28px !important;
+        height: 28px !important;
+        font-size: 13px !important;
+    }
+}
+
+/* Short windows (e.g. browser snapped horizontally): use nearly all available
+ * height and trim oversized header elements instead of letting the modal break. */
+@media (max-height: 620px) {
+    #npcb-character-chat-modal {
+        align-items: flex-start !important;
+        --npcb-modal-gap: 6px;
+    }
+
+    .npcb-character-chat-modal-panel {
+        max-height: calc(100dvh - 12px) !important;
+    }
+
+    #npcb-character-chat-modal .npcb-char-library-detail-scroll {
+        padding: 9px 11px 12px !important;
+    }
+
+    #npcb-character-chat-modal .npcb-char-library-back {
+        min-height: 32px !important;
+        margin-bottom: 8px !important;
+        padding-block: 5px !important;
+    }
+
+    #npcb-character-chat-modal .npcb-char-library-avatar,
+    #npcb-character-chat-modal .npcb-char-library-avatar img {
+        width: 56px !important;
+        height: 56px !important;
+        min-width: 56px !important;
+    }
+
+    #npcb-character-chat-modal .npcb-char-library-hero {
+        grid-template-columns: 56px minmax(0, 1fr) !important;
+        gap: 9px !important;
+    }
+
+    #npcb-character-chat-modal .npcb-char-library-description {
+        margin-top: 8px !important;
+        padding-block: 7px !important;
+    }
+
+    #npcb-character-chat-modal .npcb-char-library-actions {
+        margin: 8px 0 !important;
+    }
+}
+
+/* Fallback for browsers without dynamic viewport units. */
+@supports not (height: 100dvh) {
+    #npcb-character-chat-modal {
+        height: 100vh;
+    }
+    .npcb-character-chat-modal-panel {
+        max-height: calc(100vh - var(--npcb-modal-gap) - var(--npcb-modal-gap)) !important;
+    }
+}
