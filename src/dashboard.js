@@ -1,6 +1,7 @@
 import { CORE_ATTRIBUTES, getState, mutateState } from './store.js';
 import { scanLatestRoleplay } from './autoTracker.js';
 import { openArchive, openWorkshop, renderBar } from './ui.js';
+import { createArchiveGroup, getGlobalArchive, setNpcGroups } from './globalArchive.js';
 import { escapeHtml, getContext, uid } from './utils.js';
 
 const ID = 'npcb-dashboard';
@@ -9,6 +10,9 @@ const TOGGLE_ID = 'npcb-dashboard-toggle';
 let activeTab = 'status';
 let inventoryTab = 'person';
 let activeStorageId = '';
+let questCategory = 'all';
+let npcSceneOnly = true;
+let npcGroupFilter = 'all';
 let trackerStatus = { status: 'idle', message: 'Waiting for roleplay.' };
 let listenersInstalled = false;
 
