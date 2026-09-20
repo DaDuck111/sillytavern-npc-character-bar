@@ -22,6 +22,114 @@ async function run(command) {
     return pipeValue(result).trim();
 }
 
+export function parseLoreProfile(content = '') {
+    const result = {
+        aliases: [],
+        role: '',
+        faction: '',
+        profile: {},
+        relationship: {},
+        knowledge: [],
+        memories: [],
+        notes: '',
+    };
+
+    const labelMap = {
+        'role': ['role'],
+        'faction': ['faction'],
+        'age': ['profile', 'age'],
+        'gender': ['profile', 'gender'],
+        'appearance': ['profile', 'appearance'],
+        'personality': ['profile', 'personality'],
+        'background': ['profile', 'background'],
+        'goals': ['profile', 'goals'],
+        'secrets': ['profile', 'secrets'],
+        'relationship to {{user}}': ['relationship', 'label'],
+        'relationship details': ['relationship', 'detail'],
+        'notes': ['notes'],
+    };
+
+    const setPath = (obj, path, value) => {
+        if (path.length === 1) {
+            obj[path[0]] = value;
+            return;
+        }
+        obj[path[0]] ||= {};
+        obj[path[0]][path[1]] = value;
+    };
+
+    for (const rawLine of String(content || '').split(/\r?\n/)) {
+        const line = rawLine.trim();
+        if (!line || line.startsWith('[NPC:')) continue;
+        const colon = line.indexOf(':');
+        if (colon <= 0) continue;
+        const label = line.slice(0, colon).trim().toLowerCase();
+        const value = line.slice(colon + 1).trim();
+        if (!value) continue;
+
+        if (label === 'aliases') {
+            result.aliases = value.split(',').map(x => x.trim()).filter(Boolean);
+            continue;
+        }
+        if (label === 'knowledge / secrets known') {
+            result.knowledge = value.split('|').map(x => x.trim()).filter(Boolean);
+            continue;
+        }
+        if (label === 'important memories') {
+            result.memories = value.split('|').map(x => x.trim()).filter(Boolean).map(text => ({ date: '', text }));
+            continue;
+        }
+        const path = labelMap[label];
+        if (path) setPath(result, path, value);
+    }
+    return result;
+}
+
+export function applyLoreContentToCharacter(character, content, { overwrite = true } = {}) {
+    const parsed = parseLoreProfile(content);
+    const assign = (target, key, value) => {
+        if (!value) return;
+        if (overwrite || !target[key]) target[key] = value;
+    };
+
+    if (parsed.aliases.length) {
+        const merged = new Map();
+        for (const alias of [...(character.aliases || []), ...parsed.aliases]) {
+            const clean = String(alias || '').trim();
+            if (clean) merged.set(clean.toLowerCase(), clean);
+        }
+        character.aliases = [...merged.values()];
+    }
+
+    assign(character, 'role', parsed.role);
+    assign(character, 'faction', parsed.faction);
+    character.profile ||= {};
+    for (const key of ['age', 'gender', 'appearance', 'personality', 'background', 'goals', 'secrets']) {
+        assign(character.profile, key, parsed.profile?.[key]);
+    }
+
+    character.relationship ||= {};
+    assign(character.relationship, 'label', parsed.relationship?.label);
+    assign(character.relationship, 'detail', parsed.relationship?.detail);
+
+    if (parsed.knowledge.length) {
+        character.knowledge = [...new Set([...(character.knowledge || []), ...parsed.knowledge])];
+    }
+    if (parsed.memories.length) {
+        const seen = new Set((character.memories || []).map(x => String(x?.text ?? x).trim().toLowerCase()));
+        character.memories ||= [];
+        for (const memory of parsed.memories) {
+            const key = memory.text.trim().toLowerCase();
+            if (key && !seen.has(key)) {
+                character.memories.push(memory);
+                seen.add(key);
+            }
+        }
+    }
+    assign(character, 'notes', parsed.notes);
+    return character;
+}
+
 export function buildLoreContent(character) {
     const lines = [];
     const add = (label, value) => {
