@@ -13,6 +13,7 @@ let activeStorageId = '';
 let questCategory = 'all';
 let npcSceneOnly = true;
 let npcGroupFilter = 'all';
+let npcFactionFilter = 'all';
 let trackerStatus = { status: 'idle', message: 'Waiting for roleplay.' };
 let listenersInstalled = false;
 
@@ -207,10 +208,10 @@ function installTabReordering(root) {
 }
 
 function statusLabel() {
-    if (trackerStatus.status === 'scanning') return 'SYSTEM SCANNING';
-    if (trackerStatus.status === 'error') return 'SYSTEM ERROR';
-    if (trackerStatus.status === 'ready') return 'SYSTEM ONLINE';
-    return 'SYSTEM IDLE';
+    if (trackerStatus.status === 'scanning') return 'TRACKER SCANNING';
+    if (trackerStatus.status === 'error') return 'TRACKER ERROR';
+    if (trackerStatus.status === 'ready') return 'TRACKER ONLINE';
+    return 'TRACKER IDLE';
 }
 
 function statusClass() {
@@ -236,7 +237,8 @@ function relationshipPct(value) {
 
 function playerTitle(player) {
     if (!player.hasSystem) return 'SYSTEM NOT ACQUIRED';
-    return player.title || player.className || 'AWAKENED';
+    const equipped = (player.titles || []).find(title => title.id === player.equippedTitleId || title.equipped);
+    return equipped?.name || player.title || player.className || 'AWAKENED';
 }
 
 function renderRecentEvents(state) {
@@ -280,6 +282,10 @@ function renderAttributes(player) {
     for (const effect of player.effects || []) {
         for (const key of CORE_ATTRIBUTES) modifiers[key] += Number(effect.modifiers?.[key]) || 0;
     }
+    const equippedTitle = (player.titles || []).find(title => title.id === player.equippedTitleId || title.equipped);
+    if (equippedTitle) {
+        for (const key of CORE_ATTRIBUTES) modifiers[key] += Number(equippedTitle.modifiers?.[key]) || 0;
+    }
 
     return `
         <div class="npcb-system-section-head">
@@ -315,13 +321,32 @@ function worldConditionChips(values = {}) {
         .join('');
 }
 
+function approximateTimeFromDayPart(dayPart = '') {
+    const key = String(dayPart).trim().toLowerCase();
+    const map = {
+        dawn: '~06:00',
+        morning: '~09:00',
+        noon: '~12:00',
+        midday: '~12:00',
+        afternoon: '~15:00',
+        evening: '~19:00',
+        night: '~22:00',
+        'late night': '~01:00',
+    };
+    return map[key] || '';
+}
+
 function renderWorldState(state) {
     const scene = state.scene || {};
-    const chips = worldConditionChips(scene);
+    const display = {
+        ...scene,
+        time: String(scene.time || '').trim() || approximateTimeFromDayPart(scene.dayPart) || 'Not established',
+    };
+    const chips = worldConditionChips(display);
     return `
         <div class="npcb-system-section-head"><span>RP WORLD STATE</span><div><b>STORY TIME</b><button data-action="world-edit">EDIT</button></div></div>
         <div class="npcb-world-state">
-            ${chips || '<div class="npcb-side-empty">Time / date / weather not established yet.</div>'}
+            ${chips}
         </div>
     `;
 }
@@ -386,6 +411,18 @@ function renderStatus(state) {
 
         <div class="npcb-system-section-head"><span>VITAL / CUSTOM STATS</span><button data-action="stat-add">＋ ADD STAT</button></div>
         <div class="npcb-system-stats">${stats || '<div class="npcb-side-empty">No custom stats configured.</div>'}</div>
+
+        <div class="npcb-system-section-head"><span>RESISTANCES</span><button data-action="resistance-add">＋ ADD</button></div>
+        <div class="npcb-resistance-grid">
+            ${(p.resistances || []).length ? p.resistances.map(resistance => `
+                <div class="npcb-resistance-card" data-resistance-id="${escapeHtml(resistance.id)}">
+                    <div><strong>${escapeHtml(resistance.name)}</strong><span>${escapeHtml(resistance.value)}%</span></div>
+                    <div class="npcb-resistance-bar"><i style="width:${Math.max(0, Math.min(100, (Number(resistance.value) + 100) / 2))}%"></i></div>
+                    ${resistance.description ? `<small>${escapeHtml(resistance.description)}</small>` : ''}
+                    <div><label><input class="npcb-resistance-ai" type="checkbox" ${resistance.aiTrack !== false ? 'checked' : ''}> AI</label><button data-action="resistance-edit">EDIT</button><button data-action="resistance-delete">×</button></div>
+                </div>
+            `).join('') : '<div class="npcb-side-empty">No resistances tracked.</div>'}
+        </div>
 
         ${p.condition ? `<div class="npcb-system-condition"><small>CONDITION</small><span>${escapeHtml(p.condition)}</span></div>` : ''}
 
