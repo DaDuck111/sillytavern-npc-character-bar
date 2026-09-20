@@ -330,7 +330,7 @@ function renderLoreLibrary(character) {
 
         <div class="npcb-lore-help">
             <strong>How this works</strong>
-            <span>Select a Lorebook below, then Sync NPC. Existing entry → profile refresh. No matching entry → create one from this NPC profile.</span>
+            <span>Select a Lorebook below, then Sync NPC. Use the main Worlds/Lorebooks screen to create folders and drag books between them.</span>
         </div>
 
         <div class="npcb-lore-library-tools">
@@ -341,7 +341,7 @@ function renderLoreLibrary(character) {
                 <option value="inactive" ${loreActiveFilter === 'inactive' ? 'selected' : ''}>Inactive only</option>
             </select>
             <select class="npcb-lore-group-filter">
-                <option value="all">All groups</option>
+                <option value="all">All folders</option>
                 ${groups.map(group => `<option value="${escapeHtml(group)}" ${loreGroupFilter === group ? 'selected' : ''}>${escapeHtml(group)}</option>`).join('')}
             </select>
             <select class="npcb-lore-tag-filter">
@@ -370,7 +370,6 @@ function renderLoreLibrary(character) {
                                 <input type="checkbox" ${book.active ? 'checked' : ''}>
                                 <span>${book.active ? 'ACTIVE' : 'INACTIVE'}</span>
                             </label>
-                            <button class="npcb-lore-organize" type="button">ORGANIZE</button>
                         </article>
                     `).join('')}
                 </section>
@@ -516,7 +515,7 @@ export function openWorkshop(id, tab = 'overview') {
             <section data-pane="lore" class="${tab === 'lore' ? 'active' : ''}">
                 <div class="npcb-section-heading">
                     <div><small>LOREBOOK LIBRARY</small><strong>NPC Lore & Active Books</strong></div>
-                    <span>Choose which Lorebook owns this NPC, organize books with groups/tags, and toggle which global Lorebooks are active in SillyTavern.</span>
+                    <span>Choose which Lorebook owns this NPC. Folder organization is shared with the main Worlds/Lorebooks organizer; tags and active state stay synced.</span>
                 </div>
                 ${renderLoreLibrary(character)}
             </section>
@@ -725,20 +724,6 @@ function bindWorkshopEvents(character, activeTab = 'overview') {
             rerenderLore();
         });
 
-        card.querySelector('.npcb-lore-organize')?.addEventListener('click', () => {
-            const catalog = getLorebookCatalog();
-            const book = catalog.find(x => x.name === name);
-            if (!book) return;
-            const group = prompt('Lorebook group / folder (blank = ungrouped)', book.group || '');
-            if (group === null) return;
-            const tags = prompt('Tags, comma-separated', (book.tags || []).join(', '));
-            if (tags === null) return;
-            updateLorebookMeta(name, {
-                group: group.trim(),
-                tags: tags.split(',').map(x => x.trim().replace(/^#/, '')).filter(Boolean),
-            });
-            rerenderLore();
-        });
     });
 
     root.querySelector('.npcb-lore-sync')?.addEventListener('click', async () => {
