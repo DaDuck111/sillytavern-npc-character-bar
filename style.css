@@ -6840,3 +6840,21 @@ body.charListGrid #npcb-character-library-shell > #rm_print_characters_block {
         max-width: 40px !important;
     }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   v0.11.6 — clickable character cards
+   ═══════════════════════════════════════════════════════════════ */
+#npcb-character-library-shell .npcb-character-openhint {
+    appearance: none;
+    -webkit-appearance: none;
+    font-family: inherit;
+    cursor: pointer;
+}
+#npcb-character-library-shell #rm_print_characters_block .character_select[role="button"] {
+    cursor: pointer !important;
+}
+#npcb-character-library-shell #rm_print_characters_block .character_select[role="button"]:focus-visible {
+    outline: 2px solid rgba(var(--npcb-accent-rgb), .65);
+    outline-offset: 2px;
+}

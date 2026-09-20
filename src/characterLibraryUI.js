@@ -170,7 +170,7 @@ function decorateHotswap() {
     const ctx = currentContext();
     document.querySelectorAll('#right-nav-panel .hotswap .avatar[data-chid]').forEach(avatarEl => {
         const chid = avatarEl.dataset.chid;
-        const character = characterById(chid);
+        const character = characterById(chid, avatarEl.closest?.('.character_select') || null);
         if (!character) return;
 
         const streak = getCharacterStreak(character.avatar);
@@ -195,11 +195,58 @@ function decorateHotswap() {
     });
 }
 
-function characterById(chid) {
+function characterList() {
     const ctx = currentContext();
-    if (!ctx) return null;
-    const chars = Array.isArray(ctx.characters) ? ctx.characters : Object.values(ctx.characters || {});
-    return chars[Number(chid)] || null;
+    if (!ctx) return [];
+    return Array.isArray(ctx.characters) ? ctx.characters : Object.values(ctx.characters || {});
+}
+
+function cardChid(card) {
+    return String(
+        card?.dataset?.chid
+        ?? card?.getAttribute?.('data-chid')
+        ?? card?.getAttribute?.('chid')
+        ?? '',
+    );
+}
+
+function characterById(chid, card = null) {
+    const chars = characterList();
+    if (!chars.length) return null;
+
+    const numericId = Number(chid);
+    if (Number.isInteger(numericId) && numericId >= 0 && chars[numericId]) {
+        return chars[numericId];
+    }
+
+    // Fallback for SillyTavern builds/themes that rewrite or omit data-chid.
+    // Match the visible card back to the live character list instead of making
+    // the whole card silently stop working.
+    const visibleName = String(card?.querySelector?.('.ch_name')?.textContent || '').trim();
+    const avatarTitle = String(card?.querySelector?.('.avatar')?.getAttribute?.('title') || '');
+    const fileMatch = /(?:^|\n)File:\s*(.+)$/m.exec(avatarTitle);
+    const avatarFile = String(fileMatch?.[1] || '').trim();
+
+    if (avatarFile) {
+        const byAvatar = chars.find(character => String(character?.avatar || '') === avatarFile);
+        if (byAvatar) return byAvatar;
+    }
+
+    if (visibleName) {
+        const byName = chars.find(character => String(character?.name || '').trim() === visibleName);
+        if (byName) return byName;
+    }
+
+    return null;
+}
+
+function characterIndex(character, fallbackChid = '') {
+    const chars = characterList();
+    const numericId = Number(fallbackChid);
+    if (Number.isInteger(numericId) && numericId >= 0 && chars[numericId] === character) {
+        return numericId;
+    }
+    return chars.indexOf(character);
 }
 
 function avatarUrl(character, card = null) {
@@ -325,12 +372,14 @@ function enhanceNativeCharacterEditor() {
 
 function enhanceCards() {
     document.querySelectorAll('#rm_print_characters_block .character_select').forEach(card => {
-        const chid = card.dataset.chid ?? card.getAttribute('data-chid');
-        if (chid === null || chid === undefined) return;
+        const chid = cardChid(card);
+        if (!chid) return;
         card.dataset.npcbLibraryReady = '1';
+        card.setAttribute('role', 'button');
+        if (!card.hasAttribute('tabindex')) card.setAttribute('tabindex', '0');
         card.setAttribute('aria-label', `${card.querySelector('.ch_name')?.textContent || 'Character'} — click to view chats`);
         card.setAttribute('title', 'Click to view chats');
-        const character = characterById(chid);
+        const character = characterById(chid, card);
         const streak = getCharacterStreak(character?.avatar);
         let streakBadge = card.querySelector('.npcb-character-streak');
         if (streak > 0) {
@@ -345,19 +394,24 @@ function enhanceCards() {
             streakBadge?.remove();
         }
 
-        if (!card.querySelector('.npcb-character-openhint')) {
-            const hint = document.createElement('span');
-            hint.className = 'npcb-character-openhint';
-            hint.textContent = 'VIEW CHATS ›';
-            card.appendChild(hint);
+        let hint = card.querySelector('.npcb-character-openhint');
+        if (!hint || hint.tagName !== 'BUTTON') {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'npcb-character-openhint';
+            button.textContent = 'VIEW CHATS ›';
+            if (hint) hint.replaceWith(button);
+            else card.appendChild(button);
+            hint = button;
         }
+        hint.setAttribute('aria-label', `View chats for ${card.querySelector('.ch_name')?.textContent || 'character'}`);
     });
     markSelectedCard();
     decorateHotswap();
 }
 
-async function fetchCharacterChats(chid, { force = false } = {}) {
-    const character = characterById(chid);
+async function fetchCharacterChats(chid, { force = false, character: suppliedCharacter = null, card = null } = {}) {
+    const character = suppliedCharacter || characterById(chid, card);
     if (!character?.avatar) return [];
 
     const key = String(character.avatar);
@@ -430,10 +484,12 @@ function cardTags(card) {
         .slice(0, 12);
 }
 
-function renderCharacterDetail(chid, chats, card) {
+function renderCharacterDetail(chid, chats, card, suppliedCharacter = null) {
     const detail = document.getElementById(DETAIL_ID);
-    const character = characterById(chid);
+    const character = suppliedCharacter || characterById(chid, card);
     if (!detail || !character) return;
+
+    const resolvedIndex = characterIndex(character, chid);
 
     const ctx = currentContext();
     const avatar = avatarUrl(character, card);
@@ -441,7 +497,7 @@ function renderCharacterDetail(chid, chats, card) {
     const version = characterVersion(character);
     const tags = cardTags(card);
     const currentChatId = String(ctx?.getCurrentChatId?.() || ctx?.chatId || '');
-    const isCurrentCharacter = String(ctx?.characterId) === String(chid);
+    const isCurrentCharacter = resolvedIndex >= 0 && String(ctx?.characterId) === String(resolvedIndex);
 
     detail.innerHTML = `
         <div class="npcb-char-library-detail-scroll">
@@ -520,8 +576,8 @@ function renderCharacterDetail(chid, chats, card) {
         if (!fileId) return;
 
         try {
-            if (String(latestCtx.characterId) !== String(chid)) {
-                await latestCtx.selectCharacterById?.(Number(chid), { switchMenu: false });
+            if (resolvedIndex >= 0 && String(latestCtx.characterId) !== String(resolvedIndex)) {
+                await latestCtx.selectCharacterById?.(resolvedIndex, { switchMenu: false });
             }
             await currentContext()?.openCharacterChat?.(fileId);
             chatCache.delete(String(character.avatar || ''));
@@ -554,7 +610,7 @@ function renderCharacterDetail(chid, chats, card) {
             if (chats[0]) {
                 await openExactChat(chats[0]);
             } else {
-                await currentContext()?.selectCharacterById?.(Number(chid));
+                if (resolvedIndex >= 0) await currentContext()?.selectCharacterById?.(resolvedIndex);
             }
         } catch (error) {
             console.error('[NPC Character Bar] Could not open character:', error);
@@ -579,9 +635,12 @@ function renderCharacterDetail(chid, chats, card) {
     });
 }
 
-async function selectCharacterPreview(chid, card = null, { force = false } = {}) {
-    const character = characterById(chid);
-    if (!character) return;
+async function selectCharacterPreview(chid, card = null, { force = false, character: suppliedCharacter = null } = {}) {
+    const character = suppliedCharacter || characterById(chid, card);
+    if (!character) {
+        console.warn('[NPC Character Bar] Could not resolve clicked character card.', { chid, card });
+        return false;
+    }
 
     selectedChid = String(chid);
     document.getElementById(SHELL_ID)?.classList.add('has-selection');
@@ -590,9 +649,14 @@ async function selectCharacterPreview(chid, card = null, { force = false } = {})
 
     const serial = ++requestSerial;
     try {
-        const chats = await fetchCharacterChats(chid, { force });
-        if (serial !== requestSerial || String(selectedChid) !== String(chid)) return;
-        renderCharacterDetail(chid, chats, card || document.querySelector(`#rm_print_characters_block .character_select[data-chid="${CSS.escape(String(chid))}"]`));
+        const chats = await fetchCharacterChats(chid, { force, character, card });
+        if (serial !== requestSerial || String(selectedChid) !== String(chid)) return true;
+        renderCharacterDetail(
+            chid,
+            chats,
+            card || document.querySelector(`#rm_print_characters_block .character_select[data-chid="${CSS.escape(String(chid))}"]`),
+            character,
+        );
     } catch (error) {
         if (serial !== requestSerial) return;
         const detail = document.getElementById(DETAIL_ID);
@@ -608,9 +672,34 @@ async function selectCharacterPreview(chid, card = null, { force = false } = {})
                 </div>
             `;
             detail.querySelector('.npcb-char-library-back')?.addEventListener('click', backToCharacterList);
-            detail.querySelector('.npcb-char-library-retry')?.addEventListener('click', () => selectCharacterPreview(chid, card, { force: true }));
+            detail.querySelector('.npcb-char-library-retry')?.addEventListener('click', () => selectCharacterPreview(chid, card, { force: true, character }));
         }
     }
+    return true;
+}
+
+function beginPreviewFromCard(card, { force = false } = {}) {
+    if (!card || isBulkMode()) return false;
+
+    const chid = cardChid(card);
+    if (!chid) return false;
+
+    const character = characterById(chid, card);
+    if (!character) {
+        console.warn('[NPC Character Bar] Character card could not be matched. Falling back to SillyTavern native click.', { chid, card });
+        return false;
+    }
+
+    // ensureShell can repair the wrapper if SillyTavern rebuilt the list.
+    const shell = ensureShell();
+    const detail = document.getElementById(DETAIL_ID);
+    if (!shell || !detail) {
+        console.warn('[NPC Character Bar] Character library shell is unavailable. Falling back to SillyTavern native click.');
+        return false;
+    }
+
+    void selectCharacterPreview(chid, card, { force, character });
+    return true;
 }
 
 function handleCharacterClick(event) {
@@ -618,27 +707,28 @@ function handleCharacterClick(event) {
     if (!card) return;
     if (isBulkMode()) return;
 
-    // Leave native controls/tags/context affordances alone.
-    if (event.target.closest('input, label, button, a, .tag, .bulk_select_checkbox, .ch_fav_icon')) return;
+    // Leave native controls/tags/context affordances alone, except our own
+    // explicit VIEW CHATS button.
+    const nativeControl = event.target.closest?.('input, label, button, a, .tag, .bulk_select_checkbox, .ch_fav_icon');
+    if (nativeControl && !nativeControl.classList?.contains('npcb-character-openhint')) return;
 
-    const chid = card.dataset.chid ?? card.getAttribute('data-chid');
-    if (chid === undefined || chid === null || chid === '') return;
+    // Only suppress SillyTavern's native character click after we know the
+    // preview can actually open. This prevents "click does nothing" failures.
+    if (!beginPreviewFromCard(card)) return;
 
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation?.();
-    selectCharacterPreview(chid, card);
 }
 
 function handleKeyboard(event) {
     if (!['Enter', ' '].includes(event.key)) return;
     const card = event.target.closest?.('#rm_print_characters_block .character_select');
     if (!card || isBulkMode()) return;
-    const chid = card.dataset.chid;
-    if (chid === undefined) return;
+    if (!beginPreviewFromCard(card)) return;
     event.preventDefault();
     event.stopPropagation();
-    selectCharacterPreview(chid, card);
+    event.stopImmediatePropagation?.();
 }
 
 export function refreshCharacterLibrary() {
