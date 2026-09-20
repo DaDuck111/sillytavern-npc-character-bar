@@ -168,6 +168,8 @@ function buildPrompt(ctx, state, latestIndex) {
         objectives: q.objectives,
         reward: q.reward,
         source: q.source,
+        conditions: q.conditions,
+        conditionsMet: Boolean(q.conditionsMet),
     }));
 
     const recentEvents = (state.events || []).slice(-12).map(e => ({
@@ -176,6 +178,9 @@ function buildPrompt(ctx, state, latestIndex) {
         description: e.description,
         location: e.location,
         importance: e.importance,
+        status: e.status,
+        trigger: e.trigger,
+        triggerMet: Boolean(e.triggerMet),
     }));
 
     const system = `You are a silent RPG state extractor for SillyTavern.
