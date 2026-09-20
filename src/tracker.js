@@ -802,7 +802,6 @@ export async function applyTrackerPayload(payload = {}) {
 
     refreshConditionStates(state);
     await saveState(state);
-    window.dispatchEvent(new CustomEvent('npcb:state-changed'));
     return state;
 }
 
