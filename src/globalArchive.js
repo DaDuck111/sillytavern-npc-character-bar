@@ -126,6 +126,14 @@ function findArchiveMatch(root, character, chatRef) {
         return sameSource[0];
     }
 
+    // Legacy archive records created before source ownership was stored:
+    // if there is only one matching identity and it has no conflicting known source,
+    // reuse it rather than creating another duplicate on a fresh chat.
+    if (candidates.length === 1) {
+        const knownSources = [...new Set((candidates[0].chatLinks || []).map(link => link.sourceKey).filter(Boolean))];
+        if (!knownSources.length || knownSources.includes(chatRef.sourceKey)) return candidates[0];
+    }
+
     return candidates.find(entry => {
         if (!entry.autoInsert) return false;
         if (entry.scope === 'global') return true;
@@ -144,7 +152,8 @@ export function syncArchiveFromState(state) {
         const rawArchiveId = String(character.archiveId || '');
         const redirectedId = rawArchiveId ? resolveRedirect(root, rawArchiveId) : '';
         if (redirectedId && redirectedId !== rawArchiveId) character.archiveId = redirectedId;
-        if (rawArchiveId && (root.deletedNpcIds || []).includes(rawArchiveId) && !root.redirects?.[rawArchiveId]) {
+        if ((rawArchiveId && (root.deletedNpcIds || []).includes(rawArchiveId) && !root.redirects?.[rawArchiveId])
+            || (redirectedId && (root.deletedNpcIds || []).includes(redirectedId))) {
             continue;
         }
 
