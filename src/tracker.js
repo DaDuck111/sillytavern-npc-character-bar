@@ -1,4 +1,5 @@
 import { findByNameOrAlias, getState, makeCharacter, saveState } from './store.js';
+import { normalizeName, uid } from './utils.js';
 
 function mergeScene(character, update) {
     for (const key of ['location', 'mood', 'action', 'condition', 'clothing', 'thoughts']) {
@@ -61,6 +62,162 @@ function createFromRaw(state, raw) {
     return character;
 }
 
+function findStat(player, name) {
+    const needle = normalizeName(name);
+    return player.stats.find(stat => normalizeName(stat.name) === needle) || null;
+}
+
+function findItem(player, name) {
+    const needle = normalizeName(name);
+    return player.inventory.find(item => normalizeName(item.name) === needle) || null;
+}
+
+function findSkill(player, name) {
+    const needle = normalizeName(name);
+    return player.skills.find(skill => normalizeName(skill.name) === needle) || null;
+}
+
+function applyPlayerUpdate(state, update = {}) {
+    const player = state.player;
+    const tracker = state.tracker || {};
+
+    for (const key of ['name', 'title', 'className', 'currency', 'currentLocation', 'homeLocation', 'homeDescription', 'condition']) {
+        if (update[key] !== undefined && update[key] !== null && String(update[key]).trim() !== '') {
+            player[key] = String(update[key]);
+        }
+    }
+
+    if (update.level !== undefined && update.level !== null && update.level !== '') {
+        player.level = Math.max(1, Number(update.level) || player.level || 1);
+    }
+    if (update.xpToNext !== undefined && update.xpToNext !== null && update.xpToNext !== '') {
+        player.xpToNext = Math.max(1, Number(update.xpToNext) || player.xpToNext || 100);
+    }
+    if (update.xp !== undefined && update.xp !== null && update.xp !== '') {
+        player.xp = Math.max(0, Number(update.xp) || 0);
+    } else if (update.xpDelta !== undefined && update.xpDelta !== null && update.xpDelta !== '') {
+        player.xp = Math.max(0, (Number(player.xp) || 0) + (Number(update.xpDelta) || 0));
+    }
+
+    if (tracker.trackMoney !== false) {
+        if (update.money !== undefined && update.money !== null && update.money !== '') {
+            player.money = Number(update.money) || 0;
+        } else if (update.moneyDelta !== undefined && update.moneyDelta !== null && update.moneyDelta !== '') {
+            player.money = (Number(player.money) || 0) + (Number(update.moneyDelta) || 0);
+        }
+    }
+
+    if (tracker.trackStats !== false && Array.isArray(update.statUpdates)) {
+        for (const raw of update.statUpdates) {
+            if (!raw?.name) continue;
+            let stat = findStat(player, raw.name);
+            if (!stat) {
+                stat = {
+                    id: uid('stat'),
+                    name: String(raw.name),
+                    value: Number(raw.value ?? 0) || 0,
+                    max: Number(raw.max ?? 100) || 100,
+                    unit: String(raw.unit ?? ''),
+                    aiTrack: true,
+                };
+                player.stats.push(stat);
+            }
+            if (stat.aiTrack === false) continue;
+            if (raw.max !== undefined && raw.max !== null && raw.max !== '') stat.max = Number(raw.max) || stat.max || 100;
+            if (raw.unit !== undefined && raw.unit !== null) stat.unit = String(raw.unit);
+            if (raw.value !== undefined && raw.value !== null && raw.value !== '') stat.value = Number(raw.value) || 0;
+            else if (raw.delta !== undefined && raw.delta !== null && raw.delta !== '') stat.value = (Number(stat.value) || 0) + (Number(raw.delta) || 0);
+            if (Number.isFinite(Number(stat.max)) && Number(stat.max) > 0) {
+                stat.value = Math.max(0, Math.min(Number(stat.value) || 0, Number(stat.max)));
+            }
+        }
+    }
+
+    if (tracker.trackInventory !== false) {
+        for (const raw of update.inventoryAdd || []) {
+            if (!raw?.name) continue;
+            let item = findItem(player, raw.name);
+            const qty = Math.max(1, Number(raw.quantity ?? raw.qty ?? 1) || 1);
+            if (!item) {
+                item = {
+                    id: uid('item'),
+                    name: String(raw.name),
+                    quantity: qty,
+                    type: String(raw.type || ''),
+                    description: String(raw.description || ''),
+                    equipped: Boolean(raw.equipped),
+                    value: Number(raw.value) || 0,
+                };
+                player.inventory.push(item);
+            } else {
+                item.quantity = Math.max(0, Number(item.quantity || 0) + qty);
+                if (raw.type) item.type = String(raw.type);
+                if (raw.description) item.description = String(raw.description);
+                if (raw.equipped !== undefined) item.equipped = Boolean(raw.equipped);
+                if (raw.value !== undefined && raw.value !== '') item.value = Number(raw.value) || 0;
+            }
+        }
+
+        for (const raw of update.inventoryRemove || []) {
+            if (!raw?.name) continue;
+            const item = findItem(player, raw.name);
+            if (!item) continue;
+            const qty = Math.max(1, Number(raw.quantity ?? raw.qty ?? 1) || 1);
+            item.quantity = Math.max(0, Number(item.quantity || 0) - qty);
+        }
+        player.inventory = player.inventory.filter(item => Number(item.quantity) > 0);
+
+        for (const raw of update.inventoryUpdate || []) {
+            if (!raw?.name) continue;
+            const item = findItem(player, raw.name);
+            if (!item) continue;
+            if (raw.quantity !== undefined && raw.quantity !== null && raw.quantity !== '') item.quantity = Math.max(0, Number(raw.quantity) || 0);
+            if (raw.type !== undefined && raw.type !== null) item.type = String(raw.type);
+            if (raw.description !== undefined && raw.description !== null) item.description = String(raw.description);
+            if (raw.equipped !== undefined) item.equipped = Boolean(raw.equipped);
+            if (raw.value !== undefined && raw.value !== null && raw.value !== '') item.value = Number(raw.value) || 0;
+        }
+        player.inventory = player.inventory.filter(item => Number(item.quantity) > 0);
+    }
+
+    if (tracker.trackSkills !== false) {
+        for (const raw of update.skillsAdd || []) {
+            if (!raw?.name) continue;
+            let skill = findSkill(player, raw.name);
+            if (!skill) {
+                skill = {
+                    id: uid('skill'),
+                    name: String(raw.name),
+                    rank: String(raw.rank || raw.level || ''),
+                    description: String(raw.description || ''),
+                    source: String(raw.source || ''),
+                };
+                player.skills.push(skill);
+            } else {
+                if (raw.rank || raw.level) skill.rank = String(raw.rank || raw.level);
+                if (raw.description) skill.description = String(raw.description);
+                if (raw.source) skill.source = String(raw.source);
+            }
+        }
+
+        for (const raw of update.skillsUpdate || []) {
+            if (!raw?.name) continue;
+            const skill = findSkill(player, raw.name);
+            if (!skill) continue;
+            if (raw.rank !== undefined || raw.level !== undefined) skill.rank = String(raw.rank ?? raw.level ?? '');
+            if (raw.description !== undefined) skill.description = String(raw.description || '');
+            if (raw.source !== undefined) skill.source = String(raw.source || '');
+        }
+    }
+
+    for (const title of update.titlesAdd || []) {
+        const clean = String(title || '').trim();
+        if (clean && !player.titles.some(x => normalizeName(x) === normalizeName(clean))) player.titles.push(clean);
+    }
+
+    if (!player.currentLocation && state.scene?.location) player.currentLocation = state.scene.location;
+}
+
 export async function applyTrackerPayload(payload = {}) {
     if (Array.isArray(payload)) {
         payload = {
@@ -95,6 +252,10 @@ export async function applyTrackerPayload(payload = {}) {
                 state.scene[key] = String(payload.scene[key]);
             }
         }
+    }
+
+    if (payload.playerUpdates && state.tracker?.trackPlayer !== false) {
+        applyPlayerUpdate(state, payload.playerUpdates);
     }
 
     for (const raw of payload.newCharacters || []) {
