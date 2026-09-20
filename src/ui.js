@@ -226,6 +226,7 @@ const persistWorkshop = debounce(async () => {
     await updateCharacter(currentCharacterId, character => {
         form.querySelectorAll('[data-field]').forEach(input => {
             let value = input.type === 'checkbox' ? input.checked : input.value;
+            if (input.type === 'number') value = Number(value) || 0;
             if (input.dataset.field === 'aliases') {
                 character.aliases = value.split(',').map(x => x.trim()).filter(Boolean);
                 return;
@@ -402,6 +403,31 @@ function bindWorkshopEvents(character) {
     root.querySelectorAll('[data-field]').forEach(input => input.addEventListener('input', persistWorkshop));
     root.querySelectorAll('[data-field]').forEach(input => input.addEventListener('change', persistWorkshop));
 
+    root.querySelector('.npcb-npc-system-toggle')?.addEventListener('change', async event => {
+        const enabled = event.target.checked;
+        await updateCharacter(character.id, c => {
+            c.system ||= {};
+            c.system.hasSystem = enabled;
+            if (enabled) {
+                c.system.level = Math.max(1, Number(c.system.level) || 1);
+                c.system.xp = Math.max(0, Number(c.system.xp) || 0);
+                c.system.xpToNext = Math.max(1, Number(c.system.xpToNext) || 100);
+                c.system.attributes ||= {};
+                if (CORE_ATTRIBUTES.every(key => !Number(c.system.attributes[key]))) {
+                    c.system.attributes = Object.fromEntries(CORE_ATTRIBUTES.map(key => [key, 10]));
+                }
+                c.system.stats ||= [];
+            } else {
+                c.system.level = 0;
+                c.system.xp = 0;
+                c.system.xpToNext = 0;
+                c.system.attributes = Object.fromEntries(CORE_ATTRIBUTES.map(key => [key, 0]));
+                c.system.stats = [];
+            }
+        });
+        openWorkshop(character.id, 'stats');
+    });
+
     root.querySelector('.npcb-delete-character').addEventListener('click', async () => {
         if (!confirm(`Delete ${character.name} from this chat's Character Archive?`)) return;
         await deleteCharacter(character.id);
@@ -481,7 +507,8 @@ async function persistWorkshopNow(id) {
     if (!form) return;
     await updateCharacter(id, character => {
         form.querySelectorAll('[data-field]').forEach(input => {
-            const value = input.type === 'checkbox' ? input.checked : input.value;
+            let value = input.type === 'checkbox' ? input.checked : input.value;
+            if (input.type === 'number') value = Number(value) || 0;
             if (input.dataset.field === 'aliases') {
                 character.aliases = String(value).split(',').map(x => x.trim()).filter(Boolean);
             } else if (input.dataset.field === 'knowledge') {
