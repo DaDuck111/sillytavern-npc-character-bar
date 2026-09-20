@@ -128,8 +128,12 @@ function ensureHeading() {
 function updateHeading() {
     const heading = document.getElementById('npcb-character-library-heading');
     if (!heading) return;
-    const selected = Boolean(selectedChid);
-    heading.innerHTML = selected ? `
+
+    const mode = selectedChid ? 'chat' : 'character';
+    if (heading.dataset.mode === mode) return;
+    heading.dataset.mode = mode;
+
+    heading.innerHTML = mode === 'chat' ? `
         <div>
             <small>STEP 2</small>
             <strong>Choose a Chat</strong>
@@ -485,8 +489,33 @@ export function mountCharacterLibrary() {
         });
     }
 
-    const observer = new MutationObserver(() => {
-        if (document.getElementById('rm_print_characters_block')) refreshCharacterLibrary();
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
+    let refreshQueued = false;
+    const scheduleRefresh = () => {
+        if (refreshQueued) return;
+        refreshQueued = true;
+        requestAnimationFrame(() => {
+            refreshQueued = false;
+            try {
+                refreshCharacterLibrary();
+            } catch (error) {
+                console.error('[NPC Character Bar] Character Library refresh failed:', error);
+            }
+        });
+    };
+
+    const observeTarget = document.getElementById('rm_characters_block');
+    if (observeTarget) {
+        const observer = new MutationObserver(mutations => {
+            const relevant = mutations.some(mutation => {
+                const nodes = [...mutation.addedNodes, ...mutation.removedNodes];
+                return nodes.some(node => {
+                    if (!(node instanceof Element)) return false;
+                    if (node.matches?.('.character_select, .group_select, .bogus_folder_select, #rm_print_characters_block')) return true;
+                    return Boolean(node.querySelector?.('.character_select, .group_select, .bogus_folder_select, #rm_print_characters_block'));
+                });
+            });
+            if (relevant) scheduleRefresh();
+        });
+        observer.observe(observeTarget, { childList: true, subtree: true });
+    }
 }
