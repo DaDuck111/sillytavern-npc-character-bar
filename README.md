@@ -1,5 +1,29 @@
 # NPC Character Bar for SillyTavern
 
+## v0.10.0 — Lorebook Folders, Theme Colors & Simpler Quests
+
+- **Lorebook folders replace the old group button workflow**
+  - Create persistent folders from the Lorebook organizer sidebar.
+  - Drag one Lorebook into a folder, or select several books and drag the whole selection.
+  - Select one or more Lorebooks, right-click a selected card, then choose **Move to** any folder or **Ungrouped**.
+  - Folder **…** options support rename/delete; deleting a folder keeps its Lorebooks and moves them to Ungrouped.
+  - Folder metadata is shared with **NPC Profile → Lorebook**, so NPC filtering sees the same folder structure.
+  - The old per-book **GROUP / TAG / ORGANIZE** movement button was removed from the NPC Lorebook view.
+
+- **Customizable UI colors**
+  - Open the right-side **SYSTEM** tab → **UI THEME**.
+  - Choose a custom **Accent color** and **Panel background**.
+  - Accent presets are included for cyan, purple, green, amber, pink/red and neutral white.
+  - Theme settings are global extension preferences, so they follow you across chats.
+  - The accent/background apply to the System HUD, character bar/archive, NPC Thoughts, dialogs and Lorebook organizer/native Lorebook theming.
+  - **RESET** restores the original cyan-on-dark theme.
+
+- **Quest categories simplified**
+  - Quest Log now uses only **Main / Side / System**.
+  - The **Story** quest tab/category is removed.
+  - Existing Story quests automatically migrate to **Side**.
+  - AI-generated durable non-main objectives are classified as Side; true System-issued quests remain System-only.
+
 ## v0.9.0 — Archive Bulk Tools, Chat Ownership & Large Lorebook UI
 
 - **Character Archive checkbox selection**
