@@ -1,5 +1,16 @@
 # NPC Character Bar for SillyTavern
 
+## v0.11.3 — Cleaner Character Selector & Native Editor Theme
+
+- Removed the STEP 1 / STEP 2 instruction banner entirely.
+- Character cards now use the full available width with a clear **VIEW CHATS ›** action.
+- The character list is a true scrollable region inside the drawer.
+- The native SillyTavern character editor is themed to match the extension without replacing its controls.
+- **BACK TO CHARACTERS** is now a large labeled navigation button instead of a tiny arrow icon.
+- Favorite, Lorebook, Export, Duplicate, Delete and other native icon buttons keep their familiar shapes but use the extension theme.
+- Creator Notes, Description and First Message sections get cleaner spacing, borders and larger readable editors.
+- The native character editor itself remains vertically scrollable.
+
 ## v0.11.1 — Simpler Character → Chat Navigation
 
 - Removed the permanent split-pane character screen that left an unexplained empty area before a character was selected.
