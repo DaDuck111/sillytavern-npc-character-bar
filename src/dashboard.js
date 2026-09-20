@@ -1,7 +1,7 @@
 import { CORE_ATTRIBUTES, getState, mutateState } from './store.js';
 import { scanLatestRoleplay } from './autoTracker.js';
 import { openArchive, openWorkshop, renderBar } from './ui.js';
-import { escapeHtml, uid } from './utils.js';
+import { escapeHtml, getContext, uid } from './utils.js';
 
 const ID = 'npcb-dashboard';
 const TOGGLE_ID = 'npcb-dashboard-toggle';
@@ -11,6 +11,183 @@ let inventoryTab = 'person';
 let activeStorageId = '';
 let trackerStatus = { status: 'idle', message: 'Waiting for roleplay.' };
 let listenersInstalled = false;
+
+const DASH_PREF_KEY = 'npc_character_bar_dashboard_v2';
+const TAB_DEFS = Object.freeze({
+    status: 'STATUS',
+    inventory: 'ITEMS',
+    quests: 'QUESTS',
+    skills: 'SKILLS',
+    npc: 'NPC',
+    events: 'EVENTS',
+    tracker: 'SYSTEM',
+});
+const DEFAULT_TAB_ORDER = Object.freeze(Object.keys(TAB_DEFS));
+
+function getDashboardPrefs() {
+    const ctx = getContext();
+    ctx.extensionSettings ||= {};
+    const raw = ctx.extensionSettings[DASH_PREF_KEY] || {};
+    const savedOrder = Array.isArray(raw.tabOrder) ? raw.tabOrder.filter(key => TAB_DEFS[key]) : [];
+    const tabOrder = [...savedOrder, ...DEFAULT_TAB_ORDER.filter(key => !savedOrder.includes(key))];
+
+    return {
+        tabOrder,
+        rect: raw.rect && typeof raw.rect === 'object' ? raw.rect : null,
+    };
+}
+
+function saveDashboardPrefs(patch) {
+    const ctx = getContext();
+    ctx.extensionSettings ||= {};
+    const current = getDashboardPrefs();
+    ctx.extensionSettings[DASH_PREF_KEY] = { ...current, ...patch };
+    ctx.saveSettingsDebounced?.();
+}
+
+function clampPanelRect(rect) {
+    const margin = 6;
+    const width = Math.max(320, Math.min(Number(rect.width) || 390, Math.max(320, window.innerWidth - margin * 2)));
+    const height = Math.max(360, Math.min(Number(rect.height) || 700, Math.max(360, window.innerHeight - margin * 2)));
+    const left = Math.max(margin, Math.min(Number(rect.left) || margin, window.innerWidth - width - margin));
+    const top = Math.max(margin, Math.min(Number(rect.top) || margin, window.innerHeight - height - margin));
+    return { left, top, width, height };
+}
+
+function applyDashboardGeometry(root) {
+    const rect = getDashboardPrefs().rect;
+    if (!rect) return;
+    const safe = clampPanelRect(rect);
+    root.style.left = `${safe.left}px`;
+    root.style.top = `${safe.top}px`;
+    root.style.width = `${safe.width}px`;
+    root.style.height = `${safe.height}px`;
+    root.style.right = 'auto';
+    root.style.bottom = 'auto';
+    root.dataset.userGeometry = '1';
+}
+
+function persistCurrentGeometry(root) {
+    const rect = root.getBoundingClientRect();
+    saveDashboardPrefs({
+        rect: clampPanelRect({
+            left: rect.left,
+            top: rect.top,
+            width: rect.width,
+            height: rect.height,
+        }),
+    });
+}
+
+function installPanelDragging(root) {
+    const header = root.querySelector('.npcb-system-header');
+    if (!header) return;
+
+    header.addEventListener('pointerdown', event => {
+        if (event.button !== 0) return;
+        if (event.target.closest('button, input, select, textarea, .npcb-side-status')) return;
+
+        const rect = root.getBoundingClientRect();
+        const startX = event.clientX;
+        const startY = event.clientY;
+        const startLeft = rect.left;
+        const startTop = rect.top;
+        root.dataset.dragging = '1';
+        root.style.left = `${rect.left}px`;
+        root.style.top = `${rect.top}px`;
+        root.style.width = `${rect.width}px`;
+        root.style.height = `${rect.height}px`;
+        root.style.right = 'auto';
+        root.style.bottom = 'auto';
+        root.dataset.userGeometry = '1';
+        header.setPointerCapture?.(event.pointerId);
+
+        const move = e => {
+            const next = clampPanelRect({
+                left: startLeft + e.clientX - startX,
+                top: startTop + e.clientY - startY,
+                width: root.getBoundingClientRect().width,
+                height: root.getBoundingClientRect().height,
+            });
+            root.style.left = `${next.left}px`;
+            root.style.top = `${next.top}px`;
+        };
+
+        const up = e => {
+            header.releasePointerCapture?.(e.pointerId);
+            header.removeEventListener('pointermove', move);
+            header.removeEventListener('pointerup', up);
+            header.removeEventListener('pointercancel', up);
+            delete root.dataset.dragging;
+            persistCurrentGeometry(root);
+        };
+
+        header.addEventListener('pointermove', move);
+        header.addEventListener('pointerup', up);
+        header.addEventListener('pointercancel', up);
+        event.preventDefault();
+    });
+}
+
+function installResizePersistence(root) {
+    if (root._npcbResizeObserver || typeof ResizeObserver === 'undefined') return;
+    let ready = false;
+    let timer = null;
+    const observer = new ResizeObserver(() => {
+        if (!ready || root.dataset.dragging === '1') return;
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+            if (root.dataset.userGeometry === '1') persistCurrentGeometry(root);
+        }, 250);
+    });
+    observer.observe(root);
+    root._npcbResizeObserver = observer;
+    requestAnimationFrame(() => { ready = true; });
+}
+
+function installTabReordering(root) {
+    let draggedKey = '';
+
+    root.querySelectorAll('.npcb-system-tabs [data-tab]').forEach(button => {
+        button.addEventListener('dragstart', event => {
+            draggedKey = button.dataset.tab;
+            button.classList.add('dragging');
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', draggedKey);
+        });
+
+        button.addEventListener('dragend', () => {
+            draggedKey = '';
+            button.classList.remove('dragging');
+            root.querySelectorAll('.npcb-system-tabs [data-tab]').forEach(x => x.classList.remove('drag-over'));
+        });
+
+        button.addEventListener('dragover', event => {
+            event.preventDefault();
+            if (!draggedKey || draggedKey === button.dataset.tab) return;
+            button.classList.add('drag-over');
+            event.dataTransfer.dropEffect = 'move';
+        });
+
+        button.addEventListener('dragleave', () => button.classList.remove('drag-over'));
+
+        button.addEventListener('drop', event => {
+            event.preventDefault();
+            const source = draggedKey || event.dataTransfer.getData('text/plain');
+            const target = button.dataset.tab;
+            if (!TAB_DEFS[source] || !TAB_DEFS[target] || source === target) return;
+
+            const order = [...getDashboardPrefs().tabOrder];
+            const sourceIndex = order.indexOf(source);
+            const targetIndex = order.indexOf(target);
+            if (sourceIndex < 0 || targetIndex < 0) return;
+            order.splice(sourceIndex, 1);
+            order.splice(targetIndex, 0, source);
+            saveDashboardPrefs({ tabOrder: order });
+            renderDashboard();
+        });
+    });
+}
 
 function statusLabel() {
     if (trackerStatus.status === 'scanning') return 'SYSTEM SCANNING';
@@ -728,6 +905,8 @@ function bindEvents(root) {
             renderDashboard();
         });
     });
+    installTabReordering(root);
+    installPanelDragging(root);
 
     root.querySelectorAll('[data-inventory-tab]').forEach(button => {
         button.addEventListener('click', () => {
@@ -949,11 +1128,15 @@ function bindEvents(root) {
 }
 
 export function mountDashboard() {
-    if (!document.getElementById(ID)) {
-        const panel = document.createElement('aside');
-        panel.id = ID;
-        document.body.appendChild(panel);
+    let root = document.getElementById(ID);
+    if (!root) {
+        root = document.createElement('aside');
+        root.id = ID;
+        document.body.appendChild(root);
     }
+
+    applyDashboardGeometry(root);
+    installResizePersistence(root);
 
     if (!document.getElementById(TOGGLE_ID)) {
         const toggle = document.createElement('button');
@@ -962,7 +1145,9 @@ export function mountDashboard() {
         toggle.title = 'Open System';
         toggle.innerHTML = '◇';
         toggle.addEventListener('click', () => {
-            document.getElementById(ID)?.classList.remove('npcb-side-hidden');
+            const panel = document.getElementById(ID);
+            panel?.classList.remove('npcb-side-hidden');
+            if (panel) applyDashboardGeometry(panel);
             toggle.classList.remove('visible');
         });
         document.body.appendChild(toggle);
@@ -977,6 +1162,16 @@ export function mountDashboard() {
         });
         window.addEventListener('npcb:archive-changed', () => {
             if (activeTab === 'npc') renderDashboard();
+        });
+        window.addEventListener('resize', () => {
+            const panel = document.getElementById(ID);
+            if (!panel || panel.dataset.userGeometry !== '1') return;
+            const safe = clampPanelRect(panel.getBoundingClientRect());
+            panel.style.left = `${safe.left}px`;
+            panel.style.top = `${safe.top}px`;
+            panel.style.width = `${safe.width}px`;
+            panel.style.height = `${safe.height}px`;
+            persistCurrentGeometry(panel);
         });
     }
 
@@ -993,31 +1188,32 @@ export function renderDashboard() {
         inventory: renderInventory,
         quests: renderQuests,
         skills: renderSkills,
-        home: renderHome,
         npc: renderCharacters,
         events: renderEvents,
         tracker: renderTrackerSettings,
     };
-    const body = (renders[activeTab] || renderStatus)(state);
+    if (!renders[activeTab]) activeTab = 'status';
+
+    const body = renders[activeTab](state);
+    const tabOrder = getDashboardPrefs().tabOrder;
 
     root.innerHTML = `
-        <div class="npcb-side-header npcb-system-header">
+        <div class="npcb-side-header npcb-system-header" title="Drag here to move the System panel">
+            <div class="npcb-drag-grip" aria-hidden="true">⋮⋮</div>
             <div class="npcb-side-brand"><span>◇</span><strong>THE SYSTEM</strong></div>
             <div class="npcb-side-status ${statusClass()}">${escapeHtml(statusLabel())}</div>
             <button class="npcb-side-close" title="Hide System">×</button>
         </div>
-        <div class="npcb-side-tabs npcb-system-tabs">
-            ${[
-                ['status','STATUS'], ['inventory','ITEMS'], ['quests','QUESTS'], ['skills','SKILLS'],
-                ['home','HOME'], ['npc','NPC'], ['events','EVENTS'], ['tracker','SYSTEM'],
-            ].map(([key,label]) => `<button data-tab="${key}" class="${activeTab === key ? 'active' : ''}">${label}</button>`).join('')}
+        <div class="npcb-side-tabs npcb-system-tabs" title="Drag tabs to reorder">
+            ${tabOrder.map(key => `<button draggable="true" data-tab="${key}" class="${activeTab === key ? 'active' : ''}" title="Drag to reorder">${TAB_DEFS[key]}</button>`).join('')}
         </div>
         <div class="npcb-side-body">${body}</div>
         <div class="npcb-side-footer npcb-system-footer">
             <span>${escapeHtml(state.scene.summary || 'Awaiting System data')}</span>
-            <b>v0.4.0</b>
+            <b>v0.5.0</b>
         </div>
     `;
 
+    applyDashboardGeometry(root);
     bindEvents(root);
 }
