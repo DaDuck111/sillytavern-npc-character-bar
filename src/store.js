@@ -5,9 +5,18 @@ export const META_KEY = 'npc_character_bar_v1';
 export const STATUS = ['present', 'nearby', 'away', 'unknown', 'missing', 'dead', 'inactive'];
 
 export const DEFAULT_STATE = Object.freeze({
-    version: 1,
+    version: 2,
     characters: {},
     order: [],
+    scene: {
+        location: '',
+        time: '',
+        summary: '',
+    },
+    tracker: {
+        autoRead: true,
+        contextDepth: 6,
+    },
     ui: {
         showAwayOnBar: false,
         compact: false,
@@ -81,9 +90,11 @@ export function getState() {
     const ctx = getContext();
     const raw = ctx.chatMetadata?.[META_KEY];
     const state = deepClone(raw || DEFAULT_STATE);
-    state.version = 1;
+    state.version = 2;
     state.characters ||= {};
     state.order ||= [];
+    state.scene = { ...DEFAULT_STATE.scene, ...(state.scene || {}) };
+    state.tracker = { ...DEFAULT_STATE.tracker, ...(state.tracker || {}) };
     state.ui = { ...DEFAULT_STATE.ui, ...(state.ui || {}) };
 
     for (const [id, character] of Object.entries(state.characters)) {
@@ -110,20 +121,25 @@ export async function mutateState(mutator) {
     return saveState(state);
 }
 
+function coreName(value) {
+    return normalizeName(value)
+        .replace(/\s*\([^)]*\)\s*/g, ' ')
+        .replace(/^the\s+/i, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
 export function findByNameOrAlias(state, value) {
     const needle = normalizeName(value);
     if (!needle) return null;
-    const core = needle.replace(/\s*\([^)]*\)\s*/g, ' ').replace(/\s+/g, ' ').trim();
+    const core = coreName(value);
 
     return Object.values(state.characters).find(character => {
         const candidates = [character.name, ...(character.aliases || [])]
-            .filter(Boolean)
-            .map(normalizeName);
-        if (candidates.includes(needle)) return true;
-        return candidates.some(candidate => {
-            const candidateCore = candidate.replace(/\s*\([^)]*\)\s*/g, ' ').replace(/\s+/g, ' ').trim();
-            return core && candidateCore === core;
-        });
+            .filter(Boolean);
+        const normalized = candidates.map(normalizeName);
+        if (normalized.includes(needle)) return true;
+        return candidates.some(candidate => core && coreName(candidate) === core);
     }) || null;
 }
 
@@ -180,5 +196,8 @@ export async function importRoster(payload) {
             state.characters[character.id] = character;
             state.order.push(character.id);
         }
+        if (incoming.scene) state.scene = { ...state.scene, ...incoming.scene };
+        if (incoming.tracker) state.tracker = { ...state.tracker, ...incoming.tracker };
+        if (incoming.ui) state.ui = { ...state.ui, ...incoming.ui };
     });
 }
