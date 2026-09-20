@@ -1,5 +1,63 @@
 # NPC Character Bar for SillyTavern
 
+## v0.8.0 — Native Lorebooks, Character Detail Tracking & RPG Resources
+
+- **Native SillyTavern Lorebook overhaul**
+  - The extension now themes the built-in **Worlds/Lorebooks** drawer to match the cyan System UI.
+  - A shared **Lorebook Organizer** appears inside the native drawer with search, Active/Inactive filters, groups/folders and user tags.
+  - Lorebook groups/tags use the same extension metadata as **NPC Profile → Lorebook**, so changes appear in both places.
+  - Books can be opened in the native SillyTavern editor or activated/deactivated directly from the organizer.
+  - Native World Info entry cards remain fully editable with SillyTavern's normal controls.
+
+- **Tracker vs. in-story System**
+  - Before the player's story actually grants a System, the panel is labeled **RPG TRACKER** and its process badge says **TRACKER ONLINE/IDLE**.
+  - Only an explicitly acquired personal System changes the header to **THE SYSTEM / SYSTEM ACQUIRED**.
+  - AI System detection is stricter and ignores generic mentions of systems, ranks, magic, quests, other characters' interfaces or the extension UI itself.
+
+- **NPC appearance and live state**
+  - AI now keeps persistent NPC age, appearance, identity, role and faction updated when new facts are explicitly revealed.
+  - Clothing is tracked as live scene state and is replaced when outfits/armor/accessories change.
+  - Temporary wounds, dirt and disguises stay separate from permanent appearance unless they become lasting traits.
+
+- **Magic and Mana**
+  - Characters may have Mana even without a System.
+  - Canonical MP/Mana numbers are used when available.
+  - If magic is clearly established without a numeric scale, NPCs use a relative **100% Mana reserve** and the tracker estimates conservative use/recovery from the narration.
+  - Explicit skill costs override estimates. Mana may recover from rest, regeneration, items, skills or established time passage.
+
+- **Numeric vitals and resistances**
+  - Vital/custom stat values and maxima are normalized as numbers; values such as `85%` are parsed numerically while the unit is stored separately.
+  - Added percentage **Resistances / Vulnerabilities** from -100% to +100%, AI-trackable and manually editable.
+  - Resistance state is included in RP feasibility/context.
+
+- **Equippable Titles**
+  - Titles are structured RPG objects with description, effects and attribute modifiers.
+  - One title can be equipped at a time; it can also be unequipped.
+  - Equipped title effects modify displayed effective STR/DEX/INT/STA/SEN and are included in the RP constraint context.
+
+- **NPC factions**
+  - The System NPC tab can filter by faction and visually groups NPCs under faction headings.
+  - Archive folders and faction organization work alongside one another.
+
+- **Quests**
+  - Durable story goals can be generated and updated automatically from RP.
+  - The tracker classifies plot-driving goals as Main, optional/parallel goals as Side, actual System-issued objectives as System, and other durable goals as Story.
+  - Existing matching quests are updated instead of duplicated.
+
+- **RP time**
+  - TIME is always represented in the World State UI.
+  - Exact story clocks are preserved and relative time passage can advance them.
+  - If only a daypart is known, a visibly approximate clock is used (for example Night → `~22:00`) instead of leaving Time blank.
+
+- **NPC Thoughts**
+  - The thoughts window is now resizable.
+  - Its width, height and position are remembered.
+  - **A− / A＋** controls adjust thought text size from the panel itself.
+
+- **Readability**
+  - Event Tracker titles/descriptions and RP world-state text are substantially larger.
+  - Native Lorebook entries, controls and organizer cards have larger, cleaner typography.
+
 ## v0.7.0 — RPG Rules, Lorebook Library & Readability
 
 - **Responsive overlay fix**
