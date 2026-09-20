@@ -516,8 +516,11 @@ function skillUsability(player, skill) {
         }
     }
 
-    if (skill.requirements?.text) reasons.push(`Req: ${skill.requirements.text}`);
-    return { usable: reasons.length === 0, reasons };
+    return {
+        usable: reasons.length === 0,
+        reasons,
+        contextualRequirement: String(skill.requirements?.text || '').trim(),
+    };
 }
 
 function renderSkills(state) {
