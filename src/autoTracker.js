@@ -586,7 +586,7 @@ QUEST RULES:
 - Update objective completion/status only when the newest reply establishes progress, completion, or failure.
 
 EVENT RULES:
-- Treat the event log as compact continuity memory. After EVERY assistant RP reply, add 0–2 short durable events when anything materially changes.
+- Treat the event log as compact continuity memory. After EVERY assistant RP reply that advances the scene, add 1–2 short durable events. Return 0 only when literally no new action, fact, consequence, movement, decision, or relationship/quest/state change occurred.
 - Good events include: combat starts/ends or a meaningful hit/injury, arrival/departure, discovery, item/fund/skill acquisition, relationship turning point, promise/agreement, quest progress, System notification, important decision, weather/time-triggered development, or a new threat.
 - Event title should be 2–6 words. Description should be ONE short sentence, ideally under 18 words.
 - Do not log filler such as breathing, looking around, greetings, or repeated combat motions unless they change the situation.
