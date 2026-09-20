@@ -572,12 +572,29 @@ function bindWorkshopEvents(character, activeTab = 'overview') {
     });
 
     root.querySelector('.npcb-lorebook-select')?.addEventListener('change', async event => {
+        const selectedBook = event.target.value;
         loreAutoSynced.delete(character.id);
         await updateCharacter(character.id, c => {
-            c.lore.book = event.target.value;
+            c.lore.book = selectedBook;
             c.lore.uid = '';
             c.lore.lastSync = '';
         });
+
+        try {
+            const fresh = getState().characters[character.id];
+            const result = await syncLore(fresh, { book: selectedBook, createIfMissing: false });
+            if (result.uid && result.content) {
+                await updateCharacter(character.id, c => {
+                    Object.assign(c.lore, result);
+                    applyLoreContentToCharacter(c, result.content, { overwrite: true });
+                });
+                loreAutoSynced.add(character.id);
+                toast('success', 'Found NPC in Lorebook and refreshed the profile.');
+                openWorkshop(character.id, 'lore');
+            }
+        } catch (error) {
+            console.warn('[NPC Character Bar] Lorebook auto-link skipped:', error);
+        }
     });
 
     root.querySelector('.npcb-lore-sync')?.addEventListener('click', async () => {
