@@ -137,7 +137,10 @@ function installResizePersistence(root) {
         if (!ready || root.dataset.dragging === '1') return;
         clearTimeout(timer);
         timer = setTimeout(() => {
-            if (root.dataset.userGeometry === '1') persistCurrentGeometry(root);
+            root.dataset.userGeometry = '1';
+            root.style.right = 'auto';
+            root.style.bottom = 'auto';
+            persistCurrentGeometry(root);
         }, 250);
     });
     observer.observe(root);
