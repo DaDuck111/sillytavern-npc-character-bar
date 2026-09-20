@@ -51,10 +51,14 @@ function saveDashboardPrefs(patch) {
 
 function clampPanelRect(rect) {
     const margin = 6;
-    const width = Math.max(320, Math.min(Number(rect.width) || 390, Math.max(320, window.innerWidth - margin * 2)));
-    const height = Math.max(360, Math.min(Number(rect.height) || 700, Math.max(360, window.innerHeight - margin * 2)));
-    const left = Math.max(margin, Math.min(Number(rect.left) || margin, window.innerWidth - width - margin));
-    const top = Math.max(margin, Math.min(Number(rect.top) || margin, window.innerHeight - height - margin));
+    const availableWidth = Math.max(260, window.innerWidth - margin * 2);
+    const availableHeight = Math.max(300, window.innerHeight - margin * 2);
+    const minWidth = Math.min(320, availableWidth);
+    const minHeight = Math.min(360, availableHeight);
+    const width = Math.max(minWidth, Math.min(Number(rect.width) || 390, availableWidth));
+    const height = Math.max(minHeight, Math.min(Number(rect.height) || 700, availableHeight));
+    const left = Math.max(margin, Math.min(Number(rect.left) || margin, Math.max(margin, window.innerWidth - width - margin)));
+    const top = Math.max(margin, Math.min(Number(rect.top) || margin, Math.max(margin, window.innerHeight - height - margin)));
     return { left, top, width, height };
 }
 
