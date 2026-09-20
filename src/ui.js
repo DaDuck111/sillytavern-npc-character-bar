@@ -485,17 +485,6 @@ function bindWorkshopEvents(character, activeTab = 'overview') {
     }));
     root.querySelectorAll('[data-field]').forEach(input => input.addEventListener('change', persistWorkshop));
 
-    const loreContentInput = root.querySelector('[data-field="lore.content"]');
-    if (loreContentInput) {
-        const hydrateFromEditedLore = debounce(async () => {
-            await updateCharacter(character.id, c => {
-                c.lore.content = loreContentInput.value;
-                applyLoreContentToCharacter(c, loreContentInput.value, { overwrite: true });
-            });
-        }, 500);
-        loreContentInput.addEventListener('input', hydrateFromEditedLore);
-    }
-
     root.querySelector('.npcb-npc-system-toggle')?.addEventListener('change', async event => {
         const enabled = event.target.checked;
         await updateCharacter(character.id, c => {
