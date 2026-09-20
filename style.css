@@ -6332,3 +6332,280 @@
         padding-bottom: 24px !important;
     }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   v0.11.4 — responsive bot grid, favorites hotbar, daily streaks
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Character selector: always flow left → right and wrap naturally. */
+#npcb-character-library-shell > #rm_print_characters_block,
+body.charListGrid #npcb-character-library-shell > #rm_print_characters_block {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr)) !important;
+    grid-auto-flow: row !important;
+    grid-auto-rows: max-content;
+    gap: 10px !important;
+    align-content: start !important;
+    justify-content: stretch !important;
+    padding: 10px !important;
+}
+
+/* Beat SillyTavern's native 30% / 100px grid rules cleanly. */
+body.charListGrid #npcb-character-library-shell #rm_print_characters_block .character_select,
+body.charListGrid #npcb-character-library-shell #rm_print_characters_block .group_select,
+body.charListGrid #npcb-character-library-shell #rm_print_characters_block .bogus_folder_select,
+#npcb-character-library-shell #rm_print_characters_block .character_select,
+#npcb-character-library-shell #rm_print_characters_block .group_select,
+#npcb-character-library-shell #rm_print_characters_block .bogus_folder_select {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 202px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    gap: 7px !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 10px !important;
+    border: 1px solid rgba(var(--npcb-accent-rgb), .09) !important;
+    border-radius: 10px !important;
+    background:
+        linear-gradient(180deg, rgba(var(--npcb-accent-rgb), .04), transparent 46%),
+        rgba(var(--npcb-panel-rgb), .42) !important;
+}
+
+body.charListGrid #npcb-character-library-shell #rm_print_characters_block .character_select:hover,
+#npcb-character-library-shell #rm_print_characters_block .character_select:hover {
+    transform: translateY(-2px);
+    border-color: rgba(var(--npcb-accent-rgb), .28) !important;
+    background:
+        linear-gradient(180deg, rgba(var(--npcb-accent-rgb), .085), transparent 52%),
+        rgba(var(--npcb-panel-rgb), .5) !important;
+}
+
+body.charListGrid #npcb-character-library-shell #rm_print_characters_block .character_select .avatar,
+body.charListGrid #npcb-character-library-shell #rm_print_characters_block .character_select .avatar img,
+#npcb-character-library-shell #rm_print_characters_block .character_select .avatar,
+#npcb-character-library-shell #rm_print_characters_block .character_select .avatar img {
+    width: 84px !important;
+    height: 84px !important;
+    min-width: 84px !important;
+    max-width: 84px !important;
+    margin: 0 auto !important;
+    border-radius: 12px !important;
+}
+
+body.charListGrid #npcb-character-library-shell #rm_print_characters_block .character_select .character_select_container,
+#npcb-character-library-shell #rm_print_characters_block .character_select .character_select_container {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    gap: 4px;
+}
+
+body.charListGrid #npcb-character-library-shell #rm_print_characters_block .character_select .character_name_block,
+#npcb-character-library-shell #rm_print_characters_block .character_select .character_name_block {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: center !important;
+    gap: 4px !important;
+}
+
+body.charListGrid #npcb-character-library-shell #rm_print_characters_block .character_select .ch_name,
+#npcb-character-library-shell #rm_print_characters_block .character_select .ch_name {
+    width: 100% !important;
+    max-width: none !important;
+    display: block !important;
+    color: rgba(235,250,254,.94) !important;
+    font-size: 14px !important;
+    font-weight: 800 !important;
+    line-height: 1.25 !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+body.charListGrid #npcb-character-library-shell #rm_print_characters_block .character_select .ch_description,
+#npcb-character-library-shell #rm_print_characters_block .character_select .ch_description {
+    width: 100%;
+    min-height: 2.7em;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    color: rgba(177,219,229,.5) !important;
+    font-size: 10px !important;
+    line-height: 1.35 !important;
+    text-align: center;
+}
+
+body.charListGrid #npcb-character-library-shell #rm_print_characters_block .character_select .character_version,
+body.charListGrid #npcb-character-library-shell #rm_print_characters_block .character_select .ch_avatar_url,
+#npcb-character-library-shell #rm_print_characters_block .character_select .character_version,
+#npcb-character-library-shell #rm_print_characters_block .character_select .ch_avatar_url {
+    display: inline !important;
+    width: auto !important;
+    max-width: 100%;
+    color: rgba(var(--npcb-accent-rgb), .48) !important;
+    font-size: 7px !important;
+    text-align: center !important;
+}
+
+#npcb-character-library-shell #rm_print_characters_block .character_select .tags_inline,
+body.charListGrid #npcb-character-library-shell #rm_print_characters_block .character_select .tags_inline {
+    display: flex !important;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.npcb-character-streak {
+    align-self: center;
+    padding: 3px 7px;
+    border: 1px solid rgba(255,132,64,.2);
+    border-radius: 99px;
+    color: #ffb06c;
+    background: rgba(255,104,37,.075);
+    box-shadow: inset 0 0 10px rgba(255,102,36,.025);
+    font-size: 8px;
+    font-weight: 900;
+    letter-spacing: .035em;
+}
+
+#npcb-character-library-shell .npcb-character-openhint {
+    width: 100%;
+    min-width: 0;
+    margin-top: auto;
+    padding: 6px 7px;
+    border-color: rgba(var(--npcb-accent-rgb), .16);
+    text-align: center;
+    font-size: 9px;
+}
+
+/* Favorite / hotswap strip: make it feel like an actual quick-access hotbar. */
+#HotSwapWrapper {
+    min-width: 0;
+    margin: 2px 6px 7px !important;
+    padding: 5px 7px;
+    border: 1px solid rgba(var(--npcb-accent-rgb), .08);
+    border-radius: 10px;
+    background:
+        linear-gradient(90deg, rgba(var(--npcb-accent-rgb), .045), transparent 75%),
+        rgba(var(--npcb-panel-rgb), .25);
+}
+#HotSwapWrapper .hotswap {
+    min-width: 0;
+    display: flex !important;
+    align-items: center;
+    gap: 7px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    padding: 3px 4px 5px !important;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(var(--npcb-accent-rgb), .3) transparent;
+}
+#HotSwapWrapper .hotswap .avatar {
+    position: relative;
+    flex: 0 0 auto !important;
+    width: 48px !important;
+    height: 48px !important;
+    margin: 0 !important;
+    border: 1px solid rgba(var(--npcb-accent-rgb), .14) !important;
+    border-radius: 11px !important;
+    background: rgba(var(--npcb-panel-rgb), .48);
+    box-shadow: 0 4px 14px rgba(0,0,0,.2);
+    transition: transform .12s ease, border-color .12s ease, box-shadow .12s ease;
+}
+#HotSwapWrapper .hotswap .avatar img {
+    width: 48px !important;
+    height: 48px !important;
+    border-radius: 10px !important;
+    object-fit: cover;
+}
+#HotSwapWrapper .hotswap .avatar:hover {
+    transform: translateY(-2px) scale(1.04);
+    border-color: rgba(var(--npcb-accent-rgb), .45) !important;
+    box-shadow: 0 0 18px rgba(var(--npcb-accent-rgb), .12), 0 5px 16px rgba(0,0,0,.25);
+}
+#HotSwapWrapper .hotswap .avatar.npcb-hotswap-current {
+    border-color: var(--npcb-accent) !important;
+    box-shadow:
+        0 0 0 2px rgba(var(--npcb-accent-rgb), .11),
+        0 0 18px rgba(var(--npcb-accent-rgb), .18);
+}
+.npcb-hotswap-streak {
+    position: absolute;
+    right: -5px;
+    bottom: -5px;
+    z-index: 3;
+    min-width: 24px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+    border: 1px solid rgba(255,151,75,.32);
+    border-radius: 99px;
+    color: #ffd1a6;
+    background: rgba(31,13,6,.95);
+    box-shadow: 0 2px 8px rgba(0,0,0,.35);
+    font-size: 8px;
+    font-weight: 900;
+}
+
+/* Chat streak badges in the character chat browser. */
+.npcb-char-chat-titleline .npcb-chat-current {
+    flex: 0 0 auto;
+    padding: 2px 5px;
+    border-radius: 99px;
+    color: #7de9aa;
+    background: rgba(80,221,143,.07);
+    font-size: 6px;
+    font-weight: 900;
+}
+.npcb-char-chat-titleline .npcb-chat-streak {
+    flex: 0 0 auto;
+    padding: 2px 6px;
+    border: 1px solid rgba(255,138,65,.18);
+    border-radius: 99px;
+    color: #ffb06c;
+    background: rgba(255,104,37,.06);
+    font-size: 7px;
+    font-weight: 900;
+}
+
+/* Browser width does the sizing automatically; narrower drawers gracefully drop columns. */
+@container (max-width: 420px) {
+    #npcb-character-library-shell > #rm_print_characters_block,
+    body.charListGrid #npcb-character-library-shell > #rm_print_characters_block {
+        grid-template-columns: repeat(auto-fill, minmax(min(132px, 100%), 1fr)) !important;
+        gap: 8px !important;
+    }
+
+    body.charListGrid #npcb-character-library-shell #rm_print_characters_block .character_select,
+    #npcb-character-library-shell #rm_print_characters_block .character_select {
+        min-height: 186px !important;
+        padding: 8px !important;
+    }
+
+    body.charListGrid #npcb-character-library-shell #rm_print_characters_block .character_select .avatar,
+    body.charListGrid #npcb-character-library-shell #rm_print_characters_block .character_select .avatar img,
+    #npcb-character-library-shell #rm_print_characters_block .character_select .avatar,
+    #npcb-character-library-shell #rm_print_characters_block .character_select .avatar img {
+        width: 72px !important;
+        height: 72px !important;
+        min-width: 72px !important;
+        max-width: 72px !important;
+    }
+}
