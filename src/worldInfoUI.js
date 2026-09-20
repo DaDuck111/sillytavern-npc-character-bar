@@ -1,5 +1,6 @@
-import { reloadEditor } from '../../../../../scripts/world-info.js';
+import { deleteWorldInfo, reloadEditor } from '../../../../../scripts/world-info.js';
 import {
+    deleteLorebookMeta,
     getLorebookCatalog,
     getLorebookGroups,
     getLorebookTags,
@@ -14,6 +15,7 @@ let activeFilter = 'all';
 let groupFilter = 'all';
 let tagFilter = 'all';
 let installed = false;
+const selectedBooks = new Set();
 
 function filteredCatalog() {
     const needle = search.trim().toLowerCase();
@@ -30,14 +32,25 @@ function filteredCatalog() {
     });
 }
 
+function cleanSelection() {
+    const names = new Set(getLorebookCatalog().map(book => book.name));
+    for (const name of [...selectedBooks]) {
+        if (!names.has(name)) selectedBooks.delete(name);
+    }
+}
+
 function render() {
     const root = document.getElementById(ID);
     if (!root) return;
 
+    cleanSelection();
     const books = filteredCatalog();
     const groups = getLorebookGroups();
     const tags = getLorebookTags();
-    const activeCount = getLorebookCatalog().filter(book => book.active).length;
+    const catalog = getLorebookCatalog();
+    const activeCount = catalog.filter(book => book.active).length;
+    const visibleNames = books.map(book => book.name);
+    const allVisibleSelected = Boolean(visibleNames.length) && visibleNames.every(name => selectedBooks.has(name));
 
     const grouped = Object.entries(books.reduce((acc, book) => {
         const key = book.group || 'Ungrouped';
@@ -54,7 +67,7 @@ function render() {
             <div>
                 <small>NPC CHARACTER BAR · SHARED LIBRARY</small>
                 <strong>LOREBOOK ORGANIZER</strong>
-                <span>${activeCount} active · ${getLorebookCatalog().length} total</span>
+                <span>${activeCount} active · ${catalog.length} total · ${selectedBooks.size} selected</span>
             </div>
             <button type="button" class="npcb-native-lore-collapse">⌃</button>
         </div>
@@ -75,13 +88,31 @@ function render() {
                     ${tags.map(tag => `<option value="${escapeHtml(tag)}" ${tagFilter === tag ? 'selected' : ''}>#${escapeHtml(tag)}</option>`).join('')}
                 </select>
             </div>
+
+            <div class="npcb-native-lore-bulk">
+                <label>
+                    <input type="checkbox" class="npcb-lore-select-all" ${allVisibleSelected ? 'checked' : ''}>
+                    <span>Select all shown</span>
+                </label>
+                <b>${selectedBooks.size} selected</b>
+                <div class="npcb-spacer"></div>
+                <button type="button" data-bulk="add-tags" ${selectedBooks.size ? '' : 'disabled'}>＋ ADD TAGS</button>
+                <button type="button" data-bulk="replace-tags" ${selectedBooks.size ? '' : 'disabled'}>REPLACE TAGS</button>
+                <button type="button" data-bulk="group" ${selectedBooks.size ? '' : 'disabled'}>SET GROUP</button>
+                <button type="button" class="danger" data-bulk="delete" ${selectedBooks.size ? '' : 'disabled'}>DELETE</button>
+            </div>
+
             <div class="npcb-native-lore-groups">
                 ${grouped.length ? grouped.map(([groupName, list]) => `
                     <section class="npcb-native-lore-group-section">
                         <div class="npcb-native-lore-group-head"><span>◇ ${escapeHtml(groupName)}</span><b>${list.length}</b></div>
                         <div class="npcb-native-lore-cards">
                             ${list.map(book => `
-                                <article class="npcb-native-lore-card" data-book="${escapeHtml(book.name)}">
+                                <article class="npcb-native-lore-card ${selectedBooks.has(book.name) ? 'selected' : ''}" data-book="${escapeHtml(book.name)}">
+                                    <label class="npcb-native-lore-check" title="Select for bulk actions">
+                                        <input type="checkbox" ${selectedBooks.has(book.name) ? 'checked' : ''}>
+                                        <span>✓</span>
+                                    </label>
                                     <button type="button" class="npcb-native-lore-open" title="Open this Lorebook in SillyTavern">
                                         <div>
                                             <strong>${escapeHtml(book.name)}</strong>
@@ -104,16 +135,15 @@ function render() {
                 `).join('') : '<div class="npcb-native-lore-empty">No Lorebooks match these filters.</div>'}
             </div>
             <div class="npcb-native-lore-hint">
-                These groups/tags are the same ones shown inside NPC → Lorebook. SillyTavern entries themselves are untouched.
+                Tick books for bulk tags/groups/deletion. Groups and tags are shared with NPC → Lorebook.
             </div>
         </div>
     `;
 
-    bind(root);
+    bind(root, books);
 }
 
-function bind(root) {
-    const body = root.querySelector('.npcb-native-lore-body');
+function bind(root, visibleBooks) {
     root.querySelector('.npcb-native-lore-collapse')?.addEventListener('click', buttonEvent => {
         root.classList.toggle('collapsed');
         buttonEvent.currentTarget.textContent = root.classList.contains('collapsed') ? '⌄' : '⌃';
@@ -133,8 +163,71 @@ function bind(root) {
     root.querySelector('.npcb-native-lore-group')?.addEventListener('change', event => { groupFilter = event.target.value; render(); });
     root.querySelector('.npcb-native-lore-tag')?.addEventListener('change', event => { tagFilter = event.target.value; render(); });
 
+    root.querySelector('.npcb-lore-select-all')?.addEventListener('change', event => {
+        for (const book of visibleBooks) {
+            if (event.target.checked) selectedBooks.add(book.name);
+            else selectedBooks.delete(book.name);
+        }
+        render();
+    });
+
+    root.querySelector('[data-bulk="add-tags"]')?.addEventListener('click', () => {
+        const value = prompt('Tags to ADD to selected Lorebooks, comma-separated');
+        if (value === null) return;
+        const additions = value.split(',').map(x => x.trim().replace(/^#/, '')).filter(Boolean);
+        const catalog = getLorebookCatalog();
+        for (const name of selectedBooks) {
+            const book = catalog.find(x => x.name === name);
+            if (!book) continue;
+            updateLorebookMeta(name, { tags: [...new Set([...(book.tags || []), ...additions])] });
+        }
+        render();
+    });
+
+    root.querySelector('[data-bulk="replace-tags"]')?.addEventListener('click', () => {
+        const value = prompt('Replace selected Lorebook tags with these tags, comma-separated', '');
+        if (value === null) return;
+        const nextTags = value.split(',').map(x => x.trim().replace(/^#/, '')).filter(Boolean);
+        for (const name of selectedBooks) updateLorebookMeta(name, { tags: nextTags });
+        render();
+    });
+
+    root.querySelector('[data-bulk="group"]')?.addEventListener('click', () => {
+        const value = prompt('Group / folder for selected Lorebooks (blank = Ungrouped)', '');
+        if (value === null) return;
+        for (const name of selectedBooks) updateLorebookMeta(name, { group: value.trim() });
+        render();
+    });
+
+    root.querySelector('[data-bulk="delete"]')?.addEventListener('click', async () => {
+        const names = [...selectedBooks];
+        if (!names.length) return;
+        const preview = names.slice(0, 8).join('\n');
+        const more = names.length > 8 ? `\n… and ${names.length - 8} more` : '';
+        if (!confirm(`Delete ${names.length} Lorebook${names.length === 1 ? '' : 's'}?\n\n${preview}${more}\n\nThis deletes the actual SillyTavern Lorebook files and cannot be undone.`)) return;
+
+        for (const name of names) {
+            try {
+                const deleted = await deleteWorldInfo(name);
+                if (deleted) deleteLorebookMeta(name);
+            } catch (error) {
+                console.error('[NPC Character Bar] Failed to delete Lorebook:', name, error);
+            }
+        }
+        selectedBooks.clear();
+        render();
+    });
+
     root.querySelectorAll('.npcb-native-lore-card').forEach(card => {
         const name = card.dataset.book;
+
+        card.querySelector('.npcb-native-lore-check input')?.addEventListener('change', event => {
+            event.stopPropagation();
+            if (event.target.checked) selectedBooks.add(name);
+            else selectedBooks.delete(name);
+            render();
+        });
+
         card.querySelector('.npcb-native-lore-open')?.addEventListener('click', async () => {
             try {
                 await reloadEditor(name, true);
@@ -142,10 +235,12 @@ function bind(root) {
                 console.warn('[NPC Character Bar] Could not open Lorebook:', error);
             }
         });
+
         card.querySelector('.npcb-native-lore-switch input')?.addEventListener('change', async event => {
             await setLorebookActive(name, event.target.checked);
             render();
         });
+
         card.querySelector('.npcb-native-lore-organize')?.addEventListener('click', () => {
             const book = getLorebookCatalog().find(x => x.name === name);
             if (!book) return;
