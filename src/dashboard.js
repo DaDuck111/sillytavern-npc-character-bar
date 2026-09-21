@@ -977,9 +977,13 @@ function setPath(obj, path, value) {
 async function editPlayer() {
     const state = getState();
     const p = state.player;
-    const name = prompt('Player name', p.name) ?? p.name;
-    const title = prompt('Title', p.title) ?? p.title;
-    const className = prompt('Class / role', p.className) ?? p.className;
+
+    const name = prompt('Player name', p.name);
+    if (name === null) return;
+    const title = prompt('Title', p.title);
+    if (title === null) return;
+    const className = prompt('Class / role', p.className);
+    if (className === null) return;
     const systemAnswer = prompt('Has System? yes / no', p.hasSystem ? 'yes' : 'no');
     if (systemAnswer === null) return;
     const hasSystem = /^y(es)?$/i.test(systemAnswer.trim());
@@ -990,10 +994,19 @@ async function editPlayer() {
     let pointsPerLevel = Math.max(0, Number(p.statPointsPerLevel) || 5);
 
     if (hasSystem) {
-        level = Math.max(1, Number(prompt('Level', String(Math.max(1, p.level || 1))) ?? p.level) || 1);
-        xp = Math.max(0, Number(prompt('Current XP', String(p.xp || 0)) ?? p.xp) || 0);
-        xpToNext = Math.max(1, Number(prompt('XP needed for next level', String(p.xpToNext || 100)) ?? p.xpToNext) || 100);
-        pointsPerLevel = Math.max(0, Number(prompt('Allocatable stat points gained per level', String(pointsPerLevel)) ?? pointsPerLevel) || 0);
+        const levelRaw = prompt('Level', String(Math.max(1, p.level || 1)));
+        if (levelRaw === null) return;
+        const xpRaw = prompt('Current XP', String(p.xp || 0));
+        if (xpRaw === null) return;
+        const xpToNextRaw = prompt('XP needed for next level', String(p.xpToNext || 100));
+        if (xpToNextRaw === null) return;
+        const pointsRaw = prompt('Allocatable stat points gained per level', String(pointsPerLevel));
+        if (pointsRaw === null) return;
+
+        level = Math.max(1, Number(levelRaw) || 1);
+        xp = Math.max(0, Number(xpRaw) || 0);
+        xpToNext = Math.max(1, Number(xpToNextRaw) || 100);
+        pointsPerLevel = Math.max(0, Number(pointsRaw) || 0);
     }
 
     await mutateState(s => {
@@ -1027,13 +1040,18 @@ async function editPlayer() {
     });
     renderDashboard();
 }
-
 async function addStat() {
     const name = prompt('Stat name (Health, Mana, Sanity, etc.)');
-    if (!name?.trim()) return;
-    const value = Number.parseFloat(prompt('Starting value', '100') ?? '100');
-    const max = Number.parseFloat(prompt('Maximum value', '100') ?? '100');
-    const unit = prompt('Unit (%, pts, etc.)', '') ?? '';
+    if (name === null || !name.trim()) return;
+    const valueRaw = prompt('Starting value', '100');
+    if (valueRaw === null) return;
+    const maxRaw = prompt('Maximum value', '100');
+    if (maxRaw === null) return;
+    const unit = prompt('Unit (%, pts, etc.)', '');
+    if (unit === null) return;
+
+    const value = Number.parseFloat(valueRaw);
+    const max = Number.parseFloat(maxRaw);
     await mutateState(s => s.player.stats.push({
         id: uid('stat'),
         name: name.trim(),
@@ -1044,31 +1062,37 @@ async function addStat() {
     }));
     renderDashboard();
 }
-
 async function editStat(id) {
     const stat = getState().player.stats.find(x => x.id === id);
     if (!stat) return;
-    const name = prompt('Stat name', stat.name) ?? stat.name;
+
+    const name = prompt('Stat name', stat.name);
+    if (name === null) return;
     const value = prompt('Current value', String(stat.value));
+    if (value === null) return;
     const max = prompt('Maximum value', String(stat.max));
-    const unit = prompt('Unit', stat.unit) ?? stat.unit;
+    if (max === null) return;
+    const unit = prompt('Unit', stat.unit);
+    if (unit === null) return;
+
     await mutateState(s => {
         const x = s.player.stats.find(v => v.id === id);
         if (!x) return;
         x.name = name.trim() || x.name;
-        if (value !== null && value !== '') x.value = Number.parseFloat(String(value).replace('%','')) || 0;
-        if (max !== null && max !== '') x.max = Math.max(0, Number.parseFloat(String(max).replace('%','')) || 0);
+        if (value !== '') x.value = Number.parseFloat(String(value).replace('%','')) || 0;
+        if (max !== '') x.max = Math.max(0, Number.parseFloat(String(max).replace('%','')) || 0);
         x.unit = unit;
     });
     renderDashboard();
 }
-
 async function addResistance() {
     const name = prompt('Resistance name (Fire, Cold, Poison, Magic, etc.)');
-    if (!name?.trim()) return;
+    if (name === null || !name.trim()) return;
     const valueRaw = prompt('Resistance % (-100 vulnerability to +100 resistance)', '0');
     if (valueRaw === null) return;
-    const description = prompt('Notes / source', '') ?? '';
+    const description = prompt('Notes / source', '');
+    if (description === null) return;
+
     const value = Math.max(-100, Math.min(100, Number.parseFloat(String(valueRaw).replace('%','')) || 0));
     await mutateState(s => {
         s.player.resistances ||= [];
@@ -1082,14 +1106,17 @@ async function addResistance() {
     });
     renderDashboard();
 }
-
 async function editResistance(id) {
     const resistance = getState().player.resistances?.find(x => x.id === id);
     if (!resistance) return;
-    const name = prompt('Resistance name', resistance.name) ?? resistance.name;
+
+    const name = prompt('Resistance name', resistance.name);
+    if (name === null) return;
     const valueRaw = prompt('Resistance % (-100 to +100)', String(resistance.value));
     if (valueRaw === null) return;
-    const description = prompt('Notes / source', resistance.description || '') ?? resistance.description;
+    const description = prompt('Notes / source', resistance.description || '');
+    if (description === null) return;
+
     await mutateState(s => {
         const x = s.player.resistances?.find(v => v.id === id);
         if (!x) return;
@@ -1099,14 +1126,18 @@ async function editResistance(id) {
     });
     renderDashboard();
 }
-
 async function addItem() {
     const state = getState();
     const name = prompt('Item name');
-    if (!name?.trim()) return;
-    const quantity = Math.max(1, Number(prompt('Quantity', '1') ?? 1) || 1);
-    const type = prompt('Type (weapon, armor, consumable, quest…)', '') ?? '';
-    const description = prompt('Description', '') ?? '';
+    if (name === null || !name.trim()) return;
+    const quantityRaw = prompt('Quantity', '1');
+    if (quantityRaw === null) return;
+    const type = prompt('Type (weapon, armor, consumable, quest…)', '');
+    if (type === null) return;
+    const description = prompt('Description', '');
+    if (description === null) return;
+
+    const quantity = Math.max(1, Number(quantityRaw) || 1);
 
     if (inventoryTab === 'stored' && !activeStorageId) {
         alert('Create/select a storage location first.');
@@ -1126,17 +1157,22 @@ async function addItem() {
     }));
     renderDashboard();
 }
-
 async function addStorage() {
     const state = getState();
     const name = prompt('Storage location name (Apartment Storage, Guild Locker, System Inventory…)');
-    if (!name?.trim()) return;
-    const capacity = Math.max(1, Number(prompt('Slot capacity', String(state.player.inventoryLimits.defaultStorage || 30)) ?? 30) || 30);
-    const systemOnly = /^y(es)?$/i.test((prompt('System-only storage? yes / no', 'no') ?? 'no').trim());
+    if (name === null || !name.trim()) return;
+    const capacityRaw = prompt('Slot capacity', String(state.player.inventoryLimits.defaultStorage || 30));
+    if (capacityRaw === null) return;
+    const systemOnlyRaw = prompt('System-only storage? yes / no', 'no');
+    if (systemOnlyRaw === null) return;
+
+    const capacity = Math.max(1, Number(capacityRaw) || 30);
+    const systemOnly = /^y(es)?$/i.test(systemOnlyRaw.trim());
     if (systemOnly && !state.player.hasSystem) {
         alert('System-only storage cannot exist before the player acquires a System.');
         return;
     }
+
     const id = uid('storage');
     await mutateState(s => s.player.storageLocations.push({
         id,
@@ -1150,19 +1186,35 @@ async function addStorage() {
     inventoryTab = 'stored';
     renderDashboard();
 }
-
 async function addSkill() {
     const name = prompt('Skill name');
-    if (!name?.trim()) return;
-    const rank = prompt('Rank / level', '') ?? '';
-    const typeRaw = (prompt('Type: active / passive / toggle', 'active') ?? 'active').trim().toLowerCase();
+    if (name === null || !name.trim()) return;
+    const rank = prompt('Rank / level', '');
+    if (rank === null) return;
+    const typeAnswer = prompt('Type: active / passive / toggle', 'active');
+    if (typeAnswer === null) return;
+    const description = prompt('What does this skill do?', '');
+    if (description === null) return;
+    const cooldown = prompt('Cooldown (example: 3 turns, 10 minutes, once/day)', '');
+    if (cooldown === null) return;
+    const costResource = prompt('Resource cost type (Mana / Stamina / Health / blank)', '');
+    if (costResource === null) return;
+
+    let costAmount = 0;
+    if (costResource.trim()) {
+        const costAmountRaw = prompt('Resource cost amount', '0');
+        if (costAmountRaw === null) return;
+        costAmount = Math.max(0, Number(costAmountRaw) || 0);
+    }
+
+    const requirement = prompt('Requirements / restrictions', '');
+    if (requirement === null) return;
+    const effects = prompt('Gameplay effects, one per line', '');
+    if (effects === null) return;
+
+    const typeRaw = typeAnswer.trim().toLowerCase();
     const type = ['active','passive','toggle'].includes(typeRaw) ? typeRaw : 'active';
-    const description = prompt('What does this skill do?', '') ?? '';
-    const cooldown = prompt('Cooldown (example: 3 turns, 10 minutes, once/day)', '') ?? '';
-    const costResource = prompt('Resource cost type (Mana / Stamina / Health / blank)', '') ?? '';
-    const costAmount = costResource.trim() ? Math.max(0, Number(prompt('Resource cost amount', '0') ?? 0) || 0) : 0;
-    const requirement = prompt('Requirements / restrictions', '') ?? '';
-    const effects = prompt('Gameplay effects, one per line', '') ?? '';
+
     await mutateState(s => s.player.skills.push({
         id: uid('skill'),
         name: name.trim(),
@@ -1179,23 +1231,38 @@ async function addSkill() {
     }));
     renderDashboard();
 }
-
 async function editSkill(id) {
     const skill = getState().player.skills.find(x => x.id === id);
     if (!skill) return;
-    const name = prompt('Skill name', skill.name) ?? skill.name;
-    const rank = prompt('Rank / level', skill.rank) ?? skill.rank;
-    const typeRaw = (prompt('Type: active / passive / toggle', skill.type || 'active') ?? (skill.type || 'active')).trim().toLowerCase();
-    const description = prompt('Explanation / effect', skill.description) ?? skill.description;
-    const cooldown = prompt('Base cooldown', skill.cooldown || '') ?? skill.cooldown;
-    const remainingCooldown = prompt('Current remaining cooldown (blank = ready)', skill.remainingCooldown || '') ?? skill.remainingCooldown;
-    const costResource = prompt('Resource cost type', skill.cost?.resource || '') ?? (skill.cost?.resource || '');
-    const costAmount = costResource.trim()
-        ? Math.max(0, Number(prompt('Resource cost amount', String(skill.cost?.amount || 0)) ?? (skill.cost?.amount || 0)) || 0)
-        : 0;
-    const requirement = prompt('Requirements / restrictions', skill.requirements?.text || '') ?? (skill.requirements?.text || '');
-    const effectsRaw = prompt('Gameplay effects, one per line', (skill.effects || []).join('\n')) ?? (skill.effects || []).join('\n');
 
+    const name = prompt('Skill name', skill.name);
+    if (name === null) return;
+    const rank = prompt('Rank / level', skill.rank);
+    if (rank === null) return;
+    const typeAnswer = prompt('Type: active / passive / toggle', skill.type || 'active');
+    if (typeAnswer === null) return;
+    const description = prompt('Explanation / effect', skill.description);
+    if (description === null) return;
+    const cooldown = prompt('Base cooldown', skill.cooldown || '');
+    if (cooldown === null) return;
+    const remainingCooldown = prompt('Current remaining cooldown (blank = ready)', skill.remainingCooldown || '');
+    if (remainingCooldown === null) return;
+    const costResource = prompt('Resource cost type', skill.cost?.resource || '');
+    if (costResource === null) return;
+
+    let costAmount = 0;
+    if (costResource.trim()) {
+        const costAmountRaw = prompt('Resource cost amount', String(skill.cost?.amount || 0));
+        if (costAmountRaw === null) return;
+        costAmount = Math.max(0, Number(costAmountRaw) || 0);
+    }
+
+    const requirement = prompt('Requirements / restrictions', skill.requirements?.text || '');
+    if (requirement === null) return;
+    const effectsRaw = prompt('Gameplay effects, one per line', (skill.effects || []).join('\n'));
+    if (effectsRaw === null) return;
+
+    const typeRaw = typeAnswer.trim().toLowerCase();
     await mutateState(s => {
         const x = s.player.skills.find(v => v.id === id);
         if (!x) return;
@@ -1212,12 +1279,14 @@ async function editSkill(id) {
     });
     renderDashboard();
 }
-
 async function addTitle() {
     const name = prompt('Title name');
-    if (!name?.trim()) return;
-    const description = prompt('Title description', '') ?? '';
-    const effectsRaw = prompt('Title effects, one per line', '') ?? '';
+    if (name === null || !name.trim()) return;
+    const description = prompt('Title description', '');
+    if (description === null) return;
+    const effectsRaw = prompt('Title effects, one per line', '');
+    if (effectsRaw === null) return;
+
     await mutateState(s => {
         s.player.titles ||= [];
         s.player.titles.push({
@@ -1231,47 +1300,55 @@ async function addTitle() {
     });
     renderDashboard();
 }
-
 async function editTitle(id) {
     const title = getState().player.titles?.find(x => x.id === id);
     if (!title) return;
-    const name = prompt('Title name', title.name) ?? title.name;
-    const description = prompt('Title description', title.description || '') ?? title.description;
-    const effectsRaw = prompt('Title effects, one per line', (title.effects || []).join('\n')) ?? (title.effects || []).join('\n');
+
+    const name = prompt('Title name', title.name);
+    if (name === null) return;
+    const description = prompt('Title description', title.description || '');
+    if (description === null) return;
+    const effectsRaw = prompt('Title effects, one per line', (title.effects || []).join('\n'));
+    if (effectsRaw === null) return;
     const modsRaw = prompt(
         'Attribute modifiers, comma-separated (example: STR:+2, INT:+5)',
         Object.entries(title.modifiers || {}).filter(([,v]) => Number(v) !== 0).map(([k,v]) => `${k}:${v}`).join(', '),
     );
+    if (modsRaw === null) return;
+
     await mutateState(s => {
         const x = s.player.titles?.find(v => v.id === id);
         if (!x) return;
         x.name = name.trim() || x.name;
         x.description = description.trim();
         x.effects = effectsRaw.split('\n').map(v => v.trim()).filter(Boolean);
-        if (modsRaw !== null) {
-            x.modifiers = {};
-            for (const pair of modsRaw.split(',')) {
-                const [keyRaw, valueRaw] = pair.split(':');
-                const key = String(keyRaw || '').trim().toUpperCase();
-                if (!CORE_ATTRIBUTES.includes(key)) continue;
-                const value = Number.parseFloat(String(valueRaw || '').trim());
-                if (Number.isFinite(value)) x.modifiers[key] = value;
-            }
+        x.modifiers = {};
+        for (const pair of modsRaw.split(',')) {
+            const [keyRaw, valueRaw] = pair.split(':');
+            const key = String(keyRaw || '').trim().toUpperCase();
+            if (!CORE_ATTRIBUTES.includes(key)) continue;
+            const value = Number.parseFloat(String(valueRaw || '').trim());
+            if (Number.isFinite(value)) x.modifiers[key] = value;
         }
     });
     renderDashboard();
 }
-
 async function addQuest() {
     const title = prompt('Quest title');
-    if (!title?.trim()) return;
-    const description = prompt('Quest description', '') ?? '';
-    const type = prompt('Type: main / side / system', 'side') ?? 'side';
+    if (title === null || !title.trim()) return;
+    const description = prompt('Quest description', '');
+    if (description === null) return;
+    const type = prompt('Type: main / side / system', 'side');
+    if (type === null) return;
+
     if (type.trim().toLowerCase() === 'system' && !getState().player.hasSystem) {
         alert('A System quest cannot exist before the player acquires a System.');
         return;
     }
-    const objectivesRaw = prompt('Objectives, one per line', '') ?? '';
+
+    const objectivesRaw = prompt('Objectives, one per line', '');
+    if (objectivesRaw === null) return;
+
     await mutateState(s => s.quests.push({
         id: uid('quest'),
         title: title.trim(),
@@ -1286,14 +1363,19 @@ async function addQuest() {
     }));
     renderDashboard();
 }
-
 async function editQuest(id) {
     const quest = getState().quests.find(x => x.id === id);
     if (!quest) return;
-    const title = prompt('Quest title', quest.title) ?? quest.title;
-    const description = prompt('Description', quest.description) ?? quest.description;
-    const reward = prompt('Reward', quest.reward) ?? quest.reward;
-    const source = prompt('Source / issuer', quest.source) ?? quest.source;
+
+    const title = prompt('Quest title', quest.title);
+    if (title === null) return;
+    const description = prompt('Description', quest.description);
+    if (description === null) return;
+    const reward = prompt('Reward', quest.reward);
+    if (reward === null) return;
+    const source = prompt('Source / issuer', quest.source);
+    if (source === null) return;
+
     await mutateState(s => {
         const q = s.quests.find(x => x.id === id);
         if (q) {
@@ -1302,12 +1384,14 @@ async function editQuest(id) {
     });
     renderDashboard();
 }
-
 async function addEvent() {
     const title = prompt('Event title');
-    if (!title?.trim()) return;
-    const description = prompt('Description', '') ?? '';
-    const type = prompt('Type (combat, discovery, social, travel, quest, system, acquisition, story)', 'story') ?? 'story';
+    if (title === null || !title.trim()) return;
+    const description = prompt('Description', '');
+    if (description === null) return;
+    const type = prompt('Type (combat, discovery, social, travel, quest, system, acquisition, story)', 'story');
+    if (type === null) return;
+
     await mutateState(s => s.events.push({
         id: uid('event'),
         type: type.trim() || 'story',
@@ -1320,13 +1404,13 @@ async function addEvent() {
     }));
     renderDashboard();
 }
-
 async function moveItem(id) {
     const state = getState();
     const item = state.player.inventory.find(x => x.id === id);
     if (!item) return;
 
-    const answer = prompt('Move to: person / clothing / stored', item.locationType) ?? item.locationType;
+    const answer = prompt('Move to: person / clothing / stored', item.locationType);
+    if (answer === null) return;
     const target = answer.trim().toLowerCase();
     if (!['person','clothing','stored'].includes(target)) return;
 
@@ -1338,7 +1422,7 @@ async function moveItem(id) {
             return;
         }
         const storageName = prompt(`Storage name:\n${available.map(x => x.name).join('\n')}`, available[0].name);
-        if (!storageName) return;
+        if (storageName === null || !storageName.trim()) return;
         const storage = available.find(x => x.name.toLowerCase() === storageName.trim().toLowerCase());
         if (!storage) {
             alert('Storage not found.');
@@ -1357,7 +1441,6 @@ async function moveItem(id) {
     });
     renderDashboard();
 }
-
 function bindEvents(root) {
     root.querySelectorAll('.npcb-side-tabs button').forEach(button => {
         button.addEventListener('click', () => {
