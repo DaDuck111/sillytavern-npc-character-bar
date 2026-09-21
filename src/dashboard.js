@@ -1603,14 +1603,23 @@ function bindEvents(root) {
             }
             if (action === 'world-edit') {
                 const scene = getState().scene;
-                const time = prompt('RP time', scene.time) ?? scene.time;
-                const date = prompt('RP date', scene.date) ?? scene.date;
-                const day = prompt('Day / weekday', scene.day) ?? scene.day;
-                const dayPart = prompt('Day part (dawn, morning, afternoon, evening, night...)', scene.dayPart) ?? scene.dayPart;
-                const weather = prompt('Weather', scene.weather) ?? scene.weather;
-                const season = prompt('Season', scene.season) ?? scene.season;
-                const year = prompt('Year', scene.year) ?? scene.year;
-                const holiday = prompt('Holiday / festival', scene.holiday) ?? scene.holiday;
+                const time = prompt('RP time', scene.time);
+                if (time === null) return;
+                const date = prompt('RP date', scene.date);
+                if (date === null) return;
+                const day = prompt('Day / weekday', scene.day);
+                if (day === null) return;
+                const dayPart = prompt('Day part (dawn, morning, afternoon, evening, night...)', scene.dayPart);
+                if (dayPart === null) return;
+                const weather = prompt('Weather', scene.weather);
+                if (weather === null) return;
+                const season = prompt('Season', scene.season);
+                if (season === null) return;
+                const year = prompt('Year', scene.year);
+                if (year === null) return;
+                const holiday = prompt('Holiday / festival', scene.holiday);
+                if (holiday === null) return;
+
                 await mutateState(s => Object.assign(s.scene, {
                     time: time.trim(),
                     date: date.trim(),
@@ -1755,13 +1764,16 @@ function bindEvents(root) {
             if (action === 'storage-edit') {
                 const storage = getState().player.storageLocations.find(x => x.id === activeStorageId);
                 if (!storage) return;
-                const name = prompt('Storage name', storage.name) ?? storage.name;
+                const name = prompt('Storage name', storage.name);
+                if (name === null) return;
                 const cap = prompt('Slot capacity', String(storage.capacity));
+                if (cap === null) return;
+
                 await mutateState(s => {
                     const x = s.player.storageLocations.find(v => v.id === activeStorageId);
                     if (!x) return;
                     x.name = name.trim() || x.name;
-                    if (cap !== null) x.capacity = Math.max(1, Number(cap) || x.capacity);
+                    x.capacity = Math.max(1, Number(cap) || x.capacity);
                 });
                 return renderDashboard();
             }
