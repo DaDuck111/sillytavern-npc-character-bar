@@ -8,6 +8,7 @@ import { getContext } from './src/utils.js';
 import { refreshGameContext } from './src/gameContext.js';
 import { mountWorldInfoEnhancer, renderWorldInfoEnhancer } from './src/worldInfoUI.js';
 import { mountCharacterLibrary, refreshCharacterLibrary } from './src/characterLibraryUI.js';
+import { mountNativeMenus, refreshNativeMenus } from './src/nativeMenuUI.js';
 
 const TAG = '[NPC Character Bar]';
 let initialized = false;
@@ -21,6 +22,7 @@ function refreshAll() {
         renderDashboard();
         renderWorldInfoEnhancer();
         refreshCharacterLibrary();
+        refreshNativeMenus();
         refreshGameContext();
     }, 50);
 }
@@ -80,10 +82,11 @@ async function boot() {
     mountDashboard();
     mountWorldInfoEnhancer();
     mountCharacterLibrary();
+    mountNativeMenus();
     refreshGameContext();
 
     window.NPCCharacterBar = {
-        version: '0.11.11',
+        version: '0.12.0',
         getState,
         addCharacter: async seed => { const c = await addCharacter(seed); renderBar(); renderDashboard(); return c; },
         updateCharacter: async (id, patch) => { const c = await updateCharacter(id, patch); renderBar(); renderDashboard(); return c; },
@@ -108,7 +111,7 @@ async function boot() {
     renderBar();
     renderDashboard();
     scheduleAutoTrack(1200);
-    console.info(`${TAG} v0.11.11 ready — Cancel now exits multi-step edit dialogs immediately.`);
+    console.info(`${TAG} v0.12.0 ready — native SillyTavern menu rail and drawer interiors redesigned; Lorebook preserved.`);
 }
 
 const timer = setInterval(() => {
