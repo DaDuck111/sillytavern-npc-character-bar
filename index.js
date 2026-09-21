@@ -83,7 +83,7 @@ async function boot() {
     refreshGameContext();
 
     window.NPCCharacterBar = {
-        version: '0.11.10',
+        version: '0.11.11',
         getState,
         addCharacter: async seed => { const c = await addCharacter(seed); renderBar(); renderDashboard(); return c; },
         updateCharacter: async (id, patch) => { const c = await updateCharacter(id, patch); renderBar(); renderDashboard(); return c; },
@@ -108,7 +108,7 @@ async function boot() {
     renderBar();
     renderDashboard();
     scheduleAutoTrack(1200);
-    console.info(`${TAG} v0.11.10 ready — responsive preview modal now survives live browser resizing.`);
+    console.info(`${TAG} v0.11.11 ready — Cancel now exits multi-step edit dialogs immediately.`);
 }
 
 const timer = setInterval(() => {
