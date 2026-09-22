@@ -86,7 +86,7 @@ async function boot() {
     refreshGameContext();
 
     window.NPCCharacterBar = {
-        version: '0.12.0',
+        version: '0.12.1',
         getState,
         addCharacter: async seed => { const c = await addCharacter(seed); renderBar(); renderDashboard(); return c; },
         updateCharacter: async (id, patch) => { const c = await updateCharacter(id, patch); renderBar(); renderDashboard(); return c; },
@@ -111,7 +111,7 @@ async function boot() {
     renderBar();
     renderDashboard();
     scheduleAutoTrack(1200);
-    console.info(`${TAG} v0.12.0 ready — native SillyTavern menu rail and drawer interiors redesigned; Lorebook preserved.`);
+    console.info(`${TAG} v0.12.1 ready — TopInfoBar compatibility fixed and redundant character-list button removed.`);
 }
 
 const timer = setInterval(() => {

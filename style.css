@@ -7877,3 +7877,135 @@ body.charListGrid #npcb-character-library-shell > #rm_print_characters_block {
         font-size: 8px;
     }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   v0.12.1 — TopInfoBar compatibility + cleaner character toolbar
+   ═══════════════════════════════════════════════════════════════ */
+
+/*
+ * Respect SillyTavern's own top-bar geometry. v0.12.0 made the redesigned
+ * rail taller/wider than --topBarBlockSize/--sheldWidth, which caused the
+ * official Extension-TopInfoBar (inserted at the top of #sheld) to sit under
+ * the menu rail. Keep the redesign inside the native slot instead.
+ */
+#top-settings-holder.npcb-native-menu-rail {
+    width: var(--sheldWidth) !important;
+    max-width: var(--sheldWidth) !important;
+    height: var(--topBarBlockSize) !important;
+    min-height: var(--topBarBlockSize) !important;
+    padding: 3px 4px !important;
+    margin: 0 auto !important;
+    flex-wrap: nowrap !important;
+    align-content: center !important;
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+    scrollbar-width: none;
+}
+
+#top-settings-holder.npcb-native-menu-rail::-webkit-scrollbar {
+    display: none;
+}
+
+#top-settings-holder.npcb-native-menu-rail > .npcb-native-menu-tab {
+    flex: 1 1 0 !important;
+    min-width: 64px !important;
+    max-width: 124px !important;
+}
+
+#top-settings-holder.npcb-native-menu-rail > .npcb-native-menu-tab > .npcb-native-menu-toggle {
+    min-height: 0 !important;
+    height: calc(var(--topBarBlockSize) - 6px) !important;
+    max-height: calc(var(--topBarBlockSize) - 6px) !important;
+    padding-block: 3px !important;
+}
+
+/* Official TopInfoBar: keep it in normal document flow below the native top bar. */
+body:has(#extensionTopBar) #extensionTopBar,
+body:has(#extensionTopBar) #extensionConnectionProfiles {
+    position: relative !important;
+    z-index: 1 !important;
+    box-sizing: border-box !important;
+}
+
+body:has(#extensionTopBar) #sheld {
+    isolation: isolate;
+}
+
+/* Never expand the native top-bar height on narrow windows; scroll the rail
+ * horizontally instead. This also keeps TopInfoBar and chat geometry stable. */
+@media (max-width: 920px) {
+    #top-settings-holder.npcb-native-menu-rail {
+        width: var(--sheldWidth) !important;
+        max-width: var(--sheldWidth) !important;
+        height: var(--topBarBlockSize) !important;
+        min-height: var(--topBarBlockSize) !important;
+        flex-wrap: nowrap !important;
+        padding: 3px !important;
+    }
+
+    #top-settings-holder.npcb-native-menu-rail > .npcb-native-menu-tab {
+        flex: 0 0 72px !important;
+        min-width: 72px !important;
+        max-width: 72px !important;
+    }
+}
+
+@media (max-width: 620px) {
+    #top-settings-holder.npcb-native-menu-rail {
+        min-height: var(--topBarBlockSize) !important;
+        height: var(--topBarBlockSize) !important;
+        flex-wrap: nowrap !important;
+        align-content: center !important;
+    }
+
+    #top-settings-holder.npcb-native-menu-rail > .npcb-native-menu-tab {
+        flex: 0 0 58px !important;
+        min-width: 58px !important;
+        max-width: 58px !important;
+    }
+
+    #top-settings-holder.npcb-native-menu-rail > .npcb-native-menu-tab > .npcb-native-menu-toggle {
+        min-height: 0 !important;
+        height: calc(var(--topBarBlockSize) - 6px) !important;
+        max-height: calc(var(--topBarBlockSize) - 6px) !important;
+        padding-inline: 3px !important;
+    }
+
+    #top-settings-holder.npcb-native-menu-rail .npcb-native-menu-label {
+        display: none !important;
+    }
+
+    #top-settings-holder.npcb-native-menu-rail .npcb-native-menu-icon {
+        width: 22px !important;
+        min-width: 22px !important;
+        font-size: 17px !important;
+    }
+}
+
+@media (max-width: 420px) {
+    #top-settings-holder.npcb-native-menu-rail > .npcb-native-menu-tab {
+        flex: 0 0 54px !important;
+        min-width: 54px !important;
+        max-width: 54px !important;
+    }
+}
+
+/* Character browser: the native "Select/Create Characters" list button is
+ * redundant with the redesigned character library and was visually floating
+ * beside Favorites. Keep the pin control, remove only this button. */
+#right-nav-panel.npcb-native-panel #rm_button_characters {
+    display: none !important;
+}
+
+/* With the list button gone, keep the pin column compact and aligned. */
+#right-nav-panel.npcb-native-panel #CharListButtonAndHotSwaps > .flexFlowColumn {
+    flex: 0 0 auto !important;
+    min-width: 28px !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+}
+
+#right-nav-panel.npcb-native-panel #rm_button_panel_pin_div {
+    margin: 0 !important;
+}
