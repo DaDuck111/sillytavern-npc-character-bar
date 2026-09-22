@@ -9439,3 +9439,347 @@ body.npcb-character-dragging * {
         min-width: 0 !important;
     }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   v0.12.8 — centered responsive workspaces + sane half-screen UI
+   ═══════════════════════════════════════════════════════════════ */
+
+/*
+ * One rule for every redesigned native drawer (except Lorebook):
+ * open as a centered workspace. This intentionally overrides older
+ * left/right drawer breakpoints that caused snapped-window layouts to drift.
+ */
+#top-settings-holder :is(
+    #left-nav-panel,
+    #rm_api_block,
+    #AdvancedFormatting,
+    #user-settings-block,
+    #Backgrounds,
+    #rm_extensions_block,
+    #PersonaManagement,
+    #right-nav-panel
+).npcb-native-panel {
+    position: fixed !important;
+    top: calc(var(--topBarBlockSize) + 8px) !important;
+    left: 50dvw !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: translateX(-50%) !important;
+
+    width: min(1500px, calc(100dvw - 28px)) !important;
+    min-width: 0 !important;
+    max-width: calc(100dvw - 28px) !important;
+
+    height: min(900px, calc(100dvh - var(--topBarBlockSize) - 24px)) !important;
+    min-height: min(620px, calc(100dvh - var(--topBarBlockSize) - 24px)) !important;
+    max-height: calc(100dvh - var(--topBarBlockSize) - 24px) !important;
+
+    margin: 0 !important;
+    box-sizing: border-box !important;
+}
+
+/* Backgrounds benefits from almost the entire screen. */
+#top-settings-holder #Backgrounds.npcb-native-panel {
+    width: min(1640px, calc(100dvw - 18px)) !important;
+    max-width: calc(100dvw - 18px) !important;
+}
+
+/* Character Management is also a workspace now, not a right-side sliver. */
+#top-settings-holder #right-nav-panel.npcb-native-panel {
+    width: min(1380px, calc(100dvw - 22px)) !important;
+    max-width: calc(100dvw - 22px) !important;
+}
+
+/* Generation should match the same centered behavior. */
+#top-settings-holder #left-nav-panel.npcb-native-panel {
+    width: min(1260px, calc(100dvw - 24px)) !important;
+    max-width: calc(100dvw - 24px) !important;
+}
+
+/* Medium / half-screen windows: fill the available browser width evenly. */
+@media (max-width: 1100px) {
+    #top-settings-holder :is(
+        #left-nav-panel,
+        #rm_api_block,
+        #AdvancedFormatting,
+        #user-settings-block,
+        #Backgrounds,
+        #rm_extensions_block,
+        #PersonaManagement,
+        #right-nav-panel
+    ).npcb-native-panel {
+        left: 50dvw !important;
+        right: auto !important;
+        transform: translateX(-50%) !important;
+
+        width: calc(100dvw - 16px) !important;
+        min-width: 0 !important;
+        max-width: calc(100dvw - 16px) !important;
+
+        height: calc(100dvh - var(--topBarBlockSize) - 18px) !important;
+        min-height: 0 !important;
+        max-height: calc(100dvh - var(--topBarBlockSize) - 18px) !important;
+    }
+}
+
+@media (max-width: 620px) {
+    #top-settings-holder :is(
+        #left-nav-panel,
+        #rm_api_block,
+        #AdvancedFormatting,
+        #user-settings-block,
+        #Backgrounds,
+        #rm_extensions_block,
+        #PersonaManagement,
+        #right-nav-panel
+    ).npcb-native-panel {
+        top: calc(var(--topBarBlockSize) + 4px) !important;
+        width: calc(100dvw - 8px) !important;
+        max-width: calc(100dvw - 8px) !important;
+        height: calc(100dvh - var(--topBarBlockSize) - 8px) !important;
+        max-height: calc(100dvh - var(--topBarBlockSize) - 8px) !important;
+        border-radius: 10px !important;
+    }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Persona workspace: respond to PANEL width, not browser guesses
+   ────────────────────────────────────────────────────────────── */
+
+#PersonaManagement.npcb-native-panel {
+    container-type: inline-size;
+    container-name: npcbPersonaWorkspace;
+}
+
+#PersonaManagement > .flex-container.wide100p.alignitemscenter.spaceBetween.flexNoGap {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: calc(100% - 64px) !important;
+    padding: 10px 14px 14px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+}
+
+/* First native row: heading on the left, utility buttons on the right. */
+#PersonaManagement > .flex-container.wide100p.alignitemscenter.spaceBetween.flexNoGap
+    > .flex-container.alignItemsBaseline.wide100p {
+    flex: 0 0 auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 8px !important;
+    margin-bottom: 10px !important;
+}
+
+#PersonaManagement #persona-management-block {
+    flex: 1 1 auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+
+    display: grid !important;
+    grid-template-columns: minmax(300px, .72fr) minmax(0, 1.28fr) !important;
+    gap: 14px !important;
+    overflow: hidden !important;
+}
+
+#PersonaManagement .persona_management_left_column,
+#PersonaManagement .persona_management_right_column {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+}
+
+/* Persona list toolbar: never squeeze pagination into a 1-character column. */
+#PersonaManagement .persona_management_left_column
+    > .flex-container.marginBot10.alignitemscenter {
+    display: grid !important;
+    grid-template-columns: auto minmax(110px, 1fr) auto auto !important;
+    grid-template-rows: auto auto !important;
+    gap: 7px !important;
+    align-items: center !important;
+
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    margin-bottom: 10px !important;
+}
+
+#PersonaManagement #create_dummy_persona {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+}
+
+#PersonaManagement #persona_search_bar {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+}
+
+#PersonaManagement #persona_sort_order {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    width: auto !important;
+    min-width: 64px !important;
+    max-width: 76px !important;
+}
+
+#PersonaManagement #persona_grid_toggle {
+    grid-column: 4 !important;
+    grid-row: 1 !important;
+    justify-self: end !important;
+    margin: 0 !important;
+}
+
+#PersonaManagement #persona_pagination_container {
+    grid-column: 1 / -1 !important;
+    grid-row: 2 !important;
+
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+}
+
+#PersonaManagement #persona_pagination_container .paginationjs {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 5px 8px !important;
+}
+
+#PersonaManagement #persona_pagination_container .paginationjs-nav {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: max-content !important;
+    max-width: none !important;
+    white-space: nowrap !important;
+}
+
+#PersonaManagement #persona_pagination_container .paginationjs-pages,
+#PersonaManagement #persona_pagination_container .paginationjs-size-changer {
+    flex: 0 0 auto !important;
+    min-width: 0 !important;
+}
+
+#PersonaManagement #persona_pagination_container .paginationjs-pages ul {
+    flex-wrap: nowrap !important;
+    margin: 0 !important;
+}
+
+#PersonaManagement #persona_pagination_container .paginationjs-size-changer select {
+    width: auto !important;
+    min-width: 74px !important;
+}
+
+/* Medium Persona workspace: keep two useful columns but give the editor more room. */
+@container npcbPersonaWorkspace (max-width: 920px) {
+    #PersonaManagement > .flex-container.wide100p.alignitemscenter.spaceBetween.flexNoGap {
+        padding: 8px 10px 10px !important;
+    }
+
+    #PersonaManagement #persona-management-block {
+        grid-template-columns: minmax(250px, 38%) minmax(0, 62%) !important;
+        gap: 10px !important;
+    }
+
+    #PersonaManagement .persona_management_left_column {
+        padding: 8px !important;
+    }
+
+    #PersonaManagement .persona_management_right_column {
+        padding: 9px 10px 14px !important;
+    }
+
+    #PersonaManagement #persona_description {
+        min-height: 260px !important;
+    }
+}
+
+/* Narrow workspace: stack instead of crushing both columns. */
+@container npcbPersonaWorkspace (max-width: 680px) {
+    #PersonaManagement > .flex-container.wide100p.alignitemscenter.spaceBetween.flexNoGap {
+        overflow-y: auto !important;
+    }
+
+    #PersonaManagement #persona-management-block {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 10px !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+
+    #PersonaManagement .persona_management_left_column,
+    #PersonaManagement .persona_management_right_column {
+        height: auto !important;
+        min-height: 0 !important;
+        overflow: visible !important;
+    }
+
+    #PersonaManagement #user_avatar_block {
+        max-height: 330px !important;
+        overflow-y: auto !important;
+    }
+
+    #PersonaManagement .persona_management_right_column {
+        overflow-y: visible !important;
+    }
+
+    #PersonaManagement #persona_description {
+        min-height: 230px !important;
+        max-height: 46dvh !important;
+    }
+}
+
+/* Very narrow toolbar: move sort/grid to a second line without mangling pagination. */
+@container npcbPersonaWorkspace (max-width: 440px) {
+    #PersonaManagement .persona_management_left_column
+        > .flex-container.marginBot10.alignitemscenter {
+        grid-template-columns: auto minmax(0, 1fr) auto !important;
+        grid-template-rows: auto auto auto !important;
+    }
+
+    #PersonaManagement #create_dummy_persona {
+        grid-column: 1 !important;
+        grid-row: 1 !important;
+    }
+
+    #PersonaManagement #persona_search_bar {
+        grid-column: 2 !important;
+        grid-row: 1 !important;
+    }
+
+    #PersonaManagement #persona_sort_order {
+        grid-column: 3 !important;
+        grid-row: 1 !important;
+    }
+
+    #PersonaManagement #persona_grid_toggle {
+        grid-column: 1 !important;
+        grid-row: 2 !important;
+        justify-self: start !important;
+    }
+
+    #PersonaManagement #persona_pagination_container {
+        grid-column: 1 / -1 !important;
+        grid-row: 3 !important;
+    }
+}
