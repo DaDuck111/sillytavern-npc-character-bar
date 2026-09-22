@@ -5,9 +5,12 @@ const DETAIL_ID = 'npcb-character-library-detail';
 const MODAL_ID = 'npcb-character-chat-modal';
 const MODAL_CONTENT_ID = 'npcb-character-chat-modal-content';
 const ACTIVITY_KEY = 'npc_character_bar_daily_activity_v1';
+const CARD_ORDER_KEY = 'npc_character_bar_character_order_v1';
 let installed = false;
 let selectedChid = '';
 let requestSerial = 0;
+let draggedCardKey = '';
+let suppressCardClickUntil = 0;
 const chatCache = new Map();
 
 function currentContext() {
@@ -267,6 +270,167 @@ function characterIndex(character, fallbackChid = '') {
     return chars.indexOf(character);
 }
 
+function characterOrderRoot() {
+    const ctx = currentContext();
+    if (!ctx) return { order: [] };
+
+    ctx.extensionSettings ||= {};
+    const existing = ctx.extensionSettings[CARD_ORDER_KEY];
+    if (!existing || typeof existing !== 'object') {
+        ctx.extensionSettings[CARD_ORDER_KEY] = { order: [] };
+    }
+    const root = ctx.extensionSettings[CARD_ORDER_KEY];
+    if (!Array.isArray(root.order)) root.order = [];
+    return root;
+}
+
+function cardStableKey(card) {
+    if (!card) return '';
+    const chid = cardChid(card);
+    const character = characterById(chid, card);
+    const avatar = String(character?.avatar || '').trim();
+    if (avatar) return `avatar:${avatar}`;
+
+    const name = String(character?.name || card.querySelector?.('.ch_name')?.textContent || '').trim();
+    return name ? `name:${name}` : (chid ? `chid:${chid}` : '');
+}
+
+function visibleCharacterCards() {
+    return [...document.querySelectorAll('#rm_print_characters_block .character_select')]
+        .filter(card => cardStableKey(card));
+}
+
+function currentVisualCardKeys() {
+    const saved = characterOrderRoot().order;
+    const rank = new Map(saved.map((key, index) => [key, index]));
+    return visibleCharacterCards()
+        .map((card, domIndex) => ({ key: cardStableKey(card), domIndex }))
+        .filter(item => item.key)
+        .sort((a, b) => {
+            const ar = rank.has(a.key) ? rank.get(a.key) : Number.MAX_SAFE_INTEGER;
+            const br = rank.has(b.key) ? rank.get(b.key) : Number.MAX_SAFE_INTEGER;
+            return ar - br || a.domIndex - b.domIndex;
+        })
+        .map(item => item.key);
+}
+
+function saveCharacterCardOrder(order) {
+    const root = characterOrderRoot();
+    root.order = [...new Set(order.filter(Boolean))];
+    currentContext()?.saveSettingsDebounced?.();
+}
+
+function applyCharacterCardOrder() {
+    const cards = visibleCharacterCards();
+    if (!cards.length) return;
+
+    const saved = characterOrderRoot().order;
+    const rank = new Map(saved.map((key, index) => [key, index]));
+    const fallbackBase = saved.length + 1000;
+
+    cards.forEach((card, domIndex) => {
+        const key = cardStableKey(card);
+        card.dataset.npcbOrderKey = key;
+        const order = rank.has(key) ? rank.get(key) : fallbackBase + domIndex;
+        card.style.order = String(order);
+    });
+}
+
+function clearDropTargets() {
+    document.querySelectorAll('#rm_print_characters_block .character_select.npcb-drag-over')
+        .forEach(card => {
+            card.classList.remove('npcb-drag-over', 'npcb-drop-after');
+        });
+}
+
+function installCardDragging(card) {
+    if (!card || card.dataset.npcbDragReady === '1') return;
+    card.dataset.npcbDragReady = '1';
+    card.draggable = true;
+
+    card.addEventListener('dragstart', event => {
+        if (isBulkMode()) {
+            event.preventDefault();
+            return;
+        }
+
+        const key = cardStableKey(card);
+        if (!key) {
+            event.preventDefault();
+            return;
+        }
+
+        draggedCardKey = key;
+        suppressCardClickUntil = Date.now() + 600;
+        card.classList.add('npcb-dragging');
+        document.getElementById('rm_print_characters_block')?.classList.add('npcb-reordering');
+
+        try {
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', key);
+        } catch {}
+    });
+
+    card.addEventListener('dragover', event => {
+        if (!draggedCardKey || draggedCardKey === cardStableKey(card)) return;
+        event.preventDefault();
+
+        clearDropTargets();
+        const rect = card.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const nearSameRow = Math.abs(event.clientY - centerY) < rect.height * 0.30;
+        const after = nearSameRow ? event.clientX > centerX : event.clientY > centerY;
+
+        card.classList.add('npcb-drag-over');
+        card.classList.toggle('npcb-drop-after', after);
+        try { event.dataTransfer.dropEffect = 'move'; } catch {}
+    });
+
+    card.addEventListener('dragleave', event => {
+        if (event.relatedTarget && card.contains(event.relatedTarget)) return;
+        card.classList.remove('npcb-drag-over', 'npcb-drop-after');
+    });
+
+    card.addEventListener('drop', event => {
+        if (!draggedCardKey) return;
+        event.preventDefault();
+        event.stopPropagation();
+
+        const targetKey = cardStableKey(card);
+        if (!targetKey || targetKey === draggedCardKey) return;
+
+        const order = currentVisualCardKeys();
+        const sourceIndex = order.indexOf(draggedCardKey);
+        const targetIndex = order.indexOf(targetKey);
+        if (sourceIndex < 0 || targetIndex < 0) return;
+
+        const rect = card.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const nearSameRow = Math.abs(event.clientY - centerY) < rect.height * 0.30;
+        const after = nearSameRow ? event.clientX > centerX : event.clientY > centerY;
+
+        order.splice(sourceIndex, 1);
+        let insertIndex = order.indexOf(targetKey);
+        if (after) insertIndex += 1;
+        order.splice(insertIndex, 0, draggedCardKey);
+
+        saveCharacterCardOrder(order);
+        applyCharacterCardOrder();
+        clearDropTargets();
+        suppressCardClickUntil = Date.now() + 350;
+    });
+
+    card.addEventListener('dragend', () => {
+        card.classList.remove('npcb-dragging');
+        document.getElementById('rm_print_characters_block')?.classList.remove('npcb-reordering');
+        clearDropTargets();
+        draggedCardKey = '';
+        suppressCardClickUntil = Date.now() + 250;
+    });
+}
+
 function avatarUrl(character, card = null) {
     const cardSrc = card?.querySelector('img')?.src;
     if (cardSrc) return cardSrc;
@@ -499,7 +663,9 @@ function enhanceCards() {
         }
         hint.setAttribute('aria-label', `View chats for ${card.querySelector('.ch_name')?.textContent || 'character'}`);
 
+        installCardDragging(card);
     });
+    applyCharacterCardOrder();
     markSelectedCard();
     decorateHotswap();
 }
@@ -801,6 +967,12 @@ function cardFromEvent(event) {
 function handleWindowCharacterClick(event) {
     const card = cardFromEvent(event);
     if (!card) return;
+    if (Date.now() < suppressCardClickUntil || card.classList.contains('npcb-dragging')) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation?.();
+        return;
+    }
 
     const ownButton = event.target?.closest?.('.npcb-character-openhint');
     const nativeControl = event.target?.closest?.('input, label, button, a, .tag, .bulk_select_checkbox, .ch_fav_icon');
@@ -833,6 +1005,7 @@ export function refreshCharacterLibrary() {
     enhanceNativeCharacterEditor();
     if (!shell) return;
 
+    applyCharacterCardOrder();
     decorateHotswap();
 
     if (selectedChid) {
