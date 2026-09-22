@@ -86,7 +86,7 @@ async function boot() {
     refreshGameContext();
 
     window.NPCCharacterBar = {
-        version: '0.12.10',
+        version: '0.12.11',
         getState,
         addCharacter: async seed => { const c = await addCharacter(seed); renderBar(); renderDashboard(); return c; },
         updateCharacter: async (id, patch) => { const c = await updateCharacter(id, patch); renderBar(); renderDashboard(); return c; },
@@ -111,7 +111,7 @@ async function boot() {
     renderBar();
     renderDashboard();
     scheduleAutoTrack(1200);
-    console.info(`${TAG} v0.12.10 ready — native clickable top-bar geometry restored with full-width visual backdrop.`);
+    console.info(`${TAG} v0.12.11 ready — Persona Management content is force-refreshed and its workspace height is restored.`);
 }
 
 const timer = setInterval(() => {

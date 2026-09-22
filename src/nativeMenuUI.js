@@ -77,9 +77,57 @@ const MENU_DEFS = Object.freeze([
 let mounted = false;
 let refreshQueued = false;
 let observer = null;
+let personaPanelWasOpen = false;
+let personaHydrateTimer = 0;
+let personaHydratePromise = null;
 
 function isPanelOpen(panel) {
     return Boolean(panel?.classList.contains('openDrawer') || panel?.classList.contains('open'));
+}
+
+async function hydratePersonaPanel(panel) {
+    if (!panel || !isPanelOpen(panel)) return;
+    if (personaHydratePromise) return personaHydratePromise;
+
+    personaHydratePromise = (async () => {
+        try {
+            const module = await import('/scripts/personas.js');
+
+            // SillyTavern does not always render the persona list merely from
+            // opening the drawer. Refresh it explicitly when our redesigned
+            // panel is opened so the workspace never appears empty.
+            if (typeof module.getUserAvatars === 'function') {
+                await module.getUserAvatars(true);
+            }
+
+            if (typeof module.setPersonaDescription === 'function') {
+                module.setPersonaDescription();
+            }
+
+            panel.classList.add('npcb-persona-hydrated');
+        } catch (error) {
+            console.warn('[NPC Character Bar] Could not refresh Persona Management content.', error);
+        } finally {
+            personaHydratePromise = null;
+        }
+    })();
+
+    return personaHydratePromise;
+}
+
+function syncPersonaPanelOpenState(panel) {
+    const open = isPanelOpen(panel);
+
+    if (open && !personaPanelWasOpen) {
+        personaPanelWasOpen = true;
+        window.clearTimeout(personaHydrateTimer);
+        personaHydrateTimer = window.setTimeout(() => {
+            void hydratePersonaPanel(panel);
+        }, 60);
+    } else if (!open) {
+        personaPanelWasOpen = false;
+        window.clearTimeout(personaHydrateTimer);
+    }
 }
 
 function ensureMenuLabel(drawer, def) {
@@ -149,7 +197,13 @@ function decorateOne(def) {
 
     ensureMenuLabel(drawer, def);
     ensurePanelHeader(drawer, panel, def);
-    drawer.classList.toggle('npcb-native-open', isPanelOpen(panel));
+
+    const open = isPanelOpen(panel);
+    drawer.classList.toggle('npcb-native-open', open);
+
+    if (def.key === 'personas') {
+        syncPersonaPanelOpenState(panel);
+    }
 }
 
 export function refreshNativeMenus() {
