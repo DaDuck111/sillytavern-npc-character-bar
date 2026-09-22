@@ -156,6 +156,7 @@ export function refreshNativeMenus() {
     const holder = document.getElementById('top-settings-holder');
     if (!holder) return false;
 
+    document.body?.classList.add('npcb-native-menu-expanded');
     holder.classList.add('npcb-native-menu-rail');
     MENU_DEFS.forEach(decorateOne);
     return true;
@@ -176,6 +177,17 @@ export function mountNativeMenus() {
     mounted = true;
 
     const holder = document.getElementById('top-settings-holder');
+    if (holder && holder.dataset.npcbWheelReady !== '1') {
+        holder.dataset.npcbWheelReady = '1';
+        holder.addEventListener('wheel', event => {
+            if (holder.scrollWidth <= holder.clientWidth + 2) return;
+            if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+
+            holder.scrollLeft += event.deltaY;
+            event.preventDefault();
+        }, { passive: false });
+    }
+
     if (holder && typeof MutationObserver !== 'undefined') {
         observer = new MutationObserver(scheduleRefresh);
         observer.observe(holder, {
