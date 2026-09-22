@@ -86,7 +86,7 @@ async function boot() {
     refreshGameContext();
 
     window.NPCCharacterBar = {
-        version: '0.12.4',
+        version: '0.12.5',
         getState,
         addCharacter: async seed => { const c = await addCharacter(seed); renderBar(); renderDashboard(); return c; },
         updateCharacter: async (id, patch) => { const c = await updateCharacter(id, patch); renderBar(); renderDashboard(); return c; },
@@ -111,7 +111,7 @@ async function boot() {
     renderBar();
     renderDashboard();
     scheduleAutoTrack(1200);
-    console.info(`${TAG} v0.12.4 ready — native-height icon rail, wide inner drawers, and drag-ghost character reordering enabled.`);
+    console.info(`${TAG} v0.12.5 ready — full-size writing workspaces and a draggable System reopen button enabled.`);
 }
 
 const timer = setInterval(() => {
