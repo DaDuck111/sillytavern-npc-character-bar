@@ -9850,3 +9850,93 @@ body.npcb-character-dragging * {
         min-width: 100vw !important;
     }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   v0.12.10 — restore native clickable top-bar geometry
+   ═══════════════════════════════════════════════════════════════ */
+
+/*
+ * v0.12.9 stretched #top-settings-holder outside SillyTavern's native sheld
+ * geometry. It looked full-width, but parts of the visual rail no longer
+ * matched the real interactive layer. Restore the native hit-test geometry.
+ *
+ * Keep the bar visually continuous with a non-interactive full-width backdrop.
+ */
+#top-settings-holder.npcb-native-menu-rail {
+    position: relative !important;
+    left: auto !important;
+    right: auto !important;
+    transform: none !important;
+
+    width: var(--sheldWidth) !important;
+    max-width: var(--sheldWidth) !important;
+    min-width: 0 !important;
+
+    margin: 0 auto !important;
+    padding: 2px 4px !important;
+    gap: 2px !important;
+    overflow: visible !important;
+
+    z-index: 3005 !important;
+    isolation: isolate;
+}
+
+#top-settings-holder.npcb-native-menu-rail::before {
+    content: "";
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: var(--topBarBlockSize);
+    z-index: -1;
+    pointer-events: none;
+    background:
+        linear-gradient(180deg, rgba(4, 10, 14, .97), rgba(4, 9, 13, .90)),
+        radial-gradient(circle at 50% 0%, rgba(var(--npcb-accent-rgb), .08), transparent 55%);
+    border-bottom: 1px solid rgba(var(--npcb-accent-rgb), .10);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, .24);
+}
+
+#top-settings-holder.npcb-native-menu-rail > .npcb-native-menu-tab {
+    flex: 1 1 0 !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+}
+
+#top-settings-holder.npcb-native-menu-rail > .npcb-native-menu-tab > .npcb-native-menu-toggle {
+    width: 100% !important;
+    min-width: 0 !important;
+    border-radius: 8px !important;
+    cursor: pointer !important;
+    pointer-events: auto !important;
+}
+
+#top-settings-holder.npcb-native-menu-rail .npcb-native-menu-icon {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+}
+
+/* Kill every old full-viewport rail override at responsive breakpoints too. */
+@media (max-width: 900px) {
+    #top-settings-holder.npcb-native-menu-rail {
+        width: var(--sheldWidth) !important;
+        max-width: var(--sheldWidth) !important;
+        min-width: 0 !important;
+        left: auto !important;
+        right: auto !important;
+        transform: none !important;
+        margin: 0 auto !important;
+        padding-inline: 2px !important;
+        gap: 1px !important;
+        overflow: visible !important;
+    }
+}
+
+@media (max-width: 620px) {
+    #top-settings-holder.npcb-native-menu-rail {
+        width: var(--sheldWidth) !important;
+        max-width: var(--sheldWidth) !important;
+    }
+}
