@@ -177,6 +177,17 @@ export function mountNativeMenus() {
     mounted = true;
 
     const holder = document.getElementById('top-settings-holder');
+    if (holder && holder.dataset.npcbWheelReady !== '1') {
+        holder.dataset.npcbWheelReady = '1';
+        holder.addEventListener('wheel', event => {
+            if (holder.scrollWidth <= holder.clientWidth + 2) return;
+            if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+
+            holder.scrollLeft += event.deltaY;
+            event.preventDefault();
+        }, { passive: false });
+    }
+
     if (holder && typeof MutationObserver !== 'undefined') {
         observer = new MutationObserver(scheduleRefresh);
         observer.observe(holder, {
