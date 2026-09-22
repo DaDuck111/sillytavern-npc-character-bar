@@ -156,6 +156,7 @@ export function refreshNativeMenus() {
     const holder = document.getElementById('top-settings-holder');
     if (!holder) return false;
 
+    document.body?.classList.add('npcb-native-menu-expanded');
     holder.classList.add('npcb-native-menu-rail');
     MENU_DEFS.forEach(decorateOne);
     return true;
