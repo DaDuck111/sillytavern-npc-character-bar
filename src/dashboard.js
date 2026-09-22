@@ -43,6 +43,7 @@ function getDashboardPrefs() {
     return {
         tabOrder,
         rect: raw.rect && typeof raw.rect === 'object' ? raw.rect : null,
+        togglePoint: raw.togglePoint && typeof raw.togglePoint === 'object' ? raw.togglePoint : null,
         accentColor: /^#[0-9a-f]{6}$/i.test(raw.accentColor || '') ? raw.accentColor : DEFAULT_THEME.accentColor,
         panelColor: /^#[0-9a-f]{6}$/i.test(raw.panelColor || '') ? raw.panelColor : DEFAULT_THEME.panelColor,
     };
@@ -54,6 +55,85 @@ function saveDashboardPrefs(patch) {
     const current = getDashboardPrefs();
     ctx.extensionSettings[DASH_PREF_KEY] = { ...current, ...patch };
     ctx.saveSettingsDebounced?.();
+}
+
+function clampTogglePoint(point = {}) {
+    const size = 38;
+    const margin = 8;
+    const maxLeft = Math.max(margin, window.innerWidth - size - margin);
+    const maxTop = Math.max(margin, window.innerHeight - size - margin);
+    return {
+        left: Math.max(margin, Math.min(Number(point.left) || maxLeft, maxLeft)),
+        top: Math.max(margin, Math.min(Number(point.top) || Math.round(window.innerHeight * 0.62), maxTop)),
+    };
+}
+
+function applyTogglePoint(toggle) {
+    if (!toggle) return;
+    const saved = getDashboardPrefs().togglePoint;
+    const point = clampTogglePoint(saved || {});
+    toggle.style.left = `${point.left}px`;
+    toggle.style.top = `${point.top}px`;
+    toggle.style.right = 'auto';
+    toggle.style.bottom = 'auto';
+}
+
+function installToggleDragging(toggle) {
+    if (!toggle || toggle.dataset.npcbDragReady === '1') return;
+    toggle.dataset.npcbDragReady = '1';
+
+    let state = null;
+
+    toggle.addEventListener('pointerdown', event => {
+        if (event.button !== 0) return;
+        const rect = toggle.getBoundingClientRect();
+        state = {
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            left: rect.left,
+            top: rect.top,
+            dragging: false,
+        };
+        toggle.setPointerCapture?.(event.pointerId);
+    });
+
+    toggle.addEventListener('pointermove', event => {
+        if (!state || state.pointerId !== event.pointerId) return;
+        const dx = event.clientX - state.startX;
+        const dy = event.clientY - state.startY;
+        if (!state.dragging && Math.hypot(dx, dy) < 5) return;
+
+        state.dragging = true;
+        toggle.dataset.dragging = '1';
+        const point = clampTogglePoint({ left: state.left + dx, top: state.top + dy });
+        toggle.style.left = `${point.left}px`;
+        toggle.style.top = `${point.top}px`;
+        toggle.style.right = 'auto';
+        toggle.style.bottom = 'auto';
+        event.preventDefault();
+    });
+
+    const finish = event => {
+        if (!state || (event?.pointerId !== undefined && state.pointerId !== event.pointerId)) return;
+        const wasDragging = state.dragging;
+        const rect = toggle.getBoundingClientRect();
+        state = null;
+        delete toggle.dataset.dragging;
+        try {
+            if (event?.pointerId !== undefined && toggle.hasPointerCapture?.(event.pointerId)) {
+                toggle.releasePointerCapture(event.pointerId);
+            }
+        } catch {}
+
+        if (wasDragging) {
+            saveDashboardPrefs({ togglePoint: clampTogglePoint({ left: rect.left, top: rect.top }) });
+            toggle.dataset.suppressClickUntil = String(Date.now() + 400);
+        }
+    };
+
+    toggle.addEventListener('pointerup', finish);
+    toggle.addEventListener('pointercancel', finish);
 }
 
 function hexToRgb(hex) {
@@ -1855,15 +1935,23 @@ export function mountDashboard() {
         const toggle = document.createElement('button');
         toggle.id = TOGGLE_ID;
         toggle.type = 'button';
-        toggle.title = 'Open System';
+        toggle.title = 'Open System — drag to move';
+        toggle.setAttribute('aria-label', 'Open System. Drag to move this button.');
         toggle.innerHTML = '◇';
         toggle.addEventListener('click', () => {
+            if (Date.now() < Number(toggle.dataset.suppressClickUntil || 0)) return;
             const panel = document.getElementById(ID);
             panel?.classList.remove('npcb-side-hidden');
             if (panel) applyDashboardGeometry(panel);
             toggle.classList.remove('visible');
         });
         document.body.appendChild(toggle);
+        applyTogglePoint(toggle);
+        installToggleDragging(toggle);
+    } else {
+        const toggle = document.getElementById(TOGGLE_ID);
+        applyTogglePoint(toggle);
+        installToggleDragging(toggle);
     }
 
     if (!listenersInstalled) {
@@ -1878,13 +1966,21 @@ export function mountDashboard() {
         });
         window.addEventListener('resize', () => {
             const panel = document.getElementById(ID);
-            if (!panel || panel.dataset.userGeometry !== '1') return;
-            const safe = clampPanelRect(panel.getBoundingClientRect());
-            panel.style.left = `${safe.left}px`;
-            panel.style.top = `${safe.top}px`;
-            panel.style.width = `${safe.width}px`;
-            panel.style.height = `${safe.height}px`;
-            persistCurrentGeometry(panel);
+            if (panel?.dataset.userGeometry === '1') {
+                const safe = clampPanelRect(panel.getBoundingClientRect());
+                panel.style.left = `${safe.left}px`;
+                panel.style.top = `${safe.top}px`;
+                panel.style.width = `${safe.width}px`;
+                panel.style.height = `${safe.height}px`;
+                persistCurrentGeometry(panel);
+            }
+
+            const toggle = document.getElementById(TOGGLE_ID);
+            if (toggle) {
+                const safeToggle = clampTogglePoint(toggle.getBoundingClientRect());
+                toggle.style.left = `${safeToggle.left}px`;
+                toggle.style.top = `${safeToggle.top}px`;
+            }
         });
     }
 
