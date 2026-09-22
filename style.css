@@ -8868,3 +8868,269 @@ body.npcb-character-dragging * {
         0 0 0 2px rgba(var(--npcb-accent-rgb), .20),
         0 10px 28px rgba(0, 0, 0, .32) !important;
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   v0.12.5 — workspace-sized inner menus + draggable System button
+   ═══════════════════════════════════════════════════════════════ */
+
+/*
+ * The user wants the TOP menu compact, but the INSIDE menus spacious.
+ * Make every redesigned non-Lorebook drawer behave like a real workspace.
+ */
+#top-settings-holder :is(
+    #rm_api_block,
+    #AdvancedFormatting,
+    #user-settings-block,
+    #Backgrounds,
+    #rm_extensions_block,
+    #PersonaManagement
+).npcb-native-panel {
+    position: fixed !important;
+    top: calc(var(--topBarBlockSize) + 8px) !important;
+    left: 50% !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: translateX(-50%) !important;
+
+    width: min(1560px, calc(100vw - 42px)) !important;
+    min-width: min(1040px, calc(100vw - 42px)) !important;
+    max-width: calc(100vw - 42px) !important;
+
+    height: calc(100dvh - var(--topBarBlockSize) - 28px) !important;
+    min-height: min(680px, calc(100dvh - var(--topBarBlockSize) - 28px)) !important;
+    max-height: calc(100dvh - var(--topBarBlockSize) - 28px) !important;
+
+    margin: 0 !important;
+    padding: 0 0 12px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    border-radius: 16px !important;
+}
+
+/* Generation and Character Management are side-oriented native drawers,
+ * but they should still be genuinely roomy. */
+#top-settings-holder #left-nav-panel.npcb-native-panel {
+    width: min(1050px, 64vw) !important;
+    min-width: min(780px, calc(100vw - 18px)) !important;
+    max-width: calc(100vw - 18px) !important;
+    height: calc(100dvh - var(--topBarBlockSize) - 10px) !important;
+    max-height: calc(100dvh - var(--topBarBlockSize) - 10px) !important;
+}
+
+#top-settings-holder #right-nav-panel.npcb-native-panel {
+    width: min(1100px, 68vw) !important;
+    min-width: min(820px, calc(100vw - 12px)) !important;
+    max-width: calc(100vw - 12px) !important;
+    height: calc(100dvh - var(--topBarBlockSize) - 8px) !important;
+    max-height: calc(100dvh - var(--topBarBlockSize) - 8px) !important;
+}
+
+/* Larger header so the workspace feels intentional instead of stretched. */
+#top-settings-holder .npcb-native-panel .npcb-native-panel-header {
+    min-height: 64px !important;
+    padding: 10px 16px !important;
+}
+
+/* Persona Management: make it a comfortable writing workspace. */
+#PersonaManagement.npcb-native-panel {
+    overflow: hidden !important;
+}
+
+#PersonaManagement .npcb-native-panel-header {
+    flex: 0 0 auto;
+}
+
+#PersonaManagement > .flex-container.wide100p.alignitemscenter.spaceBetween.flexNoGap {
+    height: calc(100% - 64px) !important;
+    min-height: 0 !important;
+    padding: 12px 16px 16px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+}
+
+#PersonaManagement #persona-management-block {
+    display: grid !important;
+    grid-template-columns: minmax(330px, .78fr) minmax(560px, 1.42fr) !important;
+    gap: 18px !important;
+    align-items: stretch !important;
+    height: calc(100% - 58px) !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+}
+
+#PersonaManagement .persona_management_left_column,
+#PersonaManagement .persona_management_right_column {
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    border: 1px solid rgba(var(--npcb-accent-rgb), .085);
+    border-radius: 12px;
+    background: rgba(255,255,255,.012);
+    box-sizing: border-box;
+}
+
+#PersonaManagement .persona_management_left_column {
+    padding: 10px !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+#PersonaManagement #user_avatar_block {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    padding-right: 4px;
+}
+
+#PersonaManagement .persona_management_right_column {
+    padding: 12px 14px 18px !important;
+    overflow-y: auto !important;
+}
+
+#PersonaManagement .persona_management_current_persona {
+    max-width: none !important;
+}
+
+#PersonaManagement #persona_controls {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    padding: 9px 10px !important;
+    margin: 0 0 12px !important;
+    border: 1px solid rgba(var(--npcb-accent-rgb), .09);
+    border-radius: 10px;
+    background: rgba(5, 14, 18, .94);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+#PersonaManagement #persona_description {
+    width: 100% !important;
+    min-height: 300px !important;
+    max-height: 52vh !important;
+    resize: vertical !important;
+    padding: 14px 15px !important;
+    box-sizing: border-box !important;
+    border-radius: 12px !important;
+    font-size: 14px !important;
+    line-height: 1.65 !important;
+    letter-spacing: .005em;
+    background:
+        linear-gradient(180deg, rgba(var(--npcb-accent-rgb), .022), transparent 40%),
+        rgba(4, 12, 16, .92) !important;
+}
+
+#PersonaManagement #persona_description:focus {
+    border-color: rgba(var(--npcb-accent-rgb), .48) !important;
+    box-shadow:
+        0 0 0 2px rgba(var(--npcb-accent-rgb), .08),
+        inset 0 0 28px rgba(var(--npcb-accent-rgb), .018) !important;
+}
+
+#PersonaManagement .persona_management_description_position_container,
+#PersonaManagement #persona_connections_buttons,
+#PersonaManagement fieldset,
+#PersonaManagement .inline-drawer {
+    padding: 10px !important;
+    border: 1px solid rgba(var(--npcb-accent-rgb), .07);
+    border-radius: 10px;
+    background: rgba(255,255,255,.012);
+}
+
+/* Advanced Formatting / Settings writing fields should also feel like editors. */
+#AdvancedFormatting.npcb-native-panel textarea,
+#user-settings-block.npcb-native-panel textarea,
+#rm_api_block.npcb-native-panel textarea,
+#rm_extensions_block.npcb-native-panel textarea {
+    min-height: 150px;
+    resize: vertical !important;
+    padding: 11px 12px !important;
+    font-size: 13px !important;
+    line-height: 1.55 !important;
+}
+
+/* The hidden System reopen control is now a small draggable puck rather than a
+ * tall edge tab that visually occupies a whole strip of the screen. */
+#npcb-dashboard-toggle {
+    position: fixed !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
+    border: 1px solid rgba(var(--npcb-accent-rgb), .52) !important;
+    border-radius: 50% !important;
+    color: var(--npcb-accent) !important;
+    background:
+        radial-gradient(circle, rgba(var(--npcb-accent-rgb), .10), rgba(5,13,22,.97) 68%) !important;
+    box-shadow:
+        0 8px 22px rgba(0,0,0,.35),
+        0 0 16px rgba(var(--npcb-accent-rgb), .10) !important;
+    font-size: 15px !important;
+    cursor: grab !important;
+    touch-action: none;
+    user-select: none;
+}
+
+#npcb-dashboard-toggle:hover {
+    border-color: rgba(var(--npcb-accent-rgb), .85) !important;
+    box-shadow:
+        0 10px 26px rgba(0,0,0,.42),
+        0 0 20px rgba(var(--npcb-accent-rgb), .20) !important;
+}
+
+#npcb-dashboard-toggle[data-dragging="1"] {
+    cursor: grabbing !important;
+    transform: scale(1.07);
+}
+
+/* Responsive fallback: workspace panels become nearly full-screen. */
+@media (max-width: 1100px) {
+    #top-settings-holder :is(
+        #rm_api_block,
+        #AdvancedFormatting,
+        #user-settings-block,
+        #Backgrounds,
+        #rm_extensions_block,
+        #PersonaManagement,
+        #left-nav-panel,
+        #right-nav-panel
+    ).npcb-native-panel {
+        width: calc(100vw - 16px) !important;
+        min-width: 0 !important;
+        max-width: calc(100vw - 16px) !important;
+        left: 8px !important;
+        right: 8px !important;
+        transform: none !important;
+    }
+
+    #PersonaManagement #persona-management-block {
+        grid-template-columns: minmax(260px, .72fr) minmax(430px, 1.28fr) !important;
+    }
+}
+
+@media (max-width: 760px) {
+    #PersonaManagement > .flex-container.wide100p.alignitemscenter.spaceBetween.flexNoGap {
+        overflow-y: auto !important;
+    }
+
+    #PersonaManagement #persona-management-block {
+        display: flex !important;
+        flex-direction: column !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+
+    #PersonaManagement .persona_management_left_column,
+    #PersonaManagement .persona_management_right_column {
+        height: auto !important;
+        min-height: 300px !important;
+    }
+
+    #PersonaManagement #persona_description {
+        min-height: 240px !important;
+    }
+}
