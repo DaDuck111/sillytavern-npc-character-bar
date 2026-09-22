@@ -8009,3 +8009,308 @@ body:has(#extensionTopBar) #sheld {
 #right-nav-panel.npcb-native-panel #rm_button_panel_pin_div {
     margin: 0 !important;
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   v0.12.2 — large top navigation + draggable character cards
+   ═══════════════════════════════════════════════════════════════ */
+
+/*
+ * Make the redesigned navigation genuinely usable without breaking the
+ * official TopInfoBar. We increase SillyTavern's own top-bar slot, so #sheld
+ * and every native drawer still calculate their offsets correctly.
+ */
+body.npcb-native-menu-expanded {
+    --topBarBlockSize: 66px;
+}
+
+#top-settings-holder.npcb-native-menu-rail {
+    width: var(--sheldWidth) !important;
+    max-width: var(--sheldWidth) !important;
+    height: var(--topBarBlockSize) !important;
+    min-height: var(--topBarBlockSize) !important;
+    padding: 6px 7px !important;
+    gap: 7px !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scroll-snap-type: x proximity;
+    scroll-padding-inline: 8px;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(var(--npcb-accent-rgb), .22) transparent;
+}
+
+#top-settings-holder.npcb-native-menu-rail::-webkit-scrollbar {
+    display: block !important;
+    height: 5px;
+}
+
+#top-settings-holder.npcb-native-menu-rail::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#top-settings-holder.npcb-native-menu-rail::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba(var(--npcb-accent-rgb), .24);
+}
+
+#top-settings-holder.npcb-native-menu-rail > .npcb-native-menu-tab {
+    flex: 0 0 132px !important;
+    width: 132px !important;
+    min-width: 132px !important;
+    max-width: 132px !important;
+    scroll-snap-align: start;
+}
+
+#top-settings-holder.npcb-native-menu-rail > .npcb-native-menu-tab > .npcb-native-menu-toggle {
+    min-height: 52px !important;
+    height: 52px !important;
+    max-height: 52px !important;
+    padding: 7px 10px !important;
+    gap: 9px !important;
+    border-radius: 11px !important;
+}
+
+#top-settings-holder.npcb-native-menu-rail .npcb-native-menu-icon {
+    width: 23px !important;
+    min-width: 23px !important;
+    height: 23px !important;
+    font-size: 18px !important;
+    line-height: 23px !important;
+}
+
+#top-settings-holder.npcb-native-menu-rail .npcb-native-menu-label {
+    display: flex !important;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+#top-settings-holder.npcb-native-menu-rail .npcb-native-menu-label small {
+    display: block !important;
+    margin-bottom: 3px;
+    font-size: 7.5px !important;
+    letter-spacing: .11em;
+}
+
+#top-settings-holder.npcb-native-menu-rail .npcb-native-menu-label strong {
+    display: block !important;
+    max-width: none !important;
+    overflow: visible !important;
+    white-space: nowrap !important;
+    text-overflow: clip !important;
+    font-size: 10.5px !important;
+    line-height: 1.05 !important;
+}
+
+/* TopInfoBar is a normal child of #sheld. Keeping it in normal flow plus the
+ * enlarged native top-bar variable means the two bars no longer overlap. */
+body:has(#extensionTopBar) #extensionTopBar,
+body:has(#extensionTopBar) #extensionConnectionProfiles {
+    position: relative !important;
+    inset: auto !important;
+    z-index: 1 !important;
+}
+
+/* Wider drawer interiors match the easier navigation target size. Lorebook is
+ * still intentionally excluded from the custom inner-panel treatment. */
+#top-settings-holder .npcb-native-panel:not(#right-nav-panel):not(#Backgrounds) {
+    width: min(720px, calc(100vw - 20px)) !important;
+    max-width: calc(100vw - 20px) !important;
+}
+
+#top-settings-holder #Backgrounds.npcb-native-panel {
+    width: min(960px, calc(100vw - 20px)) !important;
+    max-width: calc(100vw - 20px) !important;
+}
+
+#top-settings-holder #right-nav-panel.npcb-native-panel {
+    width: min(640px, calc(100vw - 18px)) !important;
+    max-width: calc(100vw - 18px) !important;
+}
+
+/* Keep labels readable at narrower widths; navigation scrolls instead of
+ * collapsing into tiny icons. */
+@media (max-width: 920px) {
+    body.npcb-native-menu-expanded {
+        --topBarBlockSize: 64px;
+    }
+
+    #top-settings-holder.npcb-native-menu-rail {
+        height: var(--topBarBlockSize) !important;
+        min-height: var(--topBarBlockSize) !important;
+        flex-wrap: nowrap !important;
+        padding: 5px !important;
+        gap: 5px !important;
+    }
+
+    #top-settings-holder.npcb-native-menu-rail > .npcb-native-menu-tab {
+        flex: 0 0 118px !important;
+        width: 118px !important;
+        min-width: 118px !important;
+        max-width: 118px !important;
+    }
+
+    #top-settings-holder.npcb-native-menu-rail > .npcb-native-menu-tab > .npcb-native-menu-toggle {
+        height: 50px !important;
+        min-height: 50px !important;
+        max-height: 50px !important;
+        padding-inline: 8px !important;
+    }
+
+    #top-settings-holder.npcb-native-menu-rail .npcb-native-menu-label small {
+        display: block !important;
+    }
+
+    #top-settings-holder.npcb-native-menu-rail .npcb-native-menu-label strong {
+        display: block !important;
+        font-size: 10px !important;
+    }
+}
+
+@media (max-width: 620px) {
+    body.npcb-native-menu-expanded {
+        --topBarBlockSize: 62px;
+    }
+
+    #top-settings-holder.npcb-native-menu-rail > .npcb-native-menu-tab {
+        flex: 0 0 108px !important;
+        width: 108px !important;
+        min-width: 108px !important;
+        max-width: 108px !important;
+    }
+
+    #top-settings-holder.npcb-native-menu-rail > .npcb-native-menu-tab > .npcb-native-menu-toggle {
+        height: 48px !important;
+        min-height: 48px !important;
+        max-height: 48px !important;
+        gap: 7px !important;
+    }
+
+    #top-settings-holder.npcb-native-menu-rail .npcb-native-menu-label {
+        display: flex !important;
+    }
+
+    #top-settings-holder.npcb-native-menu-rail .npcb-native-menu-label small {
+        display: none !important;
+    }
+
+    #top-settings-holder.npcb-native-menu-rail .npcb-native-menu-label strong {
+        display: block !important;
+        font-size: 9.5px !important;
+    }
+
+    #top-settings-holder.npcb-native-menu-rail .npcb-native-menu-icon {
+        width: 21px !important;
+        min-width: 21px !important;
+        font-size: 17px !important;
+    }
+}
+
+@media (max-width: 420px) {
+    #top-settings-holder.npcb-native-menu-rail > .npcb-native-menu-tab {
+        flex: 0 0 102px !important;
+        width: 102px !important;
+        min-width: 102px !important;
+        max-width: 102px !important;
+    }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Drag-to-reorder character cards
+   ────────────────────────────────────────────────────────────── */
+
+#npcb-character-library-shell #rm_print_characters_block .character_select[draggable="true"] {
+    cursor: grab !important;
+    user-select: none;
+    transition:
+        transform .14s ease,
+        opacity .14s ease,
+        border-color .14s ease,
+        box-shadow .14s ease;
+}
+
+#npcb-character-library-shell #rm_print_characters_block .character_select[draggable="true"]:active {
+    cursor: grabbing !important;
+}
+
+#npcb-character-library-shell #rm_print_characters_block .character_select[draggable="true"]::after {
+    content: "⠿";
+    position: absolute;
+    top: 7px;
+    right: 8px;
+    z-index: 7;
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    color: rgba(180, 220, 230, .28);
+    background: rgba(2, 8, 11, .46);
+    font-size: 14px;
+    line-height: 1;
+    opacity: .32;
+    pointer-events: none;
+    transition: opacity .14s ease, color .14s ease, border-color .14s ease, background-color .14s ease;
+}
+
+#npcb-character-library-shell #rm_print_characters_block .character_select[draggable="true"]:hover::after {
+    opacity: 1;
+    color: var(--npcb-accent);
+    border-color: rgba(var(--npcb-accent-rgb), .18);
+    background: rgba(var(--npcb-accent-rgb), .07);
+}
+
+#npcb-character-library-shell #rm_print_characters_block .character_select.npcb-dragging {
+    opacity: .42 !important;
+    transform: scale(.97);
+    cursor: grabbing !important;
+}
+
+#npcb-character-library-shell #rm_print_characters_block .character_select.npcb-drag-over {
+    border-color: rgba(var(--npcb-accent-rgb), .78) !important;
+    box-shadow:
+        0 0 0 2px rgba(var(--npcb-accent-rgb), .16),
+        0 8px 24px rgba(0, 0, 0, .26) !important;
+    transform: translateY(-2px);
+}
+
+#npcb-character-library-shell #rm_print_characters_block .character_select.npcb-drag-over::before {
+    content: "";
+    position: absolute;
+    z-index: 9;
+    left: -5px;
+    top: 8px;
+    bottom: 8px;
+    width: 3px;
+    border-radius: 99px;
+    background: var(--npcb-accent);
+    box-shadow: 0 0 10px rgba(var(--npcb-accent-rgb), .55);
+}
+
+#npcb-character-library-shell #rm_print_characters_block .character_select.npcb-drag-over.npcb-drop-after::before {
+    left: auto;
+    right: -5px;
+}
+
+#npcb-character-library-shell #rm_print_characters_block.npcb-reordering {
+    cursor: grabbing;
+}
+
+#npcb-character-library-shell #rm_print_characters_block.npcb-reordering .character_select:not(.npcb-dragging) {
+    transition:
+        order .12s ease,
+        transform .14s ease,
+        border-color .14s ease,
+        box-shadow .14s ease;
+}
+
+#npcb-character-library-shell #rm_print_characters_block .npcb-character-openhint,
+#npcb-character-library-shell #rm_print_characters_block .character_select button,
+#npcb-character-library-shell #rm_print_characters_block .character_select input,
+#npcb-character-library-shell #rm_print_characters_block .character_select a {
+    cursor: pointer !important;
+}
