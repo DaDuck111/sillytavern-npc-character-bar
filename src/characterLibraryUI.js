@@ -347,8 +347,13 @@ function installCardDragging(card) {
     if (!card || card.dataset.npcbDragReady === '1') return;
     card.dataset.npcbDragReady = '1';
     card.draggable = true;
+    card.querySelectorAll('img').forEach(image => { image.draggable = false; });
 
     card.addEventListener('dragstart', event => {
+        if (event.target.closest?.('button, input, select, textarea, a, label')) {
+            event.preventDefault();
+            return;
+        }
         if (isBulkMode()) {
             event.preventDefault();
             return;
