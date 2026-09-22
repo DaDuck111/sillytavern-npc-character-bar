@@ -364,6 +364,12 @@ function installCardDragging(card) {
             applyCharacterCardOrder();
         }
 
+        // Clear global drag state before releasing pointer capture because
+        // releasePointerCapture fires lostpointercapture synchronously in some
+        // browsers.
+        draggedCardKey = '';
+        pointerDragState = null;
+
         try {
             if (card.hasPointerCapture?.(state.pointerId)) card.releasePointerCapture(state.pointerId);
         } catch {}
@@ -374,8 +380,6 @@ function installCardDragging(card) {
         clearDropTargets();
 
         if (state.dragging) suppressCardClickUntil = Date.now() + 350;
-        draggedCardKey = '';
-        pointerDragState = null;
     };
 
     card.addEventListener('pointerdown', event => {
