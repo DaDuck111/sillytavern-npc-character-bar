@@ -10,6 +10,7 @@ let installed = false;
 let selectedChid = '';
 let requestSerial = 0;
 let draggedCardKey = '';
+let pointerDragState = null;
 let suppressCardClickUntil = 0;
 const chatCache = new Map();
 
@@ -320,20 +321,23 @@ function saveCharacterCardOrder(order) {
     currentContext()?.saveSettingsDebounced?.();
 }
 
-function applyCharacterCardOrder() {
+function applyCharacterCardOrderList(order = []) {
     const cards = visibleCharacterCards();
     if (!cards.length) return;
 
-    const saved = characterOrderRoot().order;
-    const rank = new Map(saved.map((key, index) => [key, index]));
-    const fallbackBase = saved.length + 1000;
+    const rank = new Map(order.map((key, index) => [key, index]));
+    const fallbackBase = order.length + 1000;
 
     cards.forEach((card, domIndex) => {
         const key = cardStableKey(card);
         card.dataset.npcbOrderKey = key;
-        const order = rank.has(key) ? rank.get(key) : fallbackBase + domIndex;
-        card.style.order = String(order);
+        const value = rank.has(key) ? rank.get(key) : fallbackBase + domIndex;
+        card.style.order = String(value);
     });
+}
+
+function applyCharacterCardOrder() {
+    applyCharacterCardOrderList(characterOrderRoot().order);
 }
 
 function clearDropTargets() {
@@ -346,93 +350,122 @@ function clearDropTargets() {
 function installCardDragging(card) {
     if (!card || card.dataset.npcbDragReady === '1') return;
     card.dataset.npcbDragReady = '1';
-    card.draggable = true;
+    card.draggable = false;
     card.querySelectorAll('img').forEach(image => { image.draggable = false; });
 
-    card.addEventListener('dragstart', event => {
-        if (event.target.closest?.('button, input, select, textarea, a, label')) {
-            event.preventDefault();
-            return;
-        }
-        if (isBulkMode()) {
-            event.preventDefault();
-            return;
-        }
+    const cancelPointerDrag = ({ save = false } = {}) => {
+        const state = pointerDragState;
+        if (!state || state.card !== card) return;
 
-        const key = cardStableKey(card);
-        if (!key) {
-            event.preventDefault();
-            return;
+        if (state.dragging && save) {
+            saveCharacterCardOrder(state.order);
+            applyCharacterCardOrderList(state.order);
+        } else if (!state.dragging) {
+            applyCharacterCardOrder();
         }
-
-        draggedCardKey = key;
-        suppressCardClickUntil = Date.now() + 600;
-        card.classList.add('npcb-dragging');
-        document.getElementById('rm_print_characters_block')?.classList.add('npcb-reordering');
 
         try {
-            event.dataTransfer.effectAllowed = 'move';
-            event.dataTransfer.setData('text/plain', key);
+            if (card.hasPointerCapture?.(state.pointerId)) card.releasePointerCapture(state.pointerId);
         } catch {}
+
+        card.classList.remove('npcb-dragging');
+        document.getElementById('rm_print_characters_block')?.classList.remove('npcb-reordering');
+        document.body?.classList.remove('npcb-character-dragging');
+        clearDropTargets();
+
+        if (state.dragging) suppressCardClickUntil = Date.now() + 350;
+        draggedCardKey = '';
+        pointerDragState = null;
+    };
+
+    card.addEventListener('pointerdown', event => {
+        if (event.button !== 0 || isBulkMode()) return;
+        if (event.target.closest?.('button, input, select, textarea, a, label, .ch_fav_icon')) return;
+
+        const key = cardStableKey(card);
+        if (!key) return;
+
+        pointerDragState = {
+            card,
+            key,
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            dragging: false,
+            order: currentVisualCardKeys(),
+            lastTargetKey: '',
+            lastAfter: false,
+        };
+
+        try { card.setPointerCapture?.(event.pointerId); } catch {}
     });
 
-    card.addEventListener('dragover', event => {
-        if (!draggedCardKey || draggedCardKey === cardStableKey(card)) return;
+    card.addEventListener('pointermove', event => {
+        const state = pointerDragState;
+        if (!state || state.card !== card || state.pointerId !== event.pointerId) return;
+
+        const dx = event.clientX - state.startX;
+        const dy = event.clientY - state.startY;
+
+        if (!state.dragging) {
+            if (Math.hypot(dx, dy) < 8) return;
+            state.dragging = true;
+            draggedCardKey = state.key;
+            suppressCardClickUntil = Date.now() + 800;
+            card.classList.add('npcb-dragging');
+            document.getElementById('rm_print_characters_block')?.classList.add('npcb-reordering');
+            document.body?.classList.add('npcb-character-dragging');
+        }
+
         event.preventDefault();
+
+        const hit = document.elementFromPoint(event.clientX, event.clientY);
+        const target = hit?.closest?.('#rm_print_characters_block .character_select');
+        if (!target || target === card) {
+            clearDropTargets();
+            return;
+        }
+
+        const targetKey = cardStableKey(target);
+        if (!targetKey || targetKey === state.key) return;
+
+        const rect = target.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const sameRow = Math.abs(event.clientY - centerY) < rect.height * 0.34;
+        const after = sameRow ? event.clientX > centerX : event.clientY > centerY;
 
         clearDropTargets();
-        const rect = card.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2;
-        const centerY = rect.top + rect.height / 2;
-        const nearSameRow = Math.abs(event.clientY - centerY) < rect.height * 0.30;
-        const after = nearSameRow ? event.clientX > centerX : event.clientY > centerY;
+        target.classList.add('npcb-drag-over');
+        target.classList.toggle('npcb-drop-after', after);
 
-        card.classList.add('npcb-drag-over');
-        card.classList.toggle('npcb-drop-after', after);
-        try { event.dataTransfer.dropEffect = 'move'; } catch {}
-    });
+        if (state.lastTargetKey === targetKey && state.lastAfter === after) return;
+        state.lastTargetKey = targetKey;
+        state.lastAfter = after;
 
-    card.addEventListener('dragleave', event => {
-        if (event.relatedTarget && card.contains(event.relatedTarget)) return;
-        card.classList.remove('npcb-drag-over', 'npcb-drop-after');
-    });
-
-    card.addEventListener('drop', event => {
-        if (!draggedCardKey) return;
-        event.preventDefault();
-        event.stopPropagation();
-
-        const targetKey = cardStableKey(card);
-        if (!targetKey || targetKey === draggedCardKey) return;
-
-        const order = currentVisualCardKeys();
-        const sourceIndex = order.indexOf(draggedCardKey);
+        const order = [...state.order];
+        const sourceIndex = order.indexOf(state.key);
         const targetIndex = order.indexOf(targetKey);
         if (sourceIndex < 0 || targetIndex < 0) return;
-
-        const rect = card.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2;
-        const centerY = rect.top + rect.height / 2;
-        const nearSameRow = Math.abs(event.clientY - centerY) < rect.height * 0.30;
-        const after = nearSameRow ? event.clientX > centerX : event.clientY > centerY;
 
         order.splice(sourceIndex, 1);
         let insertIndex = order.indexOf(targetKey);
         if (after) insertIndex += 1;
-        order.splice(insertIndex, 0, draggedCardKey);
+        order.splice(insertIndex, 0, state.key);
 
-        saveCharacterCardOrder(order);
-        applyCharacterCardOrder();
-        clearDropTargets();
-        suppressCardClickUntil = Date.now() + 350;
+        state.order = order;
+        applyCharacterCardOrderList(order);
     });
 
-    card.addEventListener('dragend', () => {
-        card.classList.remove('npcb-dragging');
-        document.getElementById('rm_print_characters_block')?.classList.remove('npcb-reordering');
-        clearDropTargets();
-        draggedCardKey = '';
-        suppressCardClickUntil = Date.now() + 250;
+    card.addEventListener('pointerup', event => {
+        const state = pointerDragState;
+        if (!state || state.card !== card || state.pointerId !== event.pointerId) return;
+        cancelPointerDrag({ save: state.dragging });
+    });
+
+    card.addEventListener('pointercancel', () => cancelPointerDrag({ save: false }));
+    card.addEventListener('lostpointercapture', () => {
+        if (pointerDragState?.card === card) cancelPointerDrag({ save: pointerDragState.dragging });
     });
 }
 
