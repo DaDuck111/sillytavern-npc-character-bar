@@ -9940,3 +9940,136 @@ body.npcb-character-dragging * {
         max-width: var(--sheldWidth) !important;
     }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   v0.12.11 — restore Persona workspace content
+   ═══════════════════════════════════════════════════════════════ */
+
+/*
+ * The Persona panel could open with only the top utility row visible because
+ * older height/flex rules left #persona-management-block with no usable block
+ * size. Give the shell two explicit rows: utility row + workspace.
+ */
+#PersonaManagement.openDrawer > .flex-container.wide100p.alignitemscenter.spaceBetween.flexNoGap,
+#PersonaManagement.open > .flex-container.wide100p.alignitemscenter.spaceBetween.flexNoGap {
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    align-items: stretch !important;
+    justify-items: stretch !important;
+    justify-content: stretch !important;
+
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+
+    height: calc(100% - 64px) !important;
+    min-height: 0 !important;
+    max-height: calc(100% - 64px) !important;
+
+    padding: 10px 14px 14px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+}
+
+/* Native heading / Usage Stats / Backup / Restore row. */
+#PersonaManagement.openDrawer > .flex-container.wide100p.alignitemscenter.spaceBetween.flexNoGap
+    > .flex-container.alignItemsBaseline.wide100p,
+#PersonaManagement.open > .flex-container.wide100p.alignitemscenter.spaceBetween.flexNoGap
+    > .flex-container.alignItemsBaseline.wide100p {
+    grid-row: 1 !important;
+    align-self: start !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 0 10px !important;
+}
+
+/* Force the actual persona workspace to occupy the second row. */
+#PersonaManagement #persona-management-block {
+    grid-row: 2 !important;
+    align-self: stretch !important;
+    justify-self: stretch !important;
+
+    display: grid !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: 100% !important;
+
+    margin: 0 !important;
+    overflow: hidden !important;
+}
+
+/* Both native columns must remain visible even before async persona hydration
+ * finishes, so an empty-data state never looks like a broken blank panel. */
+#PersonaManagement .persona_management_left_column,
+#PersonaManagement .persona_management_right_column {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+}
+
+#PersonaManagement .persona_management_left_column {
+    flex-direction: column !important;
+}
+
+#PersonaManagement .persona_management_right_column {
+    flex-direction: column !important;
+    overflow-y: auto !important;
+}
+
+/* Medium-width Persona workspace remains two columns. */
+@container npcbPersonaWorkspace (max-width: 920px) {
+    #PersonaManagement #persona-management-block {
+        display: grid !important;
+        grid-template-columns: minmax(250px, 38%) minmax(0, 62%) !important;
+        height: 100% !important;
+        min-height: 0 !important;
+        overflow: hidden !important;
+    }
+
+    #PersonaManagement .persona_management_left_column,
+    #PersonaManagement .persona_management_right_column {
+        height: 100% !important;
+        min-height: 0 !important;
+    }
+}
+
+/* Truly narrow workspace: stack, but keep the content visible. */
+@container npcbPersonaWorkspace (max-width: 680px) {
+    #PersonaManagement.openDrawer > .flex-container.wide100p.alignitemscenter.spaceBetween.flexNoGap,
+    #PersonaManagement.open > .flex-container.wide100p.alignitemscenter.spaceBetween.flexNoGap {
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+    }
+
+    #PersonaManagement #persona-management-block {
+        display: flex !important;
+        flex-direction: column !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        overflow: visible !important;
+    }
+
+    #PersonaManagement .persona_management_left_column,
+    #PersonaManagement .persona_management_right_column {
+        height: auto !important;
+        min-height: 260px !important;
+        overflow: visible !important;
+    }
+
+    #PersonaManagement #user_avatar_block {
+        max-height: 330px !important;
+        overflow-y: auto !important;
+    }
+}
