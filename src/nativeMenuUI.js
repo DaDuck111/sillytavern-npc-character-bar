@@ -89,17 +89,17 @@ function ensureMenuLabel(drawer, def) {
     toggle.classList.add('npcb-native-menu-toggle');
     toggle.dataset.npcbMenu = def.key;
     toggle.setAttribute('aria-label', def.label);
+    toggle.setAttribute('title', def.label);
 
-    let label = toggle.querySelector(':scope > .npcb-native-menu-label');
-    if (!label) {
-        label = document.createElement('span');
-        label.className = 'npcb-native-menu-label';
-        label.innerHTML = `<small>${def.kicker}</small><strong>${def.label}</strong>`;
-        toggle.appendChild(label);
-    }
+    // Icon-only top navigation. Remove labels created by older extension
+    // versions so they cannot affect native SillyTavern/TopInfoBar geometry.
+    toggle.querySelectorAll(':scope > .npcb-native-menu-label').forEach(label => label.remove());
 
     const icon = toggle.querySelector('.drawer-icon');
-    if (icon) icon.classList.add('npcb-native-menu-icon');
+    if (icon) {
+        icon.classList.add('npcb-native-menu-icon');
+        icon.setAttribute('title', def.label);
+    }
 }
 
 function ensurePanelHeader(drawer, panel, def) {
@@ -156,7 +156,7 @@ export function refreshNativeMenus() {
     const holder = document.getElementById('top-settings-holder');
     if (!holder) return false;
 
-    document.body?.classList.add('npcb-native-menu-expanded');
+    document.body?.classList.remove('npcb-native-menu-expanded');
     holder.classList.add('npcb-native-menu-rail');
     MENU_DEFS.forEach(decorateOne);
     return true;
@@ -177,16 +177,6 @@ export function mountNativeMenus() {
     mounted = true;
 
     const holder = document.getElementById('top-settings-holder');
-    if (holder && holder.dataset.npcbWheelReady !== '1') {
-        holder.dataset.npcbWheelReady = '1';
-        holder.addEventListener('wheel', event => {
-            if (holder.scrollWidth <= holder.clientWidth + 2) return;
-            if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
-
-            holder.scrollLeft += event.deltaY;
-            event.preventDefault();
-        }, { passive: false });
-    }
 
     if (holder && typeof MutationObserver !== 'undefined') {
         observer = new MutationObserver(scheduleRefresh);

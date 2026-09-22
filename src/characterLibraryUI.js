@@ -11,6 +11,7 @@ let selectedChid = '';
 let requestSerial = 0;
 let draggedCardKey = '';
 let pointerDragState = null;
+let dragGhost = null;
 let suppressCardClickUntil = 0;
 const chatCache = new Map();
 
@@ -347,130 +348,167 @@ function clearDropTargets() {
         });
 }
 
+function removeDragGhost() {
+    dragGhost?.remove?.();
+    dragGhost = null;
+}
+
+function buildDragGhost(card) {
+    removeDragGhost();
+
+    const ghost = document.createElement('div');
+    ghost.className = 'npcb-card-drag-ghost';
+
+    const image = card.querySelector('.avatar img, img');
+    const name = String(card.querySelector('.ch_name')?.textContent || '').trim();
+
+    ghost.innerHTML = `
+        <div class="npcb-card-drag-ghost-avatar">${image?.src ? `<img src="${escapeHtml(image.src)}" alt="">` : '<span>?</span>'}</div>
+        <strong>${escapeHtml(name || 'Character')}</strong>
+    `;
+
+    document.body.appendChild(ghost);
+    dragGhost = ghost;
+    return ghost;
+}
+
+function moveDragGhost(clientX, clientY) {
+    if (!dragGhost) return;
+    dragGhost.style.transform = `translate3d(${Math.round(clientX + 14)}px, ${Math.round(clientY + 14)}px, 0)`;
+}
+
+function resolveDropTarget(clientX, clientY, sourceCard) {
+    const hit = document.elementFromPoint(clientX, clientY);
+    const target = hit?.closest?.('#rm_print_characters_block .character_select');
+    if (!target || target === sourceCard) return null;
+    return target;
+}
+
+function previewReorderedCardOrder(state, target, clientX, clientY) {
+    const targetKey = cardStableKey(target);
+    if (!targetKey || targetKey === state.key) return;
+
+    const rect = target.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const sameRow = Math.abs(clientY - centerY) < rect.height * 0.34;
+    const after = sameRow ? clientX > centerX : clientY > centerY;
+
+    clearDropTargets();
+    target.classList.add('npcb-drag-over');
+    target.classList.toggle('npcb-drop-after', after);
+
+    if (state.lastTargetKey === targetKey && state.lastAfter === after) return;
+    state.lastTargetKey = targetKey;
+    state.lastAfter = after;
+
+    const order = [...state.order];
+    const sourceIndex = order.indexOf(state.key);
+    const targetIndex = order.indexOf(targetKey);
+    if (sourceIndex < 0 || targetIndex < 0) return;
+
+    order.splice(sourceIndex, 1);
+    let insertIndex = order.indexOf(targetKey);
+    if (after) insertIndex += 1;
+    order.splice(insertIndex, 0, state.key);
+
+    state.order = order;
+    applyCharacterCardOrderList(order);
+}
+
+function finishPointerCardDrag({ save = false } = {}) {
+    const state = pointerDragState;
+    if (!state) return;
+
+    if (state.dragging && save) {
+        saveCharacterCardOrder(state.order);
+        applyCharacterCardOrderList(state.order);
+    } else if (!state.dragging) {
+        applyCharacterCardOrder();
+    }
+
+    state.card?.classList.remove('npcb-dragging');
+    document.getElementById('rm_print_characters_block')?.classList.remove('npcb-reordering');
+    document.body?.classList.remove('npcb-character-dragging');
+    clearDropTargets();
+    removeDragGhost();
+
+    if (state.dragging) suppressCardClickUntil = Date.now() + 380;
+    draggedCardKey = '';
+    pointerDragState = null;
+}
+
+function beginCardPointerDrag(event, card) {
+    if (!card || event.button !== 0 || isBulkMode()) return false;
+    if (event.target.closest?.('button, input, select, textarea, a, label, .ch_fav_icon')) return false;
+
+    const key = cardStableKey(card);
+    if (!key) return false;
+
+    pointerDragState = {
+        card,
+        key,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        dragging: false,
+        order: currentVisualCardKeys(),
+        lastTargetKey: '',
+        lastAfter: false,
+    };
+
+    return true;
+}
+
+function handleCharacterReorderPointerDown(event) {
+    const card = event.target?.closest?.('#rm_print_characters_block .character_select');
+    if (!card) return;
+    beginCardPointerDrag(event, card);
+}
+
+function handleCharacterReorderPointerMove(event) {
+    const state = pointerDragState;
+    if (!state || state.pointerId !== event.pointerId) return;
+
+    const dx = event.clientX - state.startX;
+    const dy = event.clientY - state.startY;
+
+    if (!state.dragging) {
+        if (Math.hypot(dx, dy) < 7) return;
+
+        state.dragging = true;
+        draggedCardKey = state.key;
+        suppressCardClickUntil = Date.now() + 900;
+        state.card.classList.add('npcb-dragging');
+        document.getElementById('rm_print_characters_block')?.classList.add('npcb-reordering');
+        document.body?.classList.add('npcb-character-dragging');
+        buildDragGhost(state.card);
+    }
+
+    event.preventDefault();
+    moveDragGhost(event.clientX, event.clientY);
+
+    const target = resolveDropTarget(event.clientX, event.clientY, state.card);
+    if (!target) {
+        clearDropTargets();
+        state.lastTargetKey = '';
+        return;
+    }
+
+    previewReorderedCardOrder(state, target, event.clientX, event.clientY);
+}
+
+function handleCharacterReorderPointerUp(event) {
+    const state = pointerDragState;
+    if (!state || state.pointerId !== event.pointerId) return;
+    finishPointerCardDrag({ save: state.dragging });
+}
+
 function installCardDragging(card) {
     if (!card || card.dataset.npcbDragReady === '1') return;
     card.dataset.npcbDragReady = '1';
     card.draggable = false;
     card.querySelectorAll('img').forEach(image => { image.draggable = false; });
-
-    const cancelPointerDrag = ({ save = false } = {}) => {
-        const state = pointerDragState;
-        if (!state || state.card !== card) return;
-
-        if (state.dragging && save) {
-            saveCharacterCardOrder(state.order);
-            applyCharacterCardOrderList(state.order);
-        } else if (!state.dragging) {
-            applyCharacterCardOrder();
-        }
-
-        // Clear global drag state before releasing pointer capture because
-        // releasePointerCapture fires lostpointercapture synchronously in some
-        // browsers.
-        draggedCardKey = '';
-        pointerDragState = null;
-
-        try {
-            if (card.hasPointerCapture?.(state.pointerId)) card.releasePointerCapture(state.pointerId);
-        } catch {}
-
-        card.classList.remove('npcb-dragging');
-        document.getElementById('rm_print_characters_block')?.classList.remove('npcb-reordering');
-        document.body?.classList.remove('npcb-character-dragging');
-        clearDropTargets();
-
-        if (state.dragging) suppressCardClickUntil = Date.now() + 350;
-    };
-
-    card.addEventListener('pointerdown', event => {
-        if (event.button !== 0 || isBulkMode()) return;
-        if (event.target.closest?.('button, input, select, textarea, a, label, .ch_fav_icon')) return;
-
-        const key = cardStableKey(card);
-        if (!key) return;
-
-        pointerDragState = {
-            card,
-            key,
-            pointerId: event.pointerId,
-            startX: event.clientX,
-            startY: event.clientY,
-            dragging: false,
-            order: currentVisualCardKeys(),
-            lastTargetKey: '',
-            lastAfter: false,
-        };
-
-        try { card.setPointerCapture?.(event.pointerId); } catch {}
-    });
-
-    card.addEventListener('pointermove', event => {
-        const state = pointerDragState;
-        if (!state || state.card !== card || state.pointerId !== event.pointerId) return;
-
-        const dx = event.clientX - state.startX;
-        const dy = event.clientY - state.startY;
-
-        if (!state.dragging) {
-            if (Math.hypot(dx, dy) < 8) return;
-            state.dragging = true;
-            draggedCardKey = state.key;
-            suppressCardClickUntil = Date.now() + 800;
-            card.classList.add('npcb-dragging');
-            document.getElementById('rm_print_characters_block')?.classList.add('npcb-reordering');
-            document.body?.classList.add('npcb-character-dragging');
-        }
-
-        event.preventDefault();
-
-        const hit = document.elementFromPoint(event.clientX, event.clientY);
-        const target = hit?.closest?.('#rm_print_characters_block .character_select');
-        if (!target || target === card) {
-            clearDropTargets();
-            return;
-        }
-
-        const targetKey = cardStableKey(target);
-        if (!targetKey || targetKey === state.key) return;
-
-        const rect = target.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2;
-        const centerY = rect.top + rect.height / 2;
-        const sameRow = Math.abs(event.clientY - centerY) < rect.height * 0.34;
-        const after = sameRow ? event.clientX > centerX : event.clientY > centerY;
-
-        clearDropTargets();
-        target.classList.add('npcb-drag-over');
-        target.classList.toggle('npcb-drop-after', after);
-
-        if (state.lastTargetKey === targetKey && state.lastAfter === after) return;
-        state.lastTargetKey = targetKey;
-        state.lastAfter = after;
-
-        const order = [...state.order];
-        const sourceIndex = order.indexOf(state.key);
-        const targetIndex = order.indexOf(targetKey);
-        if (sourceIndex < 0 || targetIndex < 0) return;
-
-        order.splice(sourceIndex, 1);
-        let insertIndex = order.indexOf(targetKey);
-        if (after) insertIndex += 1;
-        order.splice(insertIndex, 0, state.key);
-
-        state.order = order;
-        applyCharacterCardOrderList(order);
-    });
-
-    card.addEventListener('pointerup', event => {
-        const state = pointerDragState;
-        if (!state || state.card !== card || state.pointerId !== event.pointerId) return;
-        cancelPointerDrag({ save: state.dragging });
-    });
-
-    card.addEventListener('pointercancel', () => cancelPointerDrag({ save: false }));
-    card.addEventListener('lostpointercapture', () => {
-        if (pointerDragState?.card === card) cancelPointerDrag({ save: pointerDragState.dragging });
-    });
 }
 
 function avatarUrl(character, card = null) {
@@ -1077,6 +1115,10 @@ export function mountCharacterLibrary() {
     // click before SillyTavern or another extension can swallow it on document.
     window.addEventListener('click', handleWindowCharacterClick, true);
     window.addEventListener('keydown', handleWindowCharacterKeydown, true);
+    window.addEventListener('pointerdown', handleCharacterReorderPointerDown, true);
+    window.addEventListener('pointermove', handleCharacterReorderPointerMove, { capture: true, passive: false });
+    window.addEventListener('pointerup', handleCharacterReorderPointerUp, true);
+    window.addEventListener('pointercancel', () => finishPointerCardDrag({ save: false }), true);
 
     const ctx = currentContext();
     const events = ctx?.eventTypes || {};

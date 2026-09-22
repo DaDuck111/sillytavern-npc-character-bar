@@ -8575,3 +8575,296 @@ body.npcb-character-dragging * {
     left: auto;
     right: -5px;
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   v0.12.4 — native icon rail, genuinely wide drawers, drag ghost
+   ═══════════════════════════════════════════════════════════════ */
+
+/*
+ * Stop fighting SillyTavern's vertical geometry.
+ * Keep the native top-bar HEIGHT so the official TopInfoBar can own its own
+ * row, but make the icon rail itself wide across the viewport.
+ */
+#top-settings-holder.npcb-native-menu-rail {
+    width: min(94vw, 1500px) !important;
+    max-width: min(94vw, 1500px) !important;
+    height: var(--topBarBlockSize) !important;
+    min-height: var(--topBarBlockSize) !important;
+    margin: 0 auto !important;
+    padding: 2px 6px !important;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 5px !important;
+    overflow: visible !important;
+    scrollbar-width: none !important;
+}
+
+#top-settings-holder.npcb-native-menu-rail::-webkit-scrollbar {
+    display: none !important;
+}
+
+#top-settings-holder.npcb-native-menu-rail > .npcb-native-menu-tab {
+    flex: 1 1 0 !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    margin: 0 !important;
+}
+
+#top-settings-holder.npcb-native-menu-rail > .npcb-native-menu-tab > .npcb-native-menu-toggle {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: calc(var(--topBarBlockSize) - 4px) !important;
+    min-height: calc(var(--topBarBlockSize) - 4px) !important;
+    max-height: calc(var(--topBarBlockSize) - 4px) !important;
+    padding: 1px 3px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 8px !important;
+    overflow: hidden;
+}
+
+#top-settings-holder.npcb-native-menu-rail .npcb-native-menu-label {
+    display: none !important;
+}
+
+#top-settings-holder.npcb-native-menu-rail .npcb-native-menu-icon {
+    position: static !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: grid !important;
+    place-items: center !important;
+    font-size: clamp(21px, 1.7vw, 29px) !important;
+    line-height: 1 !important;
+}
+
+/* Let the official Extension-TopInfoBar use its own untouched flex-row rules. */
+body #extensionTopBar,
+body #extensionConnectionProfiles {
+    position: static !important;
+    inset: auto !important;
+    z-index: auto !important;
+    transform: none !important;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Large, wide INNER menus
+   Lorebook / WorldInfo intentionally excluded.
+   ────────────────────────────────────────────────────────────── */
+
+/* Center drawers */
+#top-settings-holder :is(
+    #rm_api_block,
+    #AdvancedFormatting,
+    #user-settings-block,
+    #rm_extensions_block,
+    #PersonaManagement
+).npcb-native-panel {
+    position: fixed !important;
+    top: var(--topBarBlockSize) !important;
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+    width: min(1120px, 88vw) !important;
+    max-width: calc(100vw - 24px) !important;
+    max-height: calc(100dvh - var(--topBarBlockSize) - 12px) !important;
+    margin: 0 !important;
+    border-radius: 14px !important;
+}
+
+/* Background chooser gets nearly the full screen. */
+#top-settings-holder #Backgrounds.npcb-native-panel {
+    position: fixed !important;
+    top: var(--topBarBlockSize) !important;
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+    width: min(1380px, 94vw) !important;
+    max-width: calc(100vw - 20px) !important;
+    max-height: calc(100dvh - var(--topBarBlockSize) - 10px) !important;
+    margin: 0 !important;
+    border-radius: 14px !important;
+}
+
+/* Generation stays a left drawer, but now has real working room. */
+#top-settings-holder #left-nav-panel.npcb-native-panel {
+    width: min(780px, 48vw) !important;
+    max-width: calc(100vw - 16px) !important;
+    left: 0 !important;
+    right: auto !important;
+}
+
+/* Characters stay a right drawer, but much wider. */
+#top-settings-holder #right-nav-panel.npcb-native-panel {
+    width: min(900px, 54vw) !important;
+    max-width: calc(100vw - 12px) !important;
+    left: auto !important;
+    right: 0 !important;
+}
+
+/* Roomier content spacing inside redesigned drawers. */
+#top-settings-holder :is(
+    #left-nav-panel,
+    #rm_api_block,
+    #AdvancedFormatting,
+    #user-settings-block,
+    #Backgrounds,
+    #rm_extensions_block,
+    #PersonaManagement,
+    #right-nav-panel
+).npcb-native-panel .npcb-native-panel-header {
+    padding: 10px 16px !important;
+}
+
+#top-settings-holder :is(
+    #rm_api_block,
+    #AdvancedFormatting,
+    #user-settings-block,
+    #rm_extensions_block,
+    #PersonaManagement
+).npcb-native-panel > :not(.npcb-native-panel-header) {
+    margin-left: 16px !important;
+    margin-right: 16px !important;
+}
+
+/* Narrow screens: still icon-only, still no scroll. */
+@media (max-width: 900px) {
+    #top-settings-holder.npcb-native-menu-rail {
+        width: 98vw !important;
+        max-width: 98vw !important;
+        padding-inline: 3px !important;
+        gap: 2px !important;
+        overflow: hidden !important;
+    }
+
+    #top-settings-holder.npcb-native-menu-rail > .npcb-native-menu-tab {
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+        max-width: none !important;
+    }
+
+    #top-settings-holder.npcb-native-menu-rail .npcb-native-menu-icon {
+        font-size: clamp(18px, 3.4vw, 24px) !important;
+    }
+
+    #top-settings-holder #left-nav-panel.npcb-native-panel,
+    #top-settings-holder #right-nav-panel.npcb-native-panel {
+        width: min(760px, 74vw) !important;
+        max-width: calc(100vw - 10px) !important;
+    }
+
+    #top-settings-holder :is(
+        #rm_api_block,
+        #AdvancedFormatting,
+        #user-settings-block,
+        #Backgrounds,
+        #rm_extensions_block,
+        #PersonaManagement
+    ).npcb-native-panel {
+        width: calc(100vw - 12px) !important;
+        max-width: calc(100vw - 12px) !important;
+    }
+}
+
+@media (max-width: 620px) {
+    #top-settings-holder #left-nav-panel.npcb-native-panel,
+    #top-settings-holder #right-nav-panel.npcb-native-panel {
+        width: calc(100vw - 8px) !important;
+        max-width: calc(100vw - 8px) !important;
+    }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Reliable character reorder ghost
+   ────────────────────────────────────────────────────────────── */
+
+#npcb-character-library-shell #rm_print_characters_block .character_select {
+    cursor: grab !important;
+}
+
+#npcb-character-library-shell #rm_print_characters_block .character_select:active {
+    cursor: grabbing !important;
+}
+
+.npcb-card-drag-ghost {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 2147483600;
+    width: 170px;
+    min-height: 74px;
+    padding: 8px 10px;
+    display: grid;
+    grid-template-columns: 54px minmax(0, 1fr);
+    align-items: center;
+    gap: 9px;
+    box-sizing: border-box;
+    border: 1px solid rgba(var(--npcb-accent-rgb), .58);
+    border-radius: 11px;
+    color: rgba(240, 252, 255, .96);
+    background:
+        radial-gradient(circle at 20% 0%, rgba(var(--npcb-accent-rgb), .13), transparent 50%),
+        rgba(5, 13, 18, .96);
+    box-shadow:
+        0 16px 38px rgba(0, 0, 0, .48),
+        0 0 0 2px rgba(var(--npcb-accent-rgb), .08);
+    pointer-events: none !important;
+    opacity: .94;
+    will-change: transform;
+}
+
+.npcb-card-drag-ghost-avatar,
+.npcb-card-drag-ghost-avatar img {
+    width: 54px;
+    height: 54px;
+    min-width: 54px;
+    border-radius: 9px;
+}
+
+.npcb-card-drag-ghost-avatar {
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    background: rgba(var(--npcb-accent-rgb), .06);
+}
+
+.npcb-card-drag-ghost-avatar img {
+    object-fit: cover;
+}
+
+.npcb-card-drag-ghost strong {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: 12px;
+}
+
+body.npcb-character-dragging {
+    user-select: none !important;
+}
+
+body.npcb-character-dragging,
+body.npcb-character-dragging * {
+    cursor: grabbing !important;
+}
+
+#npcb-character-library-shell #rm_print_characters_block .character_select.npcb-dragging {
+    opacity: .28 !important;
+    transform: scale(.97);
+    border-color: rgba(var(--npcb-accent-rgb), .55) !important;
+}
+
+#npcb-character-library-shell #rm_print_characters_block .character_select.npcb-drag-over {
+    border-color: rgba(var(--npcb-accent-rgb), .92) !important;
+    box-shadow:
+        0 0 0 2px rgba(var(--npcb-accent-rgb), .20),
+        0 10px 28px rgba(0, 0, 0, .32) !important;
+}
