@@ -86,7 +86,7 @@ async function boot() {
     refreshGameContext();
 
     window.NPCCharacterBar = {
-        version: '0.12.6',
+        version: '0.12.7',
         getState,
         addCharacter: async seed => { const c = await addCharacter(seed); renderBar(); renderDashboard(); return c; },
         updateCharacter: async (id, patch) => { const c = await updateCharacter(id, patch); renderBar(); renderDashboard(); return c; },
@@ -111,7 +111,7 @@ async function boot() {
     renderBar();
     renderDashboard();
     scheduleAutoTrack(1200);
-    console.info(`${TAG} v0.12.6 ready — persona list text wraps cleanly with compact cards and no horizontal overflow.`);
+    console.info(`${TAG} v0.12.7 ready — Persona workspace stays centered and fills half-screen layouts cleanly.`);
 }
 
 const timer = setInterval(() => {

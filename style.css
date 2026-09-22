@@ -9367,3 +9367,75 @@ body.npcb-character-dragging * {
 #PersonaManagement #user_avatar_block::-webkit-scrollbar:horizontal {
     height: 0 !important;
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   v0.12.7 — center Persona workspace on half-screen
+   ═══════════════════════════════════════════════════════════════ */
+
+/*
+ * Persona Management was being pushed to the left by the generic <=1100px
+ * drawer rule. Keep this workspace centered at every desktop/window width.
+ */
+#top-settings-holder #PersonaManagement.npcb-native-panel {
+    position: fixed !important;
+    left: 50vw !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+
+    width: min(1480px, calc(100dvw - 24px)) !important;
+    min-width: 0 !important;
+    max-width: calc(100dvw - 24px) !important;
+
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+/* Half-window / snapped-browser layout: use nearly all available width so the
+ * workspace does not leave a large useless strip on one side. */
+@media (max-width: 1100px) and (min-width: 761px) {
+    #top-settings-holder #PersonaManagement.npcb-native-panel {
+        left: 50vw !important;
+        right: auto !important;
+        transform: translateX(-50%) !important;
+
+        width: calc(100dvw - 20px) !important;
+        max-width: calc(100dvw - 20px) !important;
+        min-width: 0 !important;
+    }
+
+    #PersonaManagement > .flex-container.wide100p.alignitemscenter.spaceBetween.flexNoGap {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        padding-inline: 12px !important;
+    }
+
+    #PersonaManagement #persona-management-block {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        grid-template-columns: minmax(250px, 38%) minmax(0, 62%) !important;
+        gap: 12px !important;
+    }
+
+    #PersonaManagement .persona_management_left_column,
+    #PersonaManagement .persona_management_right_column {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+    }
+}
+
+/* Very narrow windows still stack vertically, but remain centered instead of
+ * becoming a left-anchored drawer. */
+@media (max-width: 760px) {
+    #top-settings-holder #PersonaManagement.npcb-native-panel {
+        left: 50vw !important;
+        right: auto !important;
+        transform: translateX(-50%) !important;
+        width: calc(100dvw - 10px) !important;
+        max-width: calc(100dvw - 10px) !important;
+        min-width: 0 !important;
+    }
+}
